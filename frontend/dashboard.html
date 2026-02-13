@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - GKI Bromo</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/id.js"></script>
+
+    <style>
+        /* Scrollbar kustom untuk Heatmap Horizontal */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex font-sans text-slate-800">
+
+    <aside class="w-64 bg-slate-900 text-white flex flex-col fixed h-full z-20 transition-transform -translate-x-full md:translate-x-0" id="sidebar">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <span class="text-2xl">🏛️</span>
+            <div>
+                <h1 class="font-bold text-lg leading-none">GKI Bromo</h1>
+                <span class="text-xs text-slate-500">Admin Panel v2.0</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="switchTab('overview')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-left transition-colors text-sky-400 bg-slate-800 font-semibold" id="btn-overview">
+                <span>📊</span> Ringkasan
+            </button>
+            <button onclick="switchTab('database')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-left transition-colors text-slate-300" id="btn-database">
+                <span>👥</span> Database Jemaat
+            </button>
+            <button onclick="switchTab('analytics')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-left transition-colors text-slate-300" id="btn-analytics">
+                <span>📈</span> Analisa Statistik
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800">
+            <a href="/" target="_blank" class="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl mb-3 font-semibold transition-all">
+                📸 Buka Kamera
+            </a>
+            <a href="/logout" class="flex items-center justify-center gap-2 text-red-400 hover:text-red-300 text-sm py-2">
+                Keluar
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto">
+        
+        <div class="md:hidden flex justify-between items-center mb-6">
+            <h1 class="font-bold text-xl">Dashboard</h1>
+            <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="p-2 bg-slate-200 rounded">☰</button>
+        </div>
+
+        <div id="overview" class="tab-content active">
+            <h2 class="text-2xl font-bold mb-6 text-slate-800">Ringkasan Hari Ini</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="p-3 bg-blue-100 text-blue-600 rounded-xl text-2xl">👥</div>
+                    <div>
+                        <p class="text-slate-500 text-sm font-medium">Total Terdaftar</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="stat-total-users">-</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="p-3 bg-emerald-100 text-emerald-600 rounded-xl text-2xl">✅</div>
+                    <div>
+                        <p class="text-slate-500 text-sm font-medium">Hadir Hari Ini</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="stat-present-today">-</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="p-3 bg-orange-100 text-orange-600 rounded-xl text-2xl">🆕</div>
+                    <div>
+                        <p class="text-slate-500 text-sm font-medium">Baru Daftar Hari Ini</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="stat-new-today">-</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-lg">📡 Aktivitas Terbaru</h3>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse">● Live</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th class="p-4">Waktu</th>
+                                <th class="p-4">Nama</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feed-table" class="divide-y divide-slate-100">
+                            </tbody>
+                    </table>
+                </div>
+                <div class="p-4 border-t border-slate-100 bg-slate-50 text-center">
+                    <button onclick="openAllLogsModal()" class="text-sky-600 hover:text-sky-800 font-semibold text-sm transition-colors">
+                        Lihat Semua Riwayat &rarr;
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="database" class="tab-content">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold text-slate-800">Database Jemaat</h2>
+                <a href="/register" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 whitespace-nowrap shadow-sm">
+                    + Tambah Anggota
+                </a>
+            </div>
+
+            <div class="bg-white p-4 rounded-t-2xl border border-slate-200 border-b-0 flex flex-col md:flex-row justify-between gap-4 items-center">
+                
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <input type="text" id="search-user" oninput="applyUserFilters()" placeholder="Cari nama..." class="bg-slate-50 border border-slate-300 px-4 py-2 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-sky-500">
+                    
+                    <select id="sort-user" onchange="applyUserFilters()" class="bg-slate-50 border border-slate-300 px-3 py-2 rounded-lg text-sm focus:outline-none cursor-pointer">
+                        <option value="name-asc">A - Z</option>
+                        <option value="name-desc">Z - A</option>
+                        <option value="freq-desc">Paling Sering Hadir</option>
+                        <option value="freq-asc">Paling Jarang Hadir</option>
+                        <option value="date-desc">Terbaru Didaftarkan</option>
+                        <option value="date-asc">Terlama Didaftarkan</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-slate-500">Tampilkan:</span>
+                    <select id="users-per-page" onchange="changeUsersLimit()" class="bg-slate-50 border border-slate-300 px-2 py-1.5 rounded-lg text-sm focus:outline-none cursor-pointer">
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-b-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-semibold text-xs tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="p-4">Nama Lengkap</th>
+                                <th class="p-4 text-center">Frekuensi</th>
+                                <th class="p-4 text-center">Terdaftar Sejak</th>
+                                <th class="p-4 text-right">Profil</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table" class="divide-y divide-slate-100">
+                            <tr><td colspan="4" class="p-8 text-center text-slate-400">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <span id="users-page-info" class="text-sm text-slate-500">Menampilkan ...</span>
+                    <div class="flex gap-2">
+                        <button onclick="prevUsersPage()" id="btn-prev-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">&larr; Prev</button>
+                        <button onclick="nextUsersPage()" id="btn-next-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Next &rarr;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="analytics" class="tab-content">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    📈 Analisa & Statistik
+                </h2>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="downloadExcelToday()" class="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-teal-500/30 transition-all">
+                        📥 Hari Ini
+                    </button>
+                    <button onclick="downloadExcel()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-emerald-500/30 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export Excel
+                    </button>
+
+                    <div class="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-300 shadow-sm hover:shadow-md transition-shadow">
+                        <span class="text-xs text-slate-500 font-semibold pl-2">Filter:</span>
+                        <select id="time-filter" onchange="loadAnalytics(this.value)" class="bg-transparent text-sm font-semibold text-slate-700 py-1 px-2 focus:outline-none cursor-pointer">
+                            <option value="7d">7 Hari Terakhir</option>
+                            <option value="30d" selected>30 Hari Terakhir</option>
+                            <option value="90d">3 Bulan Terakhir</option>
+                            <option value="all">Semua Waktu</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+                    <p class="text-indigo-100 text-sm font-medium mb-1">Rata-rata Kehadiran</p>
+                    <div class="flex items-end gap-2">
+                        <h3 class="text-4xl font-bold" id="stat-avg">0</h3>
+                        <span class="text-sm text-indigo-200 mb-1">orang / pertemuan</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold text-slate-500 mb-4">⏰ Jam Tersibuk (Peak Time)</h3>
+                    <div class="h-24">
+                         <canvas id="peakChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+                <h3 class="font-bold text-slate-700 mb-4">Grafik Tren Kehadiran</h3>
+                <div class="h-64">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 w-full">
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    🔥 Heatmap Kalender Harian 
+                    <span class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Geser untuk melihat hari lain</span>
+                </h3>
+                
+                <div class="overflow-x-auto pt-5 pb-6 custom-scrollbar">
+                    <div id="global-heatmap" class="flex gap-3 min-w-max px-2">
+                        </div>
+                </div>
+
+                <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-400 font-semibold justify-end">
+                    <span>Sepi</span>
+                    <div class="w-4 h-4 bg-slate-50 border border-slate-200 rounded-sm"></div>
+                    <div class="w-4 h-4 bg-emerald-200 rounded-sm"></div>
+                    <div class="w-4 h-4 bg-emerald-400 rounded-sm"></div>
+                    <div class="w-4 h-4 bg-emerald-600 rounded-sm"></div>
+                    <span>Sangat Ramai</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-red-100 relative overflow-hidden flex flex-col">
+                    <div class="absolute top-0 right-0 p-4 opacity-5 text-9xl text-red-500 pointer-events-none">🚨</div>
+                    
+                    <div class="flex justify-between items-center mb-1 relative z-10">
+                        <h3 class="font-bold text-red-600 flex items-center gap-2">⚠️ Perhatian (At-Risk)</h3>
+                        <select id="at-risk-filter" onchange="loadAnalytics()" class="text-xs border border-red-200 rounded p-1 bg-red-50 text-red-700 outline-none cursor-pointer shadow-sm">
+                            <option value="14">Lewat 14 Hari</option>
+                            <option value="30" selected>Lewat 30 Hari</option>
+                            <option value="90">Lewat 90 Hari</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between items-center mb-4 relative z-10">
+                        <p class="text-xs text-slate-500">Jemaat yang lama tidak hadir.</p>
+                        <button onclick="openAtRiskModal()" class="text-xs text-red-600 font-bold hover:underline">Lihat Semua &rarr;</button>
+                    </div>
+
+                    <ul id="at-risk-list" class="space-y-3 flex-1"></ul>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-700">🏆 Jemaat Paling Rajin</h3>
+                        <button onclick="openTopUsersModal()" class="text-xs text-sky-600 font-bold hover:underline">Lihat Semua &rarr;</button>
+                    </div>
+                    <ul id="top-users-list" class="space-y-3 flex-1"></ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit Data Jemaat</h3>
+            <form onsubmit="saveEditUser(event)">
+                <input type="hidden" id="edit-id">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nama Lengkap</label>
+                    <input type="text" id="edit-name" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">No. HP</label>
+                    <input type="text" id="edit-phone" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-500">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="all-logs-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-4xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Riwayat Absensi Lengkap</h3>
+                    <p class="text-sm text-slate-500">Semua rekam jejak kehadiran jemaat.</p>
+                </div>
+                <button onclick="closeAllLogsModal()" class="text-slate-400 hover:text-red-500 text-3xl leading-none transition-colors">&times;</button>
+            </div>
+
+            <div class="flex justify-between items-center mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-slate-600 font-medium">Tampilkan:</span>
+                    <select id="logs-per-page" onchange="changeLogsPerPage()" class="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none cursor-pointer">
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+                    </select>
+                    <span class="text-sm text-slate-600">baris</span>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto flex-1 border border-slate-200 rounded-xl shadow-inner">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-600 sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="p-4 border-b">Waktu (WIB)</th>
+                            <th class="p-4 border-b">Nama Lengkap</th>
+                            <th class="p-4 border-b">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="all-logs-tbody" class="divide-y divide-slate-100 bg-white">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                <span id="logs-page-info" class="text-sm text-slate-600 font-medium bg-slate-100 px-3 py-1 rounded-full">Menampilkan ...</span>
+                <div class="flex gap-2">
+                    <button onclick="prevLogsPage()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-semibold disabled:opacity-50" id="btn-prev-logs">&larr; Sebelumnya</button>
+                    <button onclick="nextLogsPage()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-semibold disabled:opacity-50" id="btn-next-logs">Selanjutnya &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-6 text-white relative">
+                <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-white/70 hover:text-white text-2xl leading-none">&times;</button>
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold backdrop-blur-md" id="profile-initial">J</div>
+                    <div>
+                        <h3 class="text-2xl font-bold" id="profile-name">Nama Jemaat</h3>
+                        <p class="text-sky-100 text-sm flex items-center gap-1 mt-1">
+                            <span>📞</span> <span id="profile-phone">0812...</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 overflow-y-auto">
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                        <p class="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Total Hadir</p>
+                        <p class="text-2xl font-black text-emerald-600" id="profile-total-attend">0<span class="text-sm font-normal text-slate-400">x</span></p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                        <p class="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Terdaftar Sejak</p>
+                        <p class="text-lg font-bold text-slate-700 mt-1" id="profile-join-date">-</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <h4 class="font-bold text-slate-700 text-sm flex items-center gap-2">📅 Kalender Kehadiran</h4>
+                        <div class="flex items-center gap-2 bg-slate-100 rounded-lg p-1 border border-slate-200">
+                            <button onclick="prevCalMonth()" class="w-7 h-7 flex items-center justify-center hover:bg-white rounded text-slate-600 shadow-sm transition-all">&larr;</button>
+                            <span id="calendar-month-year" class="text-xs font-bold text-slate-700 min-w-[70px] text-center uppercase tracking-wide">FEB 2026</span>
+                            <button onclick="nextCalMonth()" class="w-7 h-7 flex items-center justify-center hover:bg-white rounded text-slate-600 shadow-sm transition-all">&rarr;</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-slate-400 mb-2 uppercase tracking-wider">
+                            <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+                        </div>
+                        <div id="calendar-grid" class="grid grid-cols-7 gap-2">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4 border-t border-slate-100">
+                    <button id="btn-open-edit" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl transition-colors text-sm">✏️ Edit Data</button>
+                    <button id="btn-delete-user" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2.5 rounded-xl transition-colors text-sm">🗑️ Hapus Jemaat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="top-users-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">🏆 Leaderboard Kehadiran</h3>
+                <button onclick="document.getElementById('top-users-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto pr-2">
+                <ul id="full-top-users-list" class="space-y-2"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="at-risk-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-red-600">⚠️ Jemaat Perlu Perhatian</h3>
+                <button onclick="document.getElementById('at-risk-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto pr-2">
+                <ul id="full-at-risk-list" class="space-y-2"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="daily-detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transform transition-all">
+            
+            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white relative">
+                <button onclick="closeDailyDetail()" class="absolute top-4 right-4 text-white/70 hover:text-white text-3xl leading-none transition-colors">&times;</button>
+                <h3 class="text-2xl font-bold flex items-center gap-2">
+                    <span>📅</span> Daftar Hadir Harian
+                </h3>
+                <p class="text-emerald-100 text-sm mt-1" id="daily-detail-subtitle">Memuat tanggal...</p>
+            </div>
+
+            <div class="p-6 flex-1 flex flex-col overflow-hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                    <input type="text" id="search-daily" oninput="applyDailyFilter()" placeholder="Cari nama jemaat..." class="bg-slate-50 border border-slate-300 px-4 py-2 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                    
+                    <div class="flex items-center gap-2">
+                        
+                        <button onclick="downloadExcelSpecificDate()" id="btn-export-daily" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1 shadow-sm">
+                            📥 Export Excel
+                        </button>
+                        
+                        <span class="text-sm text-slate-500 font-medium ml-2 border-l border-slate-300 pl-3">Tampilkan:</span>
+                        
+                        <select id="limit-daily" onchange="applyDailyFilter()" class="bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                        </select>
+
+                    </div>
+                </div>
+
+                <div class="overflow-y-auto border border-slate-200 rounded-xl flex-1 custom-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600 sticky top-0 shadow-sm z-10">
+                            <tr>
+                                <th class="p-4 border-b">Waktu Datang</th>
+                                <th class="p-4 border-b">Nama Jemaat</th>
+                                <th class="p-4 border-b">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-tbody" class="divide-y divide-slate-100 bg-white">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+                    <span id="daily-page-info" class="text-sm text-slate-500 font-medium">Menampilkan ...</span>
+                    <div class="flex gap-2">
+                        <button onclick="prevDailyPage()" id="btn-prev-daily" class="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-semibold disabled:opacity-50 transition-all">&larr; Prev</button>
+                        <button onclick="nextDailyPage()" id="btn-next-daily" class="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-semibold disabled:opacity-50 transition-all">Next &rarr;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        moment.locale('id'); 
+        let allUsers = []; 
+        let attendanceChartInstance = null;
+        let peakChartInstance = null;
+
+        // Navigasi Tab
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('text-sky-400', 'bg-slate-800', 'font-semibold');
+                el.classList.add('text-slate-300');
+            });
+            document.getElementById('btn-' + tabId).classList.add('text-sky-400', 'bg-slate-800', 'font-semibold');
+            document.getElementById('btn-' + tabId).classList.remove('text-slate-300');
+
+            if (tabId === 'overview') loadOverview();
+            if (tabId === 'database') loadDatabase();
+            if (tabId === 'analytics') loadAnalytics(document.getElementById('time-filter').value);
+        }
+
+        // --- 1. OVERVIEW ---
+        async function loadOverview() {
+            try {
+                const res = await fetch('/api/dashboard-stats');
+                const data = await res.json();
+                
+                document.getElementById('stat-total-users').innerText = data.total_users;
+                document.getElementById('stat-present-today').innerText = data.present_today;
+                document.getElementById('stat-new-today').innerText = data.new_users_today;
+
+                const tbody = document.getElementById('feed-table');
+                tbody.innerHTML = '';
+                if(data.recent_logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada absensi hari ini.</td></tr>';
+                }
+                data.recent_logs.forEach(log => {
+                    const time = moment(log.timestamp).format('HH:mm');
+                    const relative = moment(log.timestamp).fromNow();
+                    const name = log.users ? log.users.full_name : 'User Dihapus';
+                    
+                    const statusClass = log.status.includes('Baru') 
+                        ? 'bg-sky-100 text-sky-700' 
+                        : 'bg-emerald-100 text-emerald-700';
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="p-4 text-slate-600 font-mono text-xs">
+                                <span class="font-bold text-slate-800 text-sm">${time}</span><br>${relative}
+                            </td>
+                            <td class="p-4 font-semibold text-slate-700">${name}</td>
+                            <td class="p-4"><span class="${statusClass} px-2 py-1 rounded text-xs font-bold">${log.status}</span></td>
+                            <td class="p-4 text-right">
+                                <button onclick="deleteLog(${log.id})" class="text-red-400 hover:text-red-600" title="Hapus Log">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        // --- 1.B VIEW ALL LOGS (PAGINATION) ---
+        let globalAllLogs = [];
+        let currentLogsPage = 1;
+        let logsPerPage = 20;
+
+        async function openAllLogsModal() {
+            document.getElementById('all-logs-modal').classList.remove('hidden');
+            document.getElementById('all-logs-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">⏳ Mengambil data dari server...</td></tr>';
+            try {
+                const res = await fetch('/api/all-logs');
+                const data = await res.json();
+                if(data.status === 'success') {
+                    globalAllLogs = data.data;
+                    currentLogsPage = 1; 
+                    renderLogsTable();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function closeAllLogsModal() { document.getElementById('all-logs-modal').classList.add('hidden'); }
+        function changeLogsPerPage() { logsPerPage = parseInt(document.getElementById('logs-per-page').value); currentLogsPage = 1; renderLogsTable(); }
+        function prevLogsPage() { if(currentLogsPage > 1) { currentLogsPage--; renderLogsTable(); } }
+        function nextLogsPage() { const t = Math.ceil(globalAllLogs.length/logsPerPage); if(currentLogsPage < t) { currentLogsPage++; renderLogsTable(); } }
+
+        function renderLogsTable() {
+            const tbody = document.getElementById('all-logs-tbody');
+            tbody.innerHTML = '';
+            const totalLogs = globalAllLogs.length;
+            const totalPages = Math.ceil(totalLogs / logsPerPage);
+
+            if(currentLogsPage < 1) currentLogsPage = 1;
+            if(currentLogsPage > totalPages && totalPages > 0) currentLogsPage = totalPages;
+
+            const startIdx = (currentLogsPage - 1) * logsPerPage;
+            const endIdx = Math.min(startIdx + logsPerPage, totalLogs);
+            const pageLogs = globalAllLogs.slice(startIdx, endIdx);
+
+            if(pageLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">Tidak ada riwayat absensi.</td></tr>';
+            } else {
+                pageLogs.forEach(log => {
+                    const time = moment(log.timestamp).format('DD MMM YYYY, HH:mm:ss');
+                    const name = log.users ? log.users.full_name : '<span class="text-red-400 italic">Dihapus</span>';
+                    const sClass = log.status.includes('Baru') ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700';
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-4 text-slate-600 font-mono text-xs whitespace-nowrap">${time}</td>
+                            <td class="p-4 font-semibold text-slate-800">${name}</td>
+                            <td class="p-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${sClass}">${log.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+            document.getElementById('logs-page-info').innerText = totalLogs > 0 ? `Menampilkan ${startIdx + 1} - ${endIdx} dari ${totalLogs} total riwayat` : 'Tidak ada riwayat';
+            document.getElementById('btn-prev-logs').disabled = currentLogsPage === 1;
+            document.getElementById('btn-next-logs').disabled = currentLogsPage === totalPages || totalPages === 0;
+        }
+
+        // --- 2. DATABASE (DENGAN FILTER, SORTING, PAGINATION & PROFIL) ---
+        let globalUsersData = []; // Data asli
+        let filteredUsers = [];   // Data yang sudah di-search & sort
+        let currentUsersPage = 1;
+        let usersPerPage = 20;
+
+        async function loadDatabase() {
+            try {
+                const res = await fetch('/api/users');
+                globalUsersData = await res.json();
+                applyUserFilters(); // Terapkan filter & render
+            } catch (e) { console.error(e); }
+        }
+
+        // Fungsi Utama untuk Filter & Sorting
+        function applyUserFilters() {
+            const searchTerm = document.getElementById('search-user').value.toLowerCase();
+            const sortMode = document.getElementById('sort-user').value;
+
+            // 1. Filter by Search
+            filteredUsers = globalUsersData.filter(u => u.full_name.toLowerCase().includes(searchTerm));
+
+            // 2. Sort Data
+            filteredUsers.sort((a, b) => {
+                if (sortMode === 'name-asc') return a.full_name.localeCompare(b.full_name);
+                if (sortMode === 'name-desc') return b.full_name.localeCompare(a.full_name);
+                if (sortMode === 'freq-desc') return b.attendance_count - a.attendance_count;
+                if (sortMode === 'freq-asc') return a.attendance_count - b.attendance_count;
+                if (sortMode === 'date-desc') return new Date(b.created_at) - new Date(a.created_at);
+                if (sortMode === 'date-asc') return new Date(a.created_at) - new Date(b.created_at);
+                return 0;
+            });
+
+            currentUsersPage = 1; // Reset ke halaman 1
+            renderUsersTable();
+        }
+
+        function changeUsersLimit() {
+            usersPerPage = parseInt(document.getElementById('users-per-page').value);
+            currentUsersPage = 1;
+            renderUsersTable();
+        }
+
+        // Logic Pagination
+        function prevUsersPage() { if(currentUsersPage > 1) { currentUsersPage--; renderUsersTable(); } }
+        function nextUsersPage() { const t = Math.ceil(filteredUsers.length/usersPerPage); if(currentUsersPage < t) { currentUsersPage++; renderUsersTable(); } }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-table');
+            tbody.innerHTML = '';
+            
+            const total = filteredUsers.length;
+            const totalPages = Math.ceil(total / usersPerPage);
+            if(currentUsersPage < 1) currentUsersPage = 1;
+            if(currentUsersPage > totalPages && totalPages > 0) currentUsersPage = totalPages;
+
+            const startIdx = (currentUsersPage - 1) * usersPerPage;
+            const endIdx = Math.min(startIdx + usersPerPage, total);
+            const pageData = filteredUsers.slice(startIdx, endIdx);
+
+            if(pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Tidak ada data jemaat yang cocok.</td></tr>';
+            } else {
+                pageData.forEach(user => {
+                    const joinDate = moment(user.created_at).format('D MMM YYYY');
+                    const freqBadge = user.attendance_count > 0 
+                        ? `<span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${user.attendance_count}x</span>`
+                        : `<span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-xs font-bold">0x</span>`;
+
+                    // Hindari tanda kutip tunggal merusak onClick dengan stringify data
+                    const userDataStr = encodeURIComponent(JSON.stringify(user));
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                            <td class="p-4 font-semibold text-slate-800">${user.full_name}</td>
+                            <td class="p-4 text-center">${freqBadge}</td>
+                            <td class="p-4 text-center text-slate-500 text-xs">${joinDate}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="openProfileModal('${userDataStr}')" class="bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white border border-sky-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                                    Detail Profil
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            document.getElementById('users-page-info').innerText = total > 0 ? `Menampilkan ${startIdx + 1} - ${endIdx} dari ${total} Jemaat` : 'Data Kosong';
+            document.getElementById('btn-prev-users').disabled = currentUsersPage === 1;
+            document.getElementById('btn-next-users').disabled = currentUsersPage === totalPages || totalPages === 0;
+        }
+
+        // --- LOGIC PROFIL & KALENDER INTERAKTIF ---
+        let currentCalDate = moment();
+        let currentUserAttendedDates = new Set();
+
+        async function openProfileModal(userDataEncoded) {
+            const user = JSON.parse(decodeURIComponent(userDataEncoded));
+            
+            // Set Info Dasar
+            document.getElementById('profile-initial').innerText = user.full_name.charAt(0).toUpperCase();
+            document.getElementById('profile-name').innerText = user.full_name;
+            document.getElementById('profile-phone').innerText = user.phone_number;
+            document.getElementById('profile-join-date').innerText = moment(user.created_at).format('DD MMM YYYY');
+            
+            // Tampilan Loading Awal
+            document.getElementById('profile-total-attend').innerHTML = `<span class="text-xs text-slate-400">Loading...</span>`;
+            document.getElementById('calendar-grid').innerHTML = '<div class="col-span-7 text-center text-xs text-slate-400 py-6">Memuat kalender...</div>';
+            
+            // Set Tombol Action
+            document.getElementById('btn-open-edit').onclick = () => { closeProfileModal(); openEditModal(user.id, user.full_name, user.phone_number); };
+            document.getElementById('btn-delete-user').onclick = () => { closeProfileModal(); deleteUser(user.id, user.full_name); };
+
+            document.getElementById('profile-modal').classList.remove('hidden');
+
+            try {
+                // Fetch Riwayat khusus user ini
+                const res = await fetch(`/api/users/${user.id}/history`);
+                const historyData = await res.json();
+                
+                if (historyData.status === 'success') {
+                    const logs = historyData.data;
+                    
+                    // Total hadir tidak lagi mengandalkan dari tabel user (Bebas error "undefined")
+                    // Kita hitung langsung dari jumlah riwayat sesungguhnya!
+                    document.getElementById('profile-total-attend').innerHTML = `${logs.length}<span class="text-sm font-normal text-slate-400 ml-1">x</span>`;
+                    
+                    // Simpan semua tanggal hadir ke dalam format YYYY-MM-DD
+                    currentUserAttendedDates = new Set(logs.map(log => log.timestamp.substring(0, 10)));
+                    
+                    currentCalDate = moment(); // Selalu mulai dari bulan ini saat modal dibuka
+                    renderCalendar();
+                } else {
+                    throw new Error("Gagal mengambil history");
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('calendar-grid').innerHTML = '<div class="col-span-7 text-center text-xs text-red-400 py-6">Gagal memuat aktivitas.</div>';
+                document.getElementById('profile-total-attend').innerHTML = `-`;
+            }
+        }
+
+        function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            document.getElementById('calendar-month-year').innerText = currentCalDate.format('MMM YYYY');
+            
+            const startOfMonth = currentCalDate.clone().startOf('month');
+            const daysInMonth = currentCalDate.daysInMonth();
+            const startDayOfWeek = startOfMonth.day(); // 0 = Minggu, 6 = Sabtu
+            
+            // Bikin kotak kosong untuk tanggal sebelum tanggal 1
+            for(let i = 0; i < startDayOfWeek; i++) {
+                grid.innerHTML += `<div class="aspect-square"></div>`;
+            }
+            
+            // Loop cetak tanggal 1 sampai akhir bulan
+            for(let d = 1; d <= daysInMonth; d++) {
+                const dateStr = currentCalDate.clone().date(d).format('YYYY-MM-DD');
+                const isToday = dateStr === moment().format('YYYY-MM-DD');
+                const hasAttended = currentUserAttendedDates.has(dateStr);
+                
+                let bgClass = 'bg-white border border-slate-200 text-slate-600'; // Default tanggal biasa
+                
+                // Prioritas Warna
+                if (hasAttended) {
+                    bgClass = 'bg-emerald-500 text-white font-bold shadow-md border-emerald-600 scale-105 transform transition-transform'; // Hijau menyala
+                } else if (isToday) {
+                    bgClass = 'bg-sky-50 border-sky-300 text-sky-700 font-bold'; // Biru muda untuk hari ini
+                }
+                
+                grid.innerHTML += `
+                    <div class="aspect-square rounded flex items-center justify-center text-xs cursor-default ${bgClass}">
+                        ${d}
+                    </div>
+                `;
+            }
+        }
+
+        function prevCalMonth() { currentCalDate.subtract(1, 'months'); renderCalendar(); }
+        function nextCalMonth() { currentCalDate.add(1, 'months'); renderCalendar(); }
+
+        // Modal Edit & Delete (Tetap sama seperti yang lama, hanya ganti pemanggilan update)
+        function deleteUser(id, name) {
+            Swal.fire({ title: `Hapus ${name}?`, text: "Menghapus user ini akan MENGHAPUS SEMUA HISTORY KEHADIRANNYA.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus Permanen' })
+            .then(async (result) => {
+                if (result.isConfirmed) { await fetch(`/api/users/${id}`, { method: 'DELETE' }); loadDatabase(); loadOverview(); Swal.fire('Terhapus!', '', 'success'); }
+            });
+        }
+
+        function openEditModal(id, name, phone) {
+            document.getElementById('edit-id').value = id; document.getElementById('edit-name').value = name;
+            document.getElementById('edit-phone').value = phone; document.getElementById('edit-modal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+
+        async function saveEditUser(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value; const name = document.getElementById('edit-name').value; const phone = document.getElementById('edit-phone').value;
+            Swal.fire({ title: 'Simpan Perubahan?', showCancelButton: true, confirmButtonText: 'Simpan' }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await fetch(`/api/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ full_name: name, phone_number: phone }) });
+                    closeModal(); loadDatabase(); Swal.fire('Berhasil!', '', 'success');
+                }
+            });
+        }
+
+        // --- 3. ANALYTICS ---
+        // --- 3. ANALYTICS (DENGAN DINAMIS AT-RISK & HEATMAP) ---
+        let globalAnalyticsData = null; // Simpan data untuk Modal
+
+        async function loadAnalytics() {
+            try {
+                // Ambil Nilai Filter
+                const filter_type = document.getElementById('time-filter').value;
+                const at_risk_days = document.getElementById('at-risk-filter').value;
+
+                document.getElementById('stat-avg').innerText = "...";
+                
+                // Kirim param filter & at_risk ke Backend
+                const res = await fetch(`/api/analytics?filter_type=${filter_type}&at_risk_days=${at_risk_days}`);
+                const data = await res.json();
+                if(data.status === 'error') { console.error(data.message); return; }
+
+                globalAnalyticsData = data; // Simpan ke global
+                document.getElementById('stat-avg').innerText = data.avg_attendance;
+
+                // --- 1. RENDER GRAFIK GARIS & BAR ---
+                const ctxTrend = document.getElementById('attendanceChart').getContext('2d');
+                if (attendanceChartInstance) attendanceChartInstance.destroy();
+                attendanceChartInstance = new Chart(ctxTrend, {
+                    type: 'line',
+                    data: {
+                        labels: data.trend.labels.map(d => moment(d).format('D MMM')), 
+                        datasets: [{ label: 'Jemaat Hadir', data: data.trend.data, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderWidth: 3, fill: true, tension: 0.4 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                });
+
+                const ctxPeak = document.getElementById('peakChart').getContext('2d');
+                if (peakChartInstance) peakChartInstance.destroy();
+                const sortedHours = Object.keys(data.peak_time).sort();
+                const peakCounts = sortedHours.map(h => data.peak_time[h]);
+                peakChartInstance = new Chart(ctxPeak, {
+                    type: 'bar',
+                    data: { labels: sortedHours, datasets: [{ label: 'Orang', data: peakCounts, backgroundColor: '#f59e0b', borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } }
+                });
+
+                // --- 2. RENDER GLOBAL HEATMAP (Kalender Style) ---
+                const heatmapWrapper = document.getElementById('global-heatmap');
+                heatmapWrapper.innerHTML = '';
+                const maxHadir = Math.max(...data.trend.data, 1);
+
+                data.trend.labels.forEach((dateStr, index) => {
+                    const count = data.trend.data[index];
+                    const momentDate = moment(dateStr);
+                    const dayName = momentDate.format('ddd'); // Contoh: Sen, Sel, Rab
+                    const dateNum = momentDate.format('DD');  // Contoh: 15
+                    const monthName = momentDate.format('MMM'); // Contoh: Feb
+                    const isToday = dateStr === moment().format('YYYY-MM-DD');
+
+                    let bgClass = 'bg-slate-50 border border-slate-200 text-slate-500'; // Styling kalau sepi/kosong
+                    let textClass = 'text-slate-500';
+                    let countElement = `<span class="text-[10px] mt-1 font-semibold opacity-40">-</span>`;
+                    let highlightToday = isToday ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-sky-500 rounded-full border-2 border-white"></div>' : '';
+
+                    // Jika ada yang hadir, ubah warnanya
+                    if (count > 0) {
+                        const ratio = count / maxHadir;
+                        textClass = 'text-white shadow-sm';
+                        
+                        // Gradasi warna hijau berdasarkan keramaian
+                        if(ratio > 0.75) bgClass = 'bg-emerald-600 border-emerald-700';
+                        else if(ratio > 0.4) bgClass = 'bg-emerald-400 border-emerald-500';
+                        else {
+                            bgClass = 'bg-emerald-200 border-emerald-300';
+                            textClass = 'text-emerald-900'; // Biar teks tetap terbaca di background terang
+                        }
+
+                        countElement = `<span class="text-[10px] font-bold mt-1 bg-white/20 px-2 py-0.5 rounded backdrop-blur-sm shadow-inner">${count} org</span>`;
+                    }
+
+                    // (Lanjutan logic warna heatmap...)
+                    
+                    // PERUBAHAN DI SINI: Jika count > 0, buat kursor jadi telunjuk dan beri fungsi onclick
+                    const interactiveClass = count > 0 ? 'cursor-pointer hover:-translate-y-2 hover:shadow-xl hover:ring-2 hover:ring-emerald-300 hover:z-10' : 'cursor-default opacity-80';
+                    const onClickAction = count > 0 ? `onclick="openDailyDetail('${dateStr}')"` : '';
+
+                    heatmapWrapper.innerHTML += `
+                        <div ${onClickAction} class="flex flex-col items-center justify-center min-w-[70px] p-2 rounded-xl transition-all transform relative ${bgClass} ${textClass} ${interactiveClass}">
+                            ${highlightToday}
+                            <span class="text-[10px] uppercase font-bold tracking-wider opacity-80">${dayName}</span>
+                            <span class="text-xl font-black leading-none my-1">${dateNum}</span>
+                            <span class="text-[9px] font-medium uppercase tracking-widest opacity-80">${monthName}</span>
+                            ${countElement}
+                        </div>
+                    `;
+                });
+                
+                // Otomatis scroll ke ujung kanan (tanggal hari ini)
+                setTimeout(() => {
+                    const scrollContainer = document.querySelector('.custom-scrollbar');
+                    scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+                }, 100);
+
+                // --- 3. RENDER KARTU (Hanya top 5) ---
+                renderTopUsersCard(data.top_users.slice(0, 5));
+                renderAtRiskCard(data.at_risk.slice(0, 5));
+
+            } catch (e) { console.error(e); }
+        }
+
+        // Helper Render Kartu Dashboard
+        function renderTopUsersCard(users) {
+            const list = document.getElementById('top-users-list');
+            list.innerHTML = '';
+            if(users.length === 0) { list.innerHTML = '<li class="text-slate-400 text-sm text-center">Belum ada data.</li>'; return; }
+            users.forEach((u, i) => {
+                let medal = '🏅'; if(i===0) medal = '🥇'; if(i===1) medal = '🥈'; if(i===2) medal = '🥉';
+                list.innerHTML += `<li class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div class="flex items-center gap-3"><span class="text-xl w-6 text-center">${medal}</span><span class="font-semibold text-slate-700">${u.name}</span></div>
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${u.count}x Hadir</span></li>`;
+            });
+        }
+
+        function renderAtRiskCard(users) {
+            const list = document.getElementById('at-risk-list');
+            list.innerHTML = '';
+            if (users.length === 0) { list.innerHTML = '<li class="text-center text-slate-400 text-sm py-4">Semua jemaat aktif.</li>'; return; }
+            users.forEach(u => {
+                const daysText = u.days_absent === 999 ? 'Belum pernah hadir' : `${u.days_absent} hari absen`;
+                list.innerHTML += `<li class="flex items-center justify-between bg-red-50 p-3 rounded-lg border border-red-100">
+                    <div><div class="font-bold text-slate-700 truncate w-32 md:w-auto">${u.name}</div><div class="text-xs text-red-500 font-semibold">⚠️ ${daysText}</div></div>
+                    <a href="https://wa.me/${u.phone}" target="_blank" class="bg-white text-green-600 px-2 py-1 rounded border border-green-200 text-xs font-bold hover:bg-green-50 shadow-sm flex items-center gap-1"><span>📞</span> WA</a></li>`;
+            });
+        }
+
+        // --- 4. RENDER MODAL FULL LIST ---
+        function openTopUsersModal() {
+            const list = document.getElementById('full-top-users-list');
+            list.innerHTML = '';
+            globalAnalyticsData.top_users.forEach((u, i) => {
+                list.innerHTML += `<li class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div class="flex items-center gap-3"><span class="text-slate-400 font-bold w-6 text-center">#${i+1}</span><span class="font-semibold text-slate-700">${u.name}</span></div>
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-sm font-bold">${u.count}x</span></li>`;
+            });
+            document.getElementById('top-users-modal').classList.remove('hidden');
+        }
+
+        function openAtRiskModal() {
+            const list = document.getElementById('full-at-risk-list');
+            list.innerHTML = '';
+            globalAnalyticsData.at_risk.forEach((u) => {
+                const daysText = u.days_absent === 999 ? 'Belum pernah' : `${u.days_absent} hari`;
+                list.innerHTML += `<li class="flex items-center justify-between bg-red-50 p-3 rounded-lg border border-red-100">
+                    <div><div class="font-bold text-slate-700">${u.name}</div><div class="text-xs text-red-500 font-semibold">⚠️ ${daysText}</div></div>
+                    <a href="https://wa.me/${u.phone}" target="_blank" class="bg-white text-green-600 px-3 py-1 rounded border border-green-200 text-sm font-bold hover:bg-green-50 shadow-sm">Hubungi</a></li>`;
+            });
+            document.getElementById('at-risk-modal').classList.remove('hidden');
+        }
+
+        function downloadExcel() {
+            const filterVal = document.getElementById('time-filter').value;
+            const btn = document.querySelector('button[onclick="downloadExcel()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Downloading...'; btn.disabled = true;
+            window.location.href = `/api/export-excel?filter_type=${filterVal}`;
+            setTimeout(() => {
+                btn.innerHTML = originalText; btn.disabled = false;
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Laporan diunduh', showConfirmButton: false, timer: 3000 });
+            }, 2000);
+        }
+
+        // --- LOGIC EXCEL CEPAT (HARI INI & PER TANGGAL) ---
+        function triggerDailyExport(dateStr) {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Menyiapkan Excel...', showConfirmButton: false, timer: 1500 });
+            window.location.href = `/api/export-excel/date/${dateStr}`;
+        }
+
+        function downloadExcelToday() {
+            const todayStr = moment().format('YYYY-MM-DD');
+            triggerDailyExport(todayStr);
+        }
+
+        function downloadExcelSpecificDate() {
+            if(!currentDailyDateStr) return;
+            triggerDailyExport(currentDailyDateStr);
+        }
+
+        // INIT
+        loadOverview();
+        setInterval(() => { if(document.getElementById('overview').classList.contains('active')) loadOverview(); }, 30000);
+
+        // --- 5. LOGIC DETAIL KEHADIRAN HARIAN (DRILL-DOWN) ---
+        let dailyRawData = [];
+        let dailyFilteredData = [];
+        let currentDailyPage = 1;
+        let dailyLimit = 20;
+
+        let currentDailyDateStr = ""; // Variabel global baru
+        async function openDailyDetail(dateStr) {
+            currentDailyDateStr = dateStr;
+            // Tampilkan modal dan set loading
+            document.getElementById('daily-detail-modal').classList.remove('hidden');
+            document.getElementById('daily-detail-subtitle').innerText = moment(dateStr).format('dddd, DD MMMM YYYY');
+            document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">⏳ Menarik data dari server...</td></tr>';
+            document.getElementById('search-daily').value = ''; // Reset search
+
+            try {
+                const res = await fetch(`/api/attendance/date/${dateStr}`);
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    dailyRawData = data.data;
+                    applyDailyFilter(); // Filter dan Render
+                } else {
+                    throw new Error("Gagal mengambil data harian");
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-red-500">❌ Terjadi kesalahan jaringan.</td></tr>';
+            }
+        }
+
+        function closeDailyDetail() {
+            document.getElementById('daily-detail-modal').classList.add('hidden');
+        }
+
+        function applyDailyFilter() {
+            const term = document.getElementById('search-daily').value.toLowerCase();
+            dailyLimit = parseInt(document.getElementById('limit-daily').value);
+            
+            // Filter berdasarkan nama
+            dailyFilteredData = dailyRawData.filter(log => {
+                const name = log.users ? log.users.full_name.toLowerCase() : '';
+                return name.includes(term);
+            });
+
+            currentDailyPage = 1; // Reset halaman ke 1 setiap kali filter berubah
+            renderDailyTable();
+        }
+
+        function prevDailyPage() { if(currentDailyPage > 1) { currentDailyPage--; renderDailyTable(); } }
+        function nextDailyPage() { const t = Math.ceil(dailyFilteredData.length/dailyLimit); if(currentDailyPage < t) { currentDailyPage++; renderDailyTable(); } }
+
+        function renderDailyTable() {
+            const tbody = document.getElementById('daily-tbody');
+            tbody.innerHTML = '';
+
+            const total = dailyFilteredData.length;
+            const totalPages = Math.ceil(total / dailyLimit);
+            if(currentDailyPage > totalPages && totalPages > 0) currentDailyPage = totalPages;
+
+            const startIdx = (currentDailyPage - 1) * dailyLimit;
+            const endIdx = Math.min(startIdx + dailyLimit, total);
+            const pageData = dailyFilteredData.slice(startIdx, endIdx);
+
+            if(pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">Tidak ada data kehadiran yang cocok.</td></tr>';
+            } else {
+                pageData.forEach(log => {
+                    const time = moment(log.timestamp).format('HH:mm:ss'); // Hanya tampilkan jam karena tanggalnya sudah jelas
+                    const name = log.users ? log.users.full_name : '<span class="text-red-400 italic">User Dihapus</span>';
+                    const sClass = log.status.includes('Baru') ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700';
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="p-4 text-slate-600 font-mono font-semibold text-xs whitespace-nowrap">${time} WIB</td>
+                            <td class="p-4 font-bold text-slate-800">${name}</td>
+                            <td class="p-4"><span class="px-2.5 py-1 rounded-md text-xs font-bold border border-white/50 ${sClass}">${log.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            document.getElementById('daily-page-info').innerText = total > 0 ? `Menampilkan ${startIdx + 1} - ${endIdx} dari ${total} Jemaat` : 'Data Kosong';
+            document.getElementById('btn-prev-daily').disabled = currentDailyPage === 1;
+            document.getElementById('btn-next-daily').disabled = currentDailyPage === totalPages || totalPages === 0;
+        }
+
+    </script>
+</body>
+</html>
