@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         .blink { animation: blinker 1.5s linear infinite; }
@@ -87,7 +88,7 @@
     </div>
 
     <script>
-        // --- Logic AI (Sama) ---
+        // --- Konstanta AI & DOM ---
         const REQUIRED_STABLE_FRAMES = 45; 
         const MOVEMENT_THRESHOLD = 0.03; 
         const AUTO_RESET_DELAY = 3500; 
@@ -109,6 +110,72 @@
         let stableFramesCount = 0;
         let lastNoseX = null; let lastNoseY = null;
 
+        // ==========================================
+        // 🔒 FITUR KEAMANAN: GPS GEOFENCING 
+        // ==========================================
+        const GEREJA_LAT = -7.978639;  // Kordinat GKI Bromo Malang
+        const GEREJA_LNG = 112.630658; // Kordinat GKI Bromo Malang
+        const MAX_RADIUS_METER = 200;  // Batas radius absen 200 meter
+
+        let isLocationValid = false;
+
+        function hitungJarakBumi(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; 
+            const p1 = lat1 * Math.PI/180;
+            const p2 = lat2 * Math.PI/180;
+            const deltaP = (lat2-lat1) * Math.PI/180;
+            const deltaLon = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(deltaP/2) * Math.sin(deltaP/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; 
+        }
+
+        function validasiLokasiJemaat() {
+            updateStatus('idle', '📍 Mengecek Lokasi...', 'Mohon izinkan akses GPS di browser Anda.');
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const jarak = hitungJarakBumi(GEREJA_LAT, GEREJA_LNG, userLat, userLng);
+                        
+                        if (jarak <= MAX_RADIUS_METER) {
+                            // AMAN! Jarak memenuhi syarat
+                            isLocationValid = true;
+                            updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap di dalam pola oval.');
+                            
+                            // --> DI SINILAH KAMERA BARU DINYALAKAN <--
+                            camera.start(); 
+                        } else {
+                            // DITOLAK! Terlalu Jauh
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Akses Ditolak!',
+                                text: `Anda berada ${Math.round(jarak)} meter dari gereja. Jangkauan maksimal absen adalah ${MAX_RADIUS_METER} meter.`,
+                                confirmButtonColor: '#ef4444'
+                            });
+                            updateStatus('warning', 'Akses Ditolak', 'Anda berada di luar area GKI Bromo.');
+                        }
+                    },
+                    (error) => {
+                        console.error(error);
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'GPS Wajib Aktif',
+                            text: 'Mohon izinkan akses Lokasi (GPS) di browser Anda untuk melakukan absensi.',
+                            confirmButtonColor: '#f59e0b'
+                        });
+                        updateStatus('warning', 'GPS Tidak Aktif', 'Izinkan akses lokasi lalu muat ulang (refresh) halaman.');
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("Browser Anda tidak mendukung fitur GPS.");
+            }
+        }
+
+        // --- Inisialisasi MediaPipe AI ---
         const faceDetection = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
         faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.6 });
         faceDetection.onResults(onResults);
@@ -116,8 +183,11 @@
         const camera = new Camera(videoElement, {
             onFrame: async () => { if (!isProcessing) await faceDetection.send({image: videoElement}); }
         });
-        camera.start();
+        
+        // 🚀 PEMICU UTAMA: Jalankan validasi GPS saat halaman dibuka!
+        window.addEventListener('load', validasiLokasiJemaat);
 
+        // --- Fungsi Logika Inti (Tetap Sama) ---
         function onResults(results) {
             canvasElement.width = videoElement.videoWidth;
             canvasElement.height = videoElement.videoHeight;
@@ -200,7 +270,6 @@
                     let isError = false;
 
                     if (data.status === 'success') {
-                        // SUKSES
                         resultHTML = `
                             <div class="text-6xl mb-4">🎉</div>
                             <h3 class="text-2xl font-bold text-white mb-2">Halo, ${data.data.name}!</h3>
@@ -210,28 +279,24 @@
                             <p class="text-xs text-slate-500 mt-2">Reset otomatis...</p>
                         `;
                     } else {
-                        // GAGAL -> TAMPILKAN TOMBOL REGISTER
                         isError = true;
                         resultHTML = `
                             <div class="text-6xl mb-4">🤔</div>
                             <h3 class="text-xl font-bold text-white mb-2">Belum Terdaftar?</h3>
                             <p class="text-red-200 text-sm mb-6">Wajah tidak dikenali di database.</p>
-                            
                             <a href="/register" class="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-6 rounded-xl transition-transform active:scale-95 shadow-lg shadow-sky-900/50 mb-4">
                                 📝 Daftar Anggota Baru
                             </a>
-                            
-                            <button onclick="resetScan()" class="text-slate-400 text-sm hover:text-white underline">Coba Scan Lagi</button>
+                            <br>
+                            <button onclick="resetScan()" class="text-slate-400 text-sm hover:text-white underline mt-2">Coba Scan Lagi</button>
                         `;
                     }
 
                     resultArea.innerHTML = resultHTML;
 
-                    // Kalau Sukses, Auto Reset. Kalau Gagal, Tunggu Klik User.
                     if (!isError) {
                         setTimeout(() => { resetScan(); }, AUTO_RESET_DELAY);
                     }
-
                 } catch (err) {
                     loadingOverlay.classList.add('hidden');
                     alert("Koneksi Error");
