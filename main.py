@@ -15,6 +15,15 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 import numpy as np
 from typing import List
+import sentry_sdk
+import time
+
+# Inisialisasi Sentry
+sentry_sdk.init(
+    dsn="https://ff28457d829bca1529a766c0a39ac98e@o4510878135484416.ingest.us.sentry.io/4510878144987136",
+    traces_sample_rate=1.0, # Rekam 100% error
+    profiles_sample_rate=1.0,
+)
 
 load_dotenv()
 
@@ -75,6 +84,7 @@ def api_login(data: LoginDto, response: Response):
 
 @app.post("/api/recognize")
 async def recognize_face(file: UploadFile = File(...)):
+    start_time = time.time()
     content = await file.read()
     try:
         query_vector = face_service.get_embedding(content)
@@ -119,6 +129,9 @@ async def recognize_face(file: UploadFile = File(...)):
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     supabase.table("attendance_logs").insert(log_data).execute()
+    
+    process_time = (time.time() - start_time) * 1000
+    print(f"⚡ [MLOps] Waktu Pengenalan Wajah: {process_time:.2f} ms") # Muncul di terminal
 
     return {
         "status": "success",
