@@ -22,10 +22,10 @@
 
 ## 🛠️ Tech Stack
 * **Backend:** FastAPI (Python)
-* **Database:** Supabase / PostgreSQL (pgvector)
-* **AI Models:** ArcFace / InsightFace
-* **Deployment:** [e.g., Docker / VPS]
-* **Frontend:** [Add your frontend framework here, e.g., React.js or HTML/Tailwind]
+* **Database:** Supabase
+* **AI Models:** InsightFace
+* **Deployment:** VPS (Ubuntu 24.04)
+* **Frontend:** HTML/Tailwind
 
 ---
 
