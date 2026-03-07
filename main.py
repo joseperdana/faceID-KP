@@ -29,6 +29,15 @@ load_dotenv()
 
 # --- CONFIG ---
 app = FastAPI()
+# --- AUTO REDIRECT KALAU BELUM LOGIN ---
+@app.exception_handler(401)
+async def unauthorized_exception_handler(request: Request, exc: HTTPException):
+    # Kalau yang error adalah API (misal ngambil data chart), balas pakai JSON
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
+
+    # Kalau yang error adalah halaman web (Dashboard/Register), lempar ke Login!
+    return RedirectResponse(url="/login", status_code=303)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 COOKIE_NAME = os.getenv("SECRET_KEY")
 
