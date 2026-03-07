@@ -228,6 +228,30 @@
                     <canvas id="attendanceChart"></canvas>
                 </div>
             </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    👥 Distribusi Gender
+                </h3>
+                
+                <div class="flex justify-between text-sm mb-3">
+                    <span class="text-sky-600 font-bold flex items-center gap-1">
+                        Pria: <span id="stat-pria" class="text-slate-800">0</span>
+                    </span>
+                    <span class="text-pink-600 font-bold flex items-center gap-1">
+                        Wanita: <span id="stat-wanita" class="text-slate-800">0</span>
+                    </span>
+                </div>
+                
+                <div class="w-full bg-slate-100 rounded-full h-4 mb-3 flex overflow-hidden border border-slate-200 shadow-inner">
+                    <div id="bar-pria" class="bg-sky-500 hover:bg-sky-400 h-full transition-all duration-1000 cursor-pointer" style="width: 50%" title="Pria"></div>
+                    <div id="bar-wanita" class="bg-pink-500 hover:bg-pink-400 h-full transition-all duration-1000 cursor-pointer" style="width: 50%" title="Wanita"></div>
+                </div>
+                
+                <div class="flex justify-between text-sm font-semibold text-slate-500">
+                    <span id="persen-pria">50%</span>
+                    <span id="persen-wanita">50%</span>
+                </div>
+            </div>
             
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 w-full">
                 <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -367,14 +391,18 @@
 
             <div class="p-6 overflow-y-auto">
                 
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                        <p class="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Total Hadir</p>
-                        <p class="text-2xl font-black text-emerald-600" id="profile-total-attend">0<span class="text-sm font-normal text-slate-400">x</span></p>
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center flex flex-col justify-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">Gender</p>
+                        <p class="text-lg font-bold text-slate-700 mt-1" id="profile-gender">-</p>
                     </div>
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                        <p class="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Terdaftar Sejak</p>
-                        <p class="text-lg font-bold text-slate-700 mt-1" id="profile-join-date">-</p>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center flex flex-col justify-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">Total Hadir</p>
+                        <p class="text-2xl font-black text-emerald-600 leading-none" id="profile-total-attend">0<span class="text-sm font-normal text-slate-400">x</span></p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center flex flex-col justify-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">Terdaftar</p>
+                        <p class="text-sm sm:text-base font-bold text-slate-700 mt-1 whitespace-nowrap" id="profile-join-date">-</p>
                     </div>
                 </div>
 
@@ -441,6 +469,27 @@
             </div>
 
             <div class="p-6 flex-1 flex flex-col overflow-hidden">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex justify-between items-center shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Hadir</p>
+                            <p class="text-2xl font-black text-emerald-600 leading-none mt-1" id="daily-total-attend">0</p>
+                        </div>
+                        <div class="w-px h-8 bg-slate-200 mx-2 sm:mx-4"></div>
+                        <div>
+                            <p class="text-sm font-bold text-sky-600 flex items-center gap-1">Pria: <span id="daily-stat-pria" class="text-slate-700">0</span></p>
+                            <p class="text-xs text-slate-500 font-semibold" id="daily-persen-pria">0%</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-pink-600 flex items-center gap-1">Wanita: <span id="daily-stat-wanita" class="text-slate-700">0</span></p>
+                            <p class="text-xs text-slate-500 font-semibold" id="daily-persen-wanita">0%</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:flex w-1/3 bg-slate-200 rounded-full h-2.5 overflow-hidden shadow-inner border border-slate-300">
+                        <div id="daily-bar-pria" class="bg-sky-500 hover:bg-sky-400 h-full transition-all duration-1000 cursor-pointer" style="width: 0%"></div>
+                        <div id="daily-bar-wanita" class="bg-pink-500 hover:bg-pink-400 h-full transition-all duration-1000 cursor-pointer" style="width: 0%"></div>
+                    </div>
+                </div>
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <input type="text" id="search-daily" oninput="applyDailyFilter()" placeholder="Cari nama jemaat..." class="bg-slate-50 border border-slate-300 px-4 py-2 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
                     
@@ -711,7 +760,22 @@
             document.getElementById('profile-name').innerText = user.full_name;
             document.getElementById('profile-phone').innerText = user.phone_number;
             document.getElementById('profile-join-date').innerText = moment(user.created_at).format('DD MMM YYYY');
+// --- LOGIKA WARNA GENDER DINAMIS ---
+            const genderEl = document.getElementById('profile-gender');
+            const userGender = user.gender ? user.gender : 'Belum Diatur';
+            genderEl.innerText = userGender;
             
+            // 1. Reset/Bersihkan kelas warna bawaan dari profil sebelumnya
+            genderEl.className = 'text-sm sm:text-lg font-bold mt-1 whitespace-nowrap transition-colors'; 
+            
+            // 2. Suntikkan warna sesuai jenis kelamin
+            if (userGender === 'Pria') {
+                genderEl.classList.add('text-sky-600'); // Biru
+            } else if (userGender === 'Wanita') {
+                genderEl.classList.add('text-pink-600'); // Merah Muda
+            } else {
+                genderEl.classList.add('text-slate-400'); // Abu-abu polos
+            }            
             // Tampilan Loading Awal
             document.getElementById('profile-total-attend').innerHTML = `<span class="text-xs text-slate-400">Loading...</span>`;
             document.getElementById('calendar-grid').innerHTML = '<div class="col-span-7 text-center text-xs text-slate-400 py-6">Memuat kalender...</div>';
@@ -858,6 +922,17 @@
                     data: { labels: sortedHours, datasets: [{ label: 'Orang', data: peakCounts, backgroundColor: '#f59e0b', borderRadius: 4 }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } }
                 });
+
+                // GENDER
+                // ... (di dalam fungsi yang menerima response data analitik) ...
+                document.getElementById('stat-pria').innerText = data.gender_stats.pria;
+                document.getElementById('stat-wanita').innerText = data.gender_stats.wanita;
+                document.getElementById('persen-pria').innerText = data.gender_stats.persen_pria + '%';
+                document.getElementById('persen-wanita').innerText = data.gender_stats.persen_wanita + '%';
+
+                // Animasikan lebar bar-nya!
+                document.getElementById('bar-pria').style.width = data.gender_stats.persen_pria + '%';
+                document.getElementById('bar-wanita').style.width = data.gender_stats.persen_wanita + '%';
 
                 // --- 2. RENDER GLOBAL HEATMAP (Kalender Style) ---
                 const heatmapWrapper = document.getElementById('global-heatmap');
@@ -1025,6 +1100,31 @@
                 
                 if(data.status === 'success') {
                     dailyRawData = data.data;
+                    // --- PERHITUNGAN STATISTIK GENDER HARIAN ---
+                    let priaCount = 0;
+                    let wanitaCount = 0;
+
+                    dailyRawData.forEach(log => {
+                        // Pastikan data jemaat ada dan gendernya terbaca
+                        if (log.users && log.users.gender === 'Pria') priaCount++;
+                        else if (log.users && log.users.gender === 'Wanita') wanitaCount++;
+                    });
+
+                    const totalGender = priaCount + wanitaCount;
+                    const persenPria = totalGender > 0 ? Math.round((priaCount / totalGender) * 100) : 0;
+                    const persenWanita = totalGender > 0 ? Math.round((wanitaCount / totalGender) * 100) : 0;
+
+                    // Update UI di Kotak Statistik
+                    document.getElementById('daily-total-attend').innerText = dailyRawData.length;
+                    document.getElementById('daily-stat-pria').innerText = priaCount;
+                    document.getElementById('daily-stat-wanita').innerText = wanitaCount;
+                    document.getElementById('daily-persen-pria').innerText = persenPria + '%';
+                    document.getElementById('daily-persen-wanita').innerText = persenWanita + '%';
+
+                    // Animasikan Bar
+                    document.getElementById('daily-bar-pria').style.width = persenPria + '%';
+                    document.getElementById('daily-bar-wanita').style.width = persenWanita + '%';
+                    // ---------------------------------------------
                     applyDailyFilter(); // Filter dan Render
                 } else {
                     throw new Error("Gagal mengambil data harian");
@@ -1091,6 +1191,42 @@
             document.getElementById('btn-next-daily').disabled = currentDailyPage === totalPages || totalPages === 0;
         }
 
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cari semua judul kolom <th> di dalam tabel
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+            
+            const comparer = (idx, asc) => (a, b) => ((v1, v2) => 
+                v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
+            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+
+            document.querySelectorAll('th').forEach(th => {
+                // Tambahkan efek visual agar kursor berubah jadi 'tangan' saat diarahkan ke judul kolom
+                th.style.cursor = 'pointer';
+                th.title = "Klik untuk mengurutkan";
+                
+                // Tambahkan efek hover ala Tailwind (opsional tapi bikin keren)
+                th.classList.add('hover:bg-slate-700', 'transition-colors');
+
+                th.addEventListener('click', (() => {
+                    const table = th.closest('table');
+                    const tbody = table.querySelector('tbody');
+                    
+                    // Toggle arah sorting (Ascending / Descending)
+                    let asc = th.dataset.asc = th.dataset.asc !== 'true'; 
+                    
+                    // Ambil semua baris <tr>, urutkan, lalu pasang lagi ke dalam <tbody>
+                    Array.from(tbody.querySelectorAll('tr'))
+                        .sort(comparer(Array.from(th.parentNode.children).indexOf(th), asc))
+                        .forEach(tr => tbody.appendChild(tr));
+                    
+                    // (Opsional) Beri tanda visual panah pada kolom yang sedang aktif
+                    table.querySelectorAll('th').forEach(header => header.innerText = header.innerText.replace(' ↕', '').replace(' ↓', '').replace(' ↑', ''));
+                    th.innerText += asc ? ' ↑' : ' ↓';
+                }));
+            });
+        });
     </script>
 </body>
 </html>

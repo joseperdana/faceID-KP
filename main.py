@@ -151,9 +151,12 @@ async def recognize_face(file: UploadFile = File(...)):
 @app.post("/api/register")
 async def register_user(
     full_name: str = Form(...), 
+    gender: str = Form(...),
     phone_number: str = Form(...), 
     files: List[UploadFile] = File(...)
     ):
+    
+    print(f"🚨 DEBUG SERVER -> Nama: {full_name} | Gender: '{gender}' | WA: {phone_number}")
     # 1. Cek User Duplikat
     existing = supabase.table("users").select("id").eq("full_name", full_name).execute()
     if len(existing.data) > 0:
@@ -183,6 +186,7 @@ async def register_user(
         # 4. Simpan ke Tabel USERS
         user_data = {
             "full_name": full_name,
+            "gender": gender,
             "phone_number": phone_number,
             "face_embedding": embedding_list
         }
@@ -263,7 +267,7 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30, auth: 
         
         # 2. QUERY DB
         logs_query = supabase.table("attendance_logs")\
-            .select("timestamp, user_id, users(full_name, phone_number)")\
+            .select("timestamp, user_id, users(full_name, gender, phone_number)")\
             .gte("timestamp", start_date_iso)\
             .order("timestamp", desc=False)\
             .execute()
@@ -336,7 +340,8 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30, auth: 
                 is_missing = True
                 days_missing = 999 
             else:
-                last_date = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                last_date = datetime.fromisoformat(last_seen[:19]).replace(tzinfo=timezone.utc)
+                
                 delta = now - last_date
                 # PERUBAHAN: Gunakan variabel dinamis `at_risk_days` dari parameter fungsi
                 if delta.days > at_risk_days:
@@ -352,6 +357,21 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30, auth: 
 
         # PERUBAHAN: Hapus limit [:10], ambil semua yang memenuhi syarat!
         at_risk_list = sorted(at_risk_list, key=lambda x: x['days_absent'], reverse=True)
+        
+        # 1. Tarik semua data gender dari tabel users
+        users_response = supabase.table("users").select("gender").execute()
+        
+        # 2. Hitung jumlahnya dengan Python list comprehension
+        total_pria = sum(1 for u in users_response.data if u.get("gender") == "Pria")
+        total_wanita = sum(1 for u in users_response.data if u.get("gender") == "Wanita")
+        
+        # 3. Hitung total yang memiliki gender (untuk mencegah error bagi data lama yang masih NULL)
+        total_berkelamin = total_pria + total_wanita
+        
+        # 4. Hitung Persentase (Pencegahan pembagian dengan nol)
+        persentase_pria = round((total_pria / total_berkelamin * 100)) if total_berkelamin > 0 else 0
+        persentase_wanita = round((total_wanita / total_berkelamin * 100)) if total_berkelamin > 0 else 0
+
 
         return {
             "status": "success",
@@ -360,7 +380,13 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30, auth: 
             "avg_attendance": avg_attendance,
             "top_users": [{"name": k, "count": v} for k, v in top_users],
             "peak_time": peak_time_data,
-            "at_risk": at_risk_list 
+            "at_risk": at_risk_list,
+            "gender_stats": {
+                "pria": total_pria,
+                "wanita": total_wanita,
+                "persen_pria": persentase_pria,
+                "persen_wanita": persentase_wanita
+            }
         }
 
     except Exception as e:
@@ -402,7 +428,7 @@ async def export_excel(filter_type: str = "30d", auth: bool = Depends(check_admi
             clean_data = []
             for item in data_raw:
                 # Konversi Waktu UTC ke WIB (UTC+7)
-                dt_utc = datetime.fromisoformat(item['timestamp'].replace('Z', '+00:00'))
+                dt_utc = datetime.fromisoformat(item['timestamp'][:19]).replace(tzinfo=timezone.utc)
                 dt_wib = dt_utc + timedelta(hours=7)
                 formatted_time = dt_wib.strftime('%d-%m-%Y %H:%M:%S') # Format Tanggal Indonesia
                 
@@ -489,7 +515,7 @@ async def get_attendance_by_date(target_date: str, auth: bool = Depends(check_ad
         end_utc = end_wib.astimezone(timezone.utc).isoformat()
 
         res = supabase.table("attendance_logs")\
-            .select("timestamp, status, users(full_name, phone_number)")\
+            .select("timestamp, status, users(full_name, gender, phone_number)")\
             .gte("timestamp", start_utc)\
             .lte("timestamp", end_utc)\
             .order("timestamp", desc=False)\
@@ -505,6 +531,7 @@ async def update_user(user_id: int, data: UpdateUserDto, auth: bool = Depends(ch
     try:
         res = supabase.table("users").update({
             "full_name": data.full_name,
+            "gender": data.gender,
             "phone_number": data.phone_number
         }).eq("id", user_id).execute()
         return {"status": "success", "data": res.data}
@@ -572,7 +599,7 @@ async def export_excel_by_date(target_date: str, auth: bool = Depends(check_admi
         else:
             clean_data = []
             for item in data_raw:
-                dt_utc = datetime.fromisoformat(item['timestamp'].replace('Z', '+00:00'))
+                dt_utc = datetime.fromisoformat(item['timestamp'][:19]).replace(tzinfo=timezone.utc)
                 dt_wib = dt_utc + timedelta(hours=7)
                 formatted_time = dt_wib.strftime('%H:%M:%S') # Hanya jam saja biar rapi
                 

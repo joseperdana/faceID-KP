@@ -41,6 +41,20 @@
                     <input type="text" id="full_name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="Contoh: Jose Taneo">
                 </div>
 
+                <div style="margin-top: 15px; margin-bottom: 15px; text-align: left;">
+                    <label class="block text-slate-400 text-sm mb-1">Jenis Kelamin:</label>
+                    <div style="display: flex; gap: 20px; align-items: center;">
+                        <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
+                            <input type="radio" name="gender" value="Pria" required class="w-5 h-5 accent-sky-500 cursor-pointer">
+                            Pria
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
+                            <input type="radio" name="gender" value="Wanita" required class="w-5 h-5 accent-sky-500 cursor-pointer">
+                            Wanita
+                        </label>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-slate-400 text-sm mb-1">Nomor WhatsApp</label>
                     <input type="tel" id="phone_number" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="0812...">
@@ -119,7 +133,7 @@
         camera.start();
 
        // 2. Handle Submit Form (Burst Mode Capture)
-       form.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if(!isFaceValid) return;
 
@@ -129,7 +143,10 @@
 
         const formData = new FormData();
         formData.append('full_name', document.getElementById('full_name').value);
+        const selectedGender = document.querySelector('input[name="gender"]:checked').value;
+        formData.append('gender', selectedGender);
         formData.append('phone_number', document.getElementById('phone_number').value);
+        
 
         // Fungsi pembantu untuk mengambil 1 frame menjadi Blob
         const captureFrame = () => {
