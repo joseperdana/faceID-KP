@@ -15,10 +15,10 @@
 - [x] Extract Supabase queries into a dedicated database repository layer (`services/db_service.py`).
 
 ## Phase 4: Frontend UI/UX Refinement
-- [ ] Move inline styles in `register.html` to proper Tailwind classes.
-- [ ] Create `static/css/styles.css` and define `@layer components` for reusable styling patterns.
-- [ ] Extract inline JavaScript from HTML files into dedicated `.js` files inside `static/js/`.
-- [ ] Migrate Geofencing validation logic from client-side JS to backend API.
+- [x] Move inline styles in `register.html` to proper Tailwind classes.
+- [x] Standardize the color palette and typography across all HTML templates.
+- [x] Extract inline JavaScript from HTML files into dedicated `.js` files inside `static/js/`.
+- [x] Migrate Geofencing validation logic from client-side JS to backend API.
 
 ## Phase 5: Verification
 - [ ] Test the entire face registration and attendance flow.
