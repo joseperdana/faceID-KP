@@ -150,14 +150,25 @@ async function triggerAutoCapture() {
             let isError = false;
 
             if (data.status === 'success') {
-                resultHTML = `
-                    <div class="text-6xl mb-4">🎉</div>
-                    <h3 class="text-2xl font-bold text-white mb-2">Halo, ${data.data.name}!</h3>
-                    <div class="inline-block bg-emerald-600 text-white text-xs px-3 py-1 rounded-full mb-4">Absensi Berhasil</div>
-                    <p class="text-emerald-200 text-sm mb-6">${data.message}</p>
-                    <div class="w-full bg-slate-700 h-1 mt-4 rounded-full overflow-hidden"><div class="bg-slate-400 h-full countdown-bar"></div></div>
-                    <p class="text-xs text-slate-500 mt-2">Reset otomatis...</p>
-                `;
+                // Sembunyikan resultArea default
+                resultArea.classList.add('hidden');
+                
+                // Isi modal success baru (Phase E)
+                document.getElementById('success-name').innerText = data.data.name;
+                document.getElementById('success-message').innerText = data.message;
+                document.getElementById('success-streak').innerHTML = `${data.data.total_attendance}<span class="text-sm font-normal text-sky-600 ml-1">x</span>`;
+                document.getElementById('success-last-seen').innerText = data.data.last_seen;
+                
+                // Tampilkan modal overlay
+                const successModal = document.getElementById('success-modal');
+                const successContent = document.getElementById('success-modal-content');
+                successModal.classList.remove('hidden');
+                
+                // Animasi masuk
+                setTimeout(() => {
+                    successContent.classList.remove('scale-95', 'opacity-0');
+                    successContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
             } else if (response.status === 403) {
                 isError = true;
                 resultHTML = `
@@ -183,7 +194,18 @@ async function triggerAutoCapture() {
             resultArea.innerHTML = resultHTML;
 
             if (!isError) {
-                setTimeout(() => { resetScan(); }, AUTO_RESET_DELAY);
+                setTimeout(() => { 
+                    // Animasi keluar
+                    const successModal = document.getElementById('success-modal');
+                    const successContent = document.getElementById('success-modal-content');
+                    successContent.classList.remove('scale-100', 'opacity-100');
+                    successContent.classList.add('scale-95', 'opacity-0');
+                    
+                    setTimeout(() => {
+                        successModal.classList.add('hidden');
+                        resetScan(); 
+                    }, 300); // Tunggu transisi CSS selesai
+                }, AUTO_RESET_DELAY);
             }
         } catch (err) {
             loadingOverlay.classList.add('hidden');
@@ -197,6 +219,11 @@ window.resetScan = function() {
     isProcessing = false;
     resultArea.classList.add('hidden');
     resultArea.innerHTML = '';
+    
+    // Pastikan modal success ikut kereset
+    const successModal = document.getElementById('success-modal');
+    if (successModal) successModal.classList.add('hidden');
+    
     stableFramesCount = 0;
     updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap...');
     progressBar.style.width = '0%';

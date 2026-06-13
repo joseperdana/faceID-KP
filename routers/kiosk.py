@@ -1,6 +1,6 @@
 import time
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import numpy as np
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -59,13 +59,29 @@ async def recognize_face(
     user_name = user['full_name']
     
     today_start = datetime.now(timezone.utc).date().isoformat()
-    check_log = DBService.check_user_log_today(user_id, today_start)
+    
+    history = DBService.get_user_history(user_id)
+    total_attendance = len(history)
+    
+    check_log = [log for log in history if log['timestamp'] >= today_start]
+    
+    last_seen = "Baru Pertama"
+    for log in history:
+        if log['timestamp'] < today_start:
+            last_seen_date = datetime.fromisoformat(log['timestamp'][:19]).replace(tzinfo=timezone.utc)
+            last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+            break
 
     if len(check_log) > 0:
         return {
             "status": "success",
             "message": f"Halo {user_name}, kamu sudah absen hari ini!",
-            "data": {"name": user_name, "similarity_score": round(user['similarity'], 2)}
+            "data": {
+                "name": user_name, 
+                "similarity_score": round(user['similarity'], 2),
+                "total_attendance": total_attendance,
+                "last_seen": last_seen
+            }
         }
 
     log_data = {
@@ -74,6 +90,7 @@ async def recognize_face(
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     DBService.insert_log(log_data)
+    total_attendance += 1
     
     process_time = (time.time() - start_time) * 1000
     print(f"⚡ [MLOps] Waktu Pengenalan Wajah: {process_time:.2f} ms")
@@ -81,7 +98,12 @@ async def recognize_face(
     return {
         "status": "success",
         "message": f"Halo, {user_name}! Selamat datang.",
-        "data": {"name": user_name, "similarity_score": round(user['similarity'], 2)}
+        "data": {
+            "name": user_name, 
+            "similarity_score": round(user['similarity'], 2),
+            "total_attendance": total_attendance,
+            "last_seen": last_seen
+        }
     }
 
 @router.post("/register")
