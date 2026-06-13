@@ -157,9 +157,9 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-slate-50 text-slate-500 uppercase font-semibold text-xs tracking-wider border-b border-slate-200">
                             <tr>
-                                <th class="p-4">Nama Lengkap</th>
-                                <th class="p-4 text-center">Frekuensi</th>
-                                <th class="p-4 text-center">Terdaftar Sejak</th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onclick="toggleUserSort('name')" title="Klik untuk urutkan">Nama Lengkap ↕</th>
+                                <th class="p-4 text-center cursor-pointer hover:bg-slate-100 transition-colors" onclick="toggleUserSort('freq')" title="Klik untuk urutkan">Frekuensi ↕</th>
+                                <th class="p-4 text-center cursor-pointer hover:bg-slate-100 transition-colors" onclick="toggleUserSort('date')" title="Klik untuk urutkan">Terdaftar Sejak ↕</th>
                                 <th class="p-4 text-right">Profil</th>
                             </tr>
                         </thead>
@@ -695,6 +695,19 @@
             renderUsersTable();
         }
 
+        function toggleUserSort(col) {
+            const select = document.getElementById('sort-user');
+            let current = select.value;
+            if(col === 'name') {
+                select.value = current === 'name-asc' ? 'name-desc' : 'name-asc';
+            } else if(col === 'freq') {
+                select.value = current === 'freq-desc' ? 'freq-asc' : 'freq-desc';
+            } else if(col === 'date') {
+                select.value = current === 'date-desc' ? 'date-asc' : 'date-desc';
+            }
+            applyUserFilters();
+        }
+
         function changeUsersLimit() {
             usersPerPage = parseInt(document.getElementById('users-per-page').value);
             currentUsersPage = 1;
@@ -1214,41 +1227,6 @@
         }
 
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Cari semua judul kolom <th> di dalam tabel
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
-            
-            const comparer = (idx, asc) => (a, b) => ((v1, v2) => 
-                v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
 
-            document.querySelectorAll('th').forEach(th => {
-                // Tambahkan efek visual agar kursor berubah jadi 'tangan' saat diarahkan ke judul kolom
-                th.style.cursor = 'pointer';
-                th.title = "Klik untuk mengurutkan";
-                
-                // Tambahkan efek hover ala Tailwind (opsional tapi bikin keren)
-                th.classList.add('hover:bg-slate-700', 'transition-colors');
-
-                th.addEventListener('click', (() => {
-                    const table = th.closest('table');
-                    const tbody = table.querySelector('tbody');
-                    
-                    // Toggle arah sorting (Ascending / Descending)
-                    let asc = th.dataset.asc = th.dataset.asc !== 'true'; 
-                    
-                    // Ambil semua baris <tr>, urutkan, lalu pasang lagi ke dalam <tbody>
-                    Array.from(tbody.querySelectorAll('tr'))
-                        .sort(comparer(Array.from(th.parentNode.children).indexOf(th), asc))
-                        .forEach(tr => tbody.appendChild(tr));
-                    
-                    // (Opsional) Beri tanda visual panah pada kolom yang sedang aktif
-                    table.querySelectorAll('th').forEach(header => header.innerText = header.innerText.replace(' ↕', '').replace(' ↓', '').replace(' ↑', ''));
-                    th.innerText += asc ? ' ↑' : ' ↓';
-                }));
-            });
-        });
-    </script>
 </body>
 </html>

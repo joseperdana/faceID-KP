@@ -52,9 +52,14 @@ class AnalyticsService:
         sorted_dates = sorted(date_counts.keys())
         trend_data = [date_counts[d] for d in sorted_dates]
         
-        active_days_values = [v for v in trend_data if v > 0]
-        total_attendance = sum(active_days_values)
-        active_days_count = len(active_days_values)
+        saturday_values = []
+        for i, d_str in enumerate(sorted_dates):
+            if datetime.fromisoformat(d_str).weekday() == 5: # 5 = Saturday
+                saturday_values.append(trend_data[i])
+                
+        valid_saturdays = [v for v in saturday_values if v > 0]
+        total_attendance = sum(valid_saturdays)
+        active_days_count = len(valid_saturdays)
         avg_attendance = round(total_attendance / active_days_count, 1) if active_days_count > 0 else 0
 
         user_attendance_count = {}
