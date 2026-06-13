@@ -83,10 +83,14 @@ class AnalyticsService:
         all_logs_raw = DBService.get_logs_from_date((now - timedelta(days=3000)).isoformat()) 
         
         last_seen_map = {}
+        heatmap_all = {}
         for log in all_logs_raw:
             uid = log['user_id']
             if uid not in last_seen_map or log['timestamp'] > last_seen_map[uid]:
                 last_seen_map[uid] = log['timestamp']
+            
+            d = log['timestamp'][:10]
+            heatmap_all[d] = heatmap_all.get(d, 0) + 1
         
         at_risk_list = []
         for user in all_users:
@@ -116,15 +120,19 @@ class AnalyticsService:
         at_risk_list = sorted(at_risk_list, key=lambda x: x['days_absent'], reverse=True)
         
         users_gender = DBService.get_users_by_gender()
+        total_users = len(users_gender)
         total_pria = sum(1 for u in users_gender if u.get("gender") == "Pria")
         total_wanita = sum(1 for u in users_gender if u.get("gender") == "Wanita")
-        total_berkelamin = total_pria + total_wanita
-        persentase_pria = round((total_pria / total_berkelamin * 100)) if total_berkelamin > 0 else 0
-        persentase_wanita = round((total_wanita / total_berkelamin * 100)) if total_berkelamin > 0 else 0
+        total_unknown = total_users - total_pria - total_wanita
+        
+        persentase_pria = round((total_pria / total_users * 100)) if total_users > 0 else 0
+        persentase_wanita = round((total_wanita / total_users * 100)) if total_users > 0 else 0
+        persentase_unknown = 100 - persentase_pria - persentase_wanita if total_users > 0 else 0
 
         return {
             "filter_used": filter_type,
             "trend": { "labels": sorted_dates, "data": trend_data },
+            "heatmap_all": heatmap_all,
             "avg_attendance": avg_attendance,
             "top_users": [{"name": k, "count": v} for k, v in top_users],
             "peak_time": peak_time_data,
@@ -132,8 +140,10 @@ class AnalyticsService:
             "gender_stats": {
                 "pria": total_pria,
                 "wanita": total_wanita,
+                "unknown": total_unknown,
                 "persen_pria": persentase_pria,
-                "persen_wanita": persentase_wanita
+                "persen_wanita": persentase_wanita,
+                "persen_unknown": persentase_unknown
             }
         }
 
