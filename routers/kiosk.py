@@ -1,7 +1,8 @@
 import time
+import math
 from datetime import datetime, timezone
 import numpy as np
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 import starlette.concurrency
@@ -10,8 +11,31 @@ from face_service import face_service
 
 router = APIRouter(prefix="/api", tags=["kiosk"])
 
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371000
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
 @router.post("/recognize")
-async def recognize_face(file: UploadFile = File(...)):
+async def recognize_face(
+    file: UploadFile = File(...),
+    lat: Optional[float] = Form(None),
+    lng: Optional[float] = Form(None)
+):
+    GEREJA_LAT = -7.979261
+    GEREJA_LNG = 112.625760
+    MAX_RADIUS_METER = 200
+
+    if lat is not None and lng is not None:
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+
     start_time = time.time()
     content = await file.read()
     
