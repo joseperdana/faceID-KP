@@ -860,9 +860,27 @@
 
         // Modal Edit & Delete (Tetap sama seperti yang lama, hanya ganti pemanggilan update)
         function deleteUser(id, name) {
-            Swal.fire({ title: `Hapus ${name}?`, text: "Menghapus user ini akan MENGHAPUS SEMUA HISTORY KEHADIRANNYA.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus Permanen' })
-            .then(async (result) => {
+            Swal.fire({
+                title: 'Yakin hapus ' + name + '?', text: "Data tidak bisa dikembalikan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8', confirmButtonText: 'Ya, Hapus!'
+            }).then(async (result) => {
                 if (result.isConfirmed) { await fetch(`/api/users/${id}`, { method: 'DELETE' }); loadDatabase(); loadOverview(); Swal.fire('Terhapus!', '', 'success'); }
+            });
+        }
+
+        function deleteLog(id) {
+            Swal.fire({
+                title: 'Hapus log ini?', text: "Data kehadiran ini akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8', confirmButtonText: 'Ya, Hapus!'
+            }).then(async (result) => {
+                if (result.isConfirmed) { 
+                    const res = await fetch(`/api/logs/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        loadOverview(); 
+                        loadAnalytics();
+                        Swal.fire('Terhapus!', '', 'success'); 
+                    } else {
+                        Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus.', 'error');
+                    }
+                }
             });
         }
 
@@ -1019,9 +1037,10 @@
             if (users.length === 0) { list.innerHTML = '<li class="text-center text-slate-400 text-sm py-4">Semua jemaat aktif.</li>'; return; }
             users.forEach(u => {
                 const daysText = u.days_absent === 999 ? 'Belum pernah hadir' : `${u.days_absent} hari absen`;
+                let phone = u.phone || ''; if(phone.startsWith('0')) phone = '62' + phone.substring(1);
                 list.innerHTML += `<li class="flex items-center justify-between bg-red-50 p-3 rounded-lg border border-red-100">
                     <div><div class="font-bold text-slate-700 truncate w-32 md:w-auto">${u.name}</div><div class="text-xs text-red-500 font-semibold">⚠️ ${daysText}</div></div>
-                    <a href="https://wa.me/${u.phone}" target="_blank" class="bg-white text-green-600 px-2 py-1 rounded border border-green-200 text-xs font-bold hover:bg-green-50 shadow-sm flex items-center gap-1"><span>📞</span> WA</a></li>`;
+                    <a href="https://wa.me/${phone}" target="_blank" class="bg-white text-green-600 px-2 py-1 rounded border border-green-200 text-xs font-bold hover:bg-green-50 shadow-sm flex items-center gap-1"><span>📞</span> WA</a></li>`;
             });
         }
 
@@ -1042,9 +1061,10 @@
             list.innerHTML = '';
             globalAnalyticsData.at_risk.forEach((u) => {
                 const daysText = u.days_absent === 999 ? 'Belum pernah' : `${u.days_absent} hari`;
+                let phone = u.phone || ''; if(phone.startsWith('0')) phone = '62' + phone.substring(1);
                 list.innerHTML += `<li class="flex items-center justify-between bg-red-50 p-3 rounded-lg border border-red-100">
                     <div><div class="font-bold text-slate-700">${u.name}</div><div class="text-xs text-red-500 font-semibold">⚠️ ${daysText}</div></div>
-                    <a href="https://wa.me/${u.phone}" target="_blank" class="bg-white text-green-600 px-3 py-1 rounded border border-green-200 text-sm font-bold hover:bg-green-50 shadow-sm">Hubungi</a></li>`;
+                    <a href="https://wa.me/${phone}" target="_blank" class="bg-white text-green-600 px-3 py-1 rounded border border-green-200 text-sm font-bold hover:bg-green-50 shadow-sm">Hubungi</a></li>`;
             });
             document.getElementById('at-risk-modal').classList.remove('hidden');
         }
