@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrasi Anggota Baru - GKI Bromo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
 <body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-4 lg:p-10">
 
@@ -30,20 +32,27 @@
 
         <div class="w-full lg:w-1/2 bg-slate-800 p-8 flex flex-col justify-center border-l border-slate-700">
             
-            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                <span class="bg-sky-600 w-2 h-8 rounded-full"></span>
-                Registrasi Anggota
-            </h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="bg-sky-600 w-2 h-8 rounded-full"></span>
+                    <span id="form-title">Registrasi Anggota</span>
+                </h2>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <span class="text-sm text-slate-400 font-medium">Update Wajah</span>
+                    <input type="checkbox" id="toggle-update" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 relative"></div>
+                </label>
+            </div>
 
             <form id="reg-form" class="space-y-4">
                 <div>
-                    <label class="block text-slate-400 text-sm mb-1">Nama Lengkap</label>
+                    <label class="block text-slate-400 text-sm mb-1">Nama Lengkap (Sesuai Data Lama)</label>
                     <input type="text" id="full_name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="Contoh: Jose Taneo">
                 </div>
 
-                <div style="margin-top: 15px; margin-bottom: 15px; text-align: left;">
+                <div id="gender-wrapper" class="my-4 text-left">
                     <label class="block text-slate-400 text-sm mb-1">Jenis Kelamin:</label>
-                    <div style="display: flex; gap: 20px; align-items: center;">
+                    <div class="flex items-center gap-5">
                         <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
                             <input type="radio" name="gender" value="Pria" required class="w-5 h-5 accent-sky-500 cursor-pointer">
                             Pria
@@ -55,7 +64,7 @@
                     </div>
                 </div>
 
-                <div>
+                <div id="phone-wrapper">
                     <label class="block text-slate-400 text-sm mb-1">Nomor WhatsApp</label>
                     <input type="tel" id="phone_number" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="0812...">
                 </div>
@@ -81,126 +90,6 @@
         </div>
     </div>
 
-    <script>
-        const videoElement = document.getElementById('video');
-        const btnSubmit = document.getElementById('btn-submit');
-        const statusText = document.getElementById('status-text');
-        const form = document.getElementById('reg-form');
-        const resultMsg = document.getElementById('result-message');
-
-        let isFaceValid = false;
-
-        // 1. Setup Kamera & MediaPipe (Logic Sederhana)
-        const faceDetection = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
-        faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.6 });
-        
-        faceDetection.onResults((results) => {
-            // Gambar video ke canvas (biar admin liat)
-            const canvas = document.getElementById('output_canvas');
-            canvas.width = videoElement.videoWidth;
-            canvas.height = videoElement.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            if (results.detections.length > 0) {
-                // Cek apakah wajah di tengah (Logic Zona Aman)
-                const nose = results.detections[0].landmarks[2];
-                const inSafeZone = (nose.x > 0.35 && nose.x < 0.65 && nose.y > 0.25 && nose.y < 0.75);
-                
-                if (inSafeZone) {
-                    isFaceValid = true;
-                    statusText.innerText = "✅ Oke (Siap Foto)";
-                    statusText.className = "font-bold text-emerald-400";
-                    btnSubmit.disabled = false;
-                    btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
-                } else {
-                    isFaceValid = false;
-                    statusText.innerText = "⚠️ Geser ke Tengah";
-                    statusText.className = "font-bold text-orange-400";
-                    btnSubmit.disabled = true;
-                }
-            } else {
-                isFaceValid = false;
-                statusText.innerText = "❌ Wajah Tidak Terbaca";
-                statusText.className = "font-bold text-red-400";
-                btnSubmit.disabled = true;
-            }
-        });
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => { await faceDetection.send({image: videoElement}); }
-        });
-        camera.start();
-
-       // 2. Handle Submit Form (Burst Mode Capture)
-        form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if(!isFaceValid) return;
-
-        const originalText = btnSubmit.innerText;
-        btnSubmit.disabled = true;
-        resultMsg.classList.add('hidden');
-
-        const formData = new FormData();
-        formData.append('full_name', document.getElementById('full_name').value);
-        const selectedGender = document.querySelector('input[name="gender"]:checked').value;
-        formData.append('gender', selectedGender);
-        formData.append('phone_number', document.getElementById('phone_number').value);
-        
-
-        // Fungsi pembantu untuk mengambil 1 frame menjadi Blob
-        const captureFrame = () => {
-            return new Promise((resolve) => {
-                const captureCanvas = document.createElement('canvas');
-                captureCanvas.width = videoElement.videoWidth;
-                captureCanvas.height = videoElement.videoHeight;
-                captureCanvas.getContext('2d').drawImage(videoElement, 0, 0);
-                captureCanvas.toBlob(resolve, 'image/jpeg', 0.95);
-            });
-        };
-
-        try {
-            // AMBIL 3 FOTO BERTURUT-TURUT DENGAN JEDA 300ms
-            btnSubmit.innerText = "📸 Mengambil foto 1/3...";
-            const blob1 = await captureFrame();
-            formData.append('files', blob1, 'frame1.jpg');
-            
-            await new Promise(r => setTimeout(r, 300)); // Jeda 300ms
-            
-            btnSubmit.innerText = "📸 Mengambil foto 2/3...";
-            const blob2 = await captureFrame();
-            formData.append('files', blob2, 'frame2.jpg');
-
-            await new Promise(r => setTimeout(r, 300)); // Jeda 300ms
-            
-            btnSubmit.innerText = "📸 Mengambil foto 3/3...";
-            const blob3 = await captureFrame();
-            formData.append('files', blob3, 'frame3.jpg');
-
-            btnSubmit.innerText = "⏳ Memproses & Menyimpan...";
-
-            // Kirim ke server
-            const res = await fetch('/api/register', { method: 'POST', body: formData });
-            const data = await res.json();
-
-            resultMsg.classList.remove('hidden');
-            if(data.status === 'success') {
-                resultMsg.className = "mt-4 p-4 rounded-xl text-center text-sm bg-emerald-900/50 text-emerald-200 border border-emerald-500/50";
-                resultMsg.innerHTML = `✅ <b>Berhasil!</b><br>${data.message}`;
-                form.reset(); 
-                setTimeout(() => resultMsg.classList.add('hidden'), 4000);
-            } else {
-                throw new Error(data.detail || data.message || "Gagal registrasi");
-            }
-        } catch (err) {
-            resultMsg.classList.remove('hidden');
-            resultMsg.className = "mt-4 p-4 rounded-xl text-center text-sm bg-red-900/50 text-red-200 border border-red-500/50";
-            resultMsg.innerText = `❌ Error: ${err.message}`;
-        } finally {
-            btnSubmit.innerText = originalText;
-            btnSubmit.disabled = false;
-        }
-    });
-    </script>
+    <script src="/static/js/register.js"></script>
 </body>
 </html>
