@@ -32,18 +32,25 @@
 
         <div class="w-full lg:w-1/2 bg-slate-800 p-8 flex flex-col justify-center border-l border-slate-700">
             
-            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                <span class="bg-sky-600 w-2 h-8 rounded-full"></span>
-                Registrasi Anggota
-            </h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="bg-sky-600 w-2 h-8 rounded-full"></span>
+                    <span id="form-title">Registrasi Anggota</span>
+                </h2>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <span class="text-sm text-slate-400 font-medium">Update Wajah</span>
+                    <input type="checkbox" id="toggle-update" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 relative"></div>
+                </label>
+            </div>
 
             <form id="reg-form" class="space-y-4">
                 <div>
-                    <label class="block text-slate-400 text-sm mb-1">Nama Lengkap</label>
+                    <label class="block text-slate-400 text-sm mb-1">Nama Lengkap (Sesuai Data Lama)</label>
                     <input type="text" id="full_name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="Contoh: Jose Taneo">
                 </div>
 
-                <div class="my-4 text-left">
+                <div id="gender-wrapper" class="my-4 text-left">
                     <label class="block text-slate-400 text-sm mb-1">Jenis Kelamin:</label>
                     <div class="flex items-center gap-5">
                         <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
@@ -57,7 +64,7 @@
                     </div>
                 </div>
 
-                <div>
+                <div id="phone-wrapper">
                     <label class="block text-slate-400 text-sm mb-1">Nomor WhatsApp</label>
                     <input type="tel" id="phone_number" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="0812...">
                 </div>

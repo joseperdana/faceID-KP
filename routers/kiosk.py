@@ -1,6 +1,6 @@
 import time
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import numpy as np
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -59,13 +59,29 @@ async def recognize_face(
     user_name = user['full_name']
     
     today_start = datetime.now(timezone.utc).date().isoformat()
-    check_log = DBService.check_user_log_today(user_id, today_start)
+    
+    history = DBService.get_user_history(user_id)
+    total_attendance = len(history)
+    
+    check_log = [log for log in history if log['timestamp'] >= today_start]
+    
+    last_seen = "Baru Pertama"
+    for log in history:
+        if log['timestamp'] < today_start:
+            last_seen_date = datetime.fromisoformat(log['timestamp'][:19]).replace(tzinfo=timezone.utc)
+            last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+            break
 
     if len(check_log) > 0:
         return {
             "status": "success",
             "message": f"Halo {user_name}, kamu sudah absen hari ini!",
-            "data": {"name": user_name, "similarity_score": round(user['similarity'], 2)}
+            "data": {
+                "name": user_name, 
+                "similarity_score": round(user['similarity'], 2),
+                "total_attendance": total_attendance,
+                "last_seen": last_seen
+            }
         }
 
     log_data = {
@@ -74,6 +90,7 @@ async def recognize_face(
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     DBService.insert_log(log_data)
+    total_attendance += 1
     
     process_time = (time.time() - start_time) * 1000
     print(f"⚡ [MLOps] Waktu Pengenalan Wajah: {process_time:.2f} ms")
@@ -81,7 +98,12 @@ async def recognize_face(
     return {
         "status": "success",
         "message": f"Halo, {user_name}! Selamat datang.",
-        "data": {"name": user_name, "similarity_score": round(user['similarity'], 2)}
+        "data": {
+            "name": user_name, 
+            "similarity_score": round(user['similarity'], 2),
+            "total_attendance": total_attendance,
+            "last_seen": last_seen
+        }
     }
 
 @router.post("/register")
@@ -109,6 +131,12 @@ async def register_user(
     average_embedding = np.mean(valid_embeddings, axis=0)
     embedding_list = average_embedding.tolist()
     
+    # [PHASE C] Check for face duplication
+    matches = DBService.match_faces(embedding_list, threshold=0.5)
+    if matches:
+        matched_name = matches[0]['full_name']
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Wajah ini sudah terdaftar sebagai '{matched_name}'. Gunakan tombol 'Update Wajah' jika ingin memperbarui foto."})
+    
     try:
         user_data = {
             "full_name": full_name,
@@ -134,3 +162,35 @@ async def register_user(
     except Exception as e:
         print("Register Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
+
+@router.post("/update-face")
+async def update_face(
+    full_name: str = Form(...), 
+    files: List[UploadFile] = File(...)
+):
+    existing = DBService.get_user_by_name(full_name)
+    if not existing:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Nama tidak ditemukan di database!"})
+        
+    user_id = existing[0]['id']
+    
+    valid_embeddings = []
+    for file in files:
+        content = await file.read()
+        embedding = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
+        if embedding is not None:
+            valid_embeddings.append(embedding)
+            
+    if len(valid_embeddings) == 0:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Wajah tidak terdeteksi jelas. Ulangi foto."})
+        
+    average_embedding = np.mean(valid_embeddings, axis=0)
+    embedding_list = average_embedding.tolist()
+    
+    try:
+        DBService.update_user(user_id, {"face_embedding": embedding_list})
+        return {"status": "success", "message": f"Data wajah untuk '{full_name}' berhasil diperbarui!"}
+    except Exception as e:
+        print("Update Face Error:", e)
+        return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
+

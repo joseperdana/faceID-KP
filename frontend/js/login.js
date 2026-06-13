@@ -9,7 +9,7 @@ async function handleLogin(e) {
     });
 
     if (res.ok) {
-        window.location.href = "/";
+        window.location.href = "/dashboard";
     } else {
         document.getElementById('error').innerText = "Password Salah!";
         document.getElementById('error').classList.remove('hidden');

@@ -57,11 +57,16 @@ form.addEventListener('submit', async (e) => {
     btnSubmit.disabled = true;
     resultMsg.classList.add('hidden');
 
+    const isUpdate = document.getElementById('toggle-update').checked;
+
     const formData = new FormData();
     formData.append('full_name', document.getElementById('full_name').value);
-    const selectedGender = document.querySelector('input[name="gender"]:checked').value;
-    formData.append('gender', selectedGender);
-    formData.append('phone_number', document.getElementById('phone_number').value);
+    
+    if (!isUpdate) {
+        const selectedGender = document.querySelector('input[name="gender"]:checked').value;
+        formData.append('gender', selectedGender);
+        formData.append('phone_number', document.getElementById('phone_number').value);
+    }
 
     // Fungsi pembantu untuk mengambil 1 frame menjadi Blob
     const captureFrame = () => {
@@ -95,7 +100,8 @@ form.addEventListener('submit', async (e) => {
         btnSubmit.innerText = "⏳ Memproses & Menyimpan...";
 
         // Kirim ke server
-        const res = await fetch('/api/register', { method: 'POST', body: formData });
+        const endpoint = isUpdate ? '/api/update-face' : '/api/register';
+        const res = await fetch(endpoint, { method: 'POST', body: formData });
         const data = await res.json();
 
         resultMsg.classList.remove('hidden');
@@ -114,5 +120,30 @@ form.addEventListener('submit', async (e) => {
     } finally {
         btnSubmit.innerText = originalText;
         btnSubmit.disabled = false;
+    }
+});
+
+// 3. UI Toggle Handler
+document.getElementById('toggle-update').addEventListener('change', (e) => {
+    const isUpdate = e.target.checked;
+    const genderWrapper = document.getElementById('gender-wrapper');
+    const phoneWrapper = document.getElementById('phone-wrapper');
+    const formTitle = document.getElementById('form-title');
+    const btnSubmit = document.getElementById('btn-submit');
+
+    if (isUpdate) {
+        genderWrapper.classList.add('hidden');
+        phoneWrapper.classList.add('hidden');
+        document.querySelector('input[name="gender"]').required = false;
+        document.getElementById('phone_number').required = false;
+        formTitle.innerText = "Update Wajah Jemaat";
+        btnSubmit.innerHTML = "📸 Update Data Wajah";
+    } else {
+        genderWrapper.classList.remove('hidden');
+        phoneWrapper.classList.remove('hidden');
+        document.querySelector('input[name="gender"]').required = true;
+        document.getElementById('phone_number').required = true;
+        formTitle.innerText = "Registrasi Anggota";
+        btnSubmit.innerHTML = "📸 Ambil Foto & Simpan";
     }
 });
