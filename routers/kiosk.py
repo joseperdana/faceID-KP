@@ -109,6 +109,12 @@ async def register_user(
     average_embedding = np.mean(valid_embeddings, axis=0)
     embedding_list = average_embedding.tolist()
     
+    # [PHASE C] Check for face duplication
+    matches = DBService.match_faces(embedding_list, threshold=0.5)
+    if matches:
+        matched_name = matches[0]['full_name']
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Wajah ini sudah terdaftar sebagai '{matched_name}'. Gunakan tombol 'Update Wajah' jika ingin memperbarui foto."})
+    
     try:
         user_data = {
             "full_name": full_name,
@@ -134,3 +140,35 @@ async def register_user(
     except Exception as e:
         print("Register Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
+
+@router.post("/update-face")
+async def update_face(
+    full_name: str = Form(...), 
+    files: List[UploadFile] = File(...)
+):
+    existing = DBService.get_user_by_name(full_name)
+    if not existing:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Nama tidak ditemukan di database!"})
+        
+    user_id = existing[0]['id']
+    
+    valid_embeddings = []
+    for file in files:
+        content = await file.read()
+        embedding = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
+        if embedding is not None:
+            valid_embeddings.append(embedding)
+            
+    if len(valid_embeddings) == 0:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Wajah tidak terdeteksi jelas. Ulangi foto."})
+        
+    average_embedding = np.mean(valid_embeddings, axis=0)
+    embedding_list = average_embedding.tolist()
+    
+    try:
+        DBService.update_user(user_id, {"face_embedding": embedding_list})
+        return {"status": "success", "message": f"Data wajah untuk '{full_name}' berhasil diperbarui!"}
+    except Exception as e:
+        print("Update Face Error:", e)
+        return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
+
