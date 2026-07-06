@@ -2,13 +2,26 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from services.analytics_service import AnalyticsService
 from core.security import check_admin_auth
+import time
 
 router = APIRouter(prefix="/api", tags=["analytics"], dependencies=[Depends(check_admin_auth)])
+
+# --- Simple in-memory TTL cache for dashboard stats ---
+# Fires 4 DB calls per request. 30s cache eliminates redundant traffic during events.
+_stats_cache = {"data": None, "expires_at": 0}
+STATS_CACHE_TTL = 30  # seconds
 
 @router.get("/dashboard-stats")
 async def get_dashboard_stats():
     try:
-        data = AnalyticsService.calculate_dashboard_stats()
+        now = time.time()
+        if _stats_cache["data"] is None or now > _stats_cache["expires_at"]:
+            # Cache miss or expired: fetch fresh data from DB
+            data = AnalyticsService.calculate_dashboard_stats()
+            _stats_cache["data"] = data
+            _stats_cache["expires_at"] = now + STATS_CACHE_TTL
+        else:
+            data = _stats_cache["data"]
         data["status"] = "success"
         return data
     except Exception as e:

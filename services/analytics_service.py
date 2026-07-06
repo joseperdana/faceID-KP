@@ -10,7 +10,7 @@ class AnalyticsService:
         total_users = DBService.get_users_with_count()
         logs_today = DBService.get_logs_from_date(today)
         new_users_today = DBService.get_new_users_today(today)
-        feed = DBService.get_recent_logs()
+        feed = DBService.get_recent_logs(15)  # Increased from 5 — 5 rows disappears instantly at events
 
         return {
             "total_users": total_users,

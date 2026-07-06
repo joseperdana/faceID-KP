@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, Request
 
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback_secret_key_change_me")
+SECRET_KEY = os.environ["SECRET_KEY"]  # Hard fail on startup if missing — never use a fallback for crypto keys
 ALGORITHM = "HS256"
 COOKIE_NAME = "faceid_token"
 
