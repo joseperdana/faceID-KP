@@ -94,7 +94,9 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 class="font-bold text-lg">📡 Aktivitas Terbaru</h3>
-                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse">● Live</span>
+                    <!-- Replaced fake "● Live" badge: data was only fetched once on load, never refreshed.
+                         This timestamp shows exactly when the data was last fetched — honest UX. -->
+                    <span class="text-xs text-slate-400 font-mono" id="feed-last-updated">Memuat...</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
@@ -175,16 +177,13 @@
                         <button onclick="prevUsersPage()" id="btn-prev-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">&larr; Prev</button>
                         <button onclick="nextUsersPage()" id="btn-next-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Next &rarr;</button>
                     </div>
-                </div>
-            </div>
-        </div>
-
+                <
         <div id="analytics" class="tab-content">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    📈 Analisa & Statistik
+                    📈 Analisa &amp; Statistik
                 </h2>
-                
+
                 <div class="flex flex-wrap items-center gap-3">
                     <button onclick="downloadExcelToday()" class="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-teal-500/30 transition-all">
                         📥 Hari Ini
@@ -207,7 +206,30 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- ⚠️ AT-RISK PANEL — PROMOTED TO TOP (Row 1) -->
+            <!-- Rationale: This is the only widget that requires an admin action (phone call / pastoral visit).
+                 It must be the FIRST thing seen. Charts and heatmaps are descriptive; At-Risk is prescriptive. -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border-2 border-red-200 relative overflow-hidden mb-8">
+                <div class="absolute top-0 right-0 p-4 opacity-5 text-9xl text-red-500 pointer-events-none">🚨</div>
+
+                <div class="flex justify-between items-center mb-1 relative z-10">
+                    <h3 class="font-bold text-red-600 flex items-center gap-2 text-lg">⚠️ Jemaat Perlu Perhatian (At-Risk)</h3>
+                    <select id="at-risk-filter" onchange="loadAnalytics()" class="text-xs border border-red-200 rounded p-1 bg-red-50 text-red-700 outline-none cursor-pointer shadow-sm">
+                        <option value="14">Lewat 14 Hari</option>
+                        <option value="30" selected>Lewat 30 Hari</option>
+                        <option value="90">Lewat 90 Hari</option>
+                    </select>
+                </div>
+                <div class="flex justify-between items-center mb-4 relative z-10">
+                    <p class="text-xs text-slate-500">Jemaat yang lama tidak hadir — perlu di-follow up secara pastoral.</p>
+                    <button onclick="openAtRiskModal()" class="text-xs text-red-600 font-bold hover:underline">Lihat Semua &rarr;</button>
+                </div>
+
+                <ul id="at-risk-list" class="space-y-3 relative z-10"></ul>
+            </div>
+
+            <!-- Row 2: KPI cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
                     <p class="text-indigo-100 text-sm font-medium mb-1">Rata-rata Kehadiran</p>
@@ -224,17 +246,20 @@
                 </div>
             </div>
 
+            <!-- Row 3: Trend chart -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
                 <h3 class="font-bold text-slate-700 mb-4">Grafik Tren Kehadiran</h3>
                 <div class="h-64">
                     <canvas id="attendanceChart"></canvas>
                 </div>
             </div>
+
+            <!-- Row 4: Gender distribution -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
                 <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
                     👥 Distribusi Gender
                 </h3>
-                
+
                 <div class="flex justify-between text-sm mb-3">
                     <span class="text-sky-600 font-bold flex items-center gap-1">
                         Pria: <span id="stat-pria" class="text-slate-800">0</span>
@@ -246,29 +271,30 @@
                         Wanita: <span id="stat-wanita" class="text-slate-800">0</span>
                     </span>
                 </div>
-                
+
                 <div class="w-full bg-slate-100 rounded-full h-4 mb-3 flex overflow-hidden border border-slate-200 shadow-inner">
                     <div id="bar-pria" class="bg-sky-500 hover:bg-sky-400 h-full transition-all duration-1000 cursor-pointer" style="width: 50%" title="Pria"></div>
                     <div id="bar-unknown" class="bg-slate-300 hover:bg-slate-400 h-full transition-all duration-1000 cursor-pointer" style="width: 0%" title="Tanpa Keterangan"></div>
                     <div id="bar-wanita" class="bg-pink-500 hover:bg-pink-400 h-full transition-all duration-1000 cursor-pointer" style="width: 50%" title="Wanita"></div>
                 </div>
-                
+
                 <div class="flex justify-between text-sm font-semibold text-slate-500">
                     <span id="persen-pria">50%</span>
                     <span id="persen-unknown" class="hidden text-slate-400">0%</span>
                     <span id="persen-wanita">50%</span>
                 </div>
             </div>
-            
+
+            <!-- Row 5: Heatmap -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 w-full">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                        🔥 Heatmap Kalender Harian 
+                        🔥 Heatmap Kalender Harian
                         <span class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Geser untuk melihat hari lain</span>
                     </h3>
                     <button onclick="openGlobalCalendarModal()" class="text-xs text-sky-600 font-bold hover:underline">Lihat Semua &rarr;</button>
                 </div>
-                
+
                 <div class="overflow-x-auto pt-5 pb-6 custom-scrollbar">
                     <div id="global-heatmap" class="flex gap-3 min-w-max px-2">
                         </div>
@@ -284,33 +310,13 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-red-100 relative overflow-hidden flex flex-col">
-                    <div class="absolute top-0 right-0 p-4 opacity-5 text-9xl text-red-500 pointer-events-none">🚨</div>
-                    
-                    <div class="flex justify-between items-center mb-1 relative z-10">
-                        <h3 class="font-bold text-red-600 flex items-center gap-2">⚠️ Perhatian (At-Risk)</h3>
-                        <select id="at-risk-filter" onchange="loadAnalytics()" class="text-xs border border-red-200 rounded p-1 bg-red-50 text-red-700 outline-none cursor-pointer shadow-sm">
-                            <option value="14">Lewat 14 Hari</option>
-                            <option value="30" selected>Lewat 30 Hari</option>
-                            <option value="90">Lewat 90 Hari</option>
-                        </select>
-                    </div>
-                    <div class="flex justify-between items-center mb-4 relative z-10">
-                        <p class="text-xs text-slate-500">Jemaat yang lama tidak hadir.</p>
-                        <button onclick="openAtRiskModal()" class="text-xs text-red-600 font-bold hover:underline">Lihat Semua &rarr;</button>
-                    </div>
-
-                    <ul id="at-risk-list" class="space-y-3 flex-1"></ul>
+            <!-- Row 6: Leaderboard (secondary, informational only — not actionable) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-700">🏆 Jemaat Paling Rajin</h3>
+                    <button onclick="openTopUsersModal()" class="text-xs text-sky-600 font-bold hover:underline">Lihat Semua &rarr;</button>
                 </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-slate-700">🏆 Jemaat Paling Rajin</h3>
-                        <button onclick="openTopUsersModal()" class="text-xs text-sky-600 font-bold hover:underline">Lihat Semua &rarr;</button>
-                    </div>
-                    <ul id="top-users-list" class="space-y-3 flex-1"></ul>
-                </div>
+                <ul id="top-users-list" class="space-y-3"></ul>
             </div>
         </div>
     </main>
@@ -575,16 +581,37 @@
     </div>
 
     <script>
-        moment.locale('id'); 
-        let allUsers = []; 
+        moment.locale('id');
+        let allUsers = [];
         let attendanceChartInstance = null;
         let peakChartInstance = null;
+
+        /**
+         * XSS Prevention: Escapes HTML special characters before innerHTML injection.
+         * Without this, a name like <img src=x onerror=alert(1)> executes in admin browser.
+         * Always wrap user-provided data: sanitize(name), sanitize(status).
+         */
+        function sanitize(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // --- Auto-refresh state for Overview tab ---
+        // We hold the interval ID so we can clear it when switching away from Overview.
+        // This prevents "ghost" background fetches when the tab isn't even visible.
+        let overviewRefreshInterval = null;
+        const OVERVIEW_REFRESH_MS = 30000; // 30 seconds
 
         // Navigasi Tab
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            
+
             document.querySelectorAll('.nav-item').forEach(el => {
                 el.classList.remove('text-sky-400', 'bg-slate-800', 'font-semibold');
                 el.classList.add('text-slate-300');
@@ -592,7 +619,17 @@
             document.getElementById('btn-' + tabId).classList.add('text-sky-400', 'bg-slate-800', 'font-semibold');
             document.getElementById('btn-' + tabId).classList.remove('text-slate-300');
 
-            if (tabId === 'overview') loadOverview();
+            // Stop any existing overview auto-refresh before switching tabs
+            if (overviewRefreshInterval) {
+                clearInterval(overviewRefreshInterval);
+                overviewRefreshInterval = null;
+            }
+
+            if (tabId === 'overview') {
+                loadOverview();
+                // Start auto-refresh only while on Overview tab
+                overviewRefreshInterval = setInterval(loadOverview, OVERVIEW_REFRESH_MS);
+            }
             if (tabId === 'database') loadDatabase();
             if (tabId === 'analytics') loadAnalytics(document.getElementById('time-filter').value);
         }
@@ -602,10 +639,14 @@
             try {
                 const res = await fetch('/api/dashboard-stats');
                 const data = await res.json();
-                
+
                 document.getElementById('stat-total-users').innerText = data.total_users;
                 document.getElementById('stat-present-today').innerText = data.present_today;
                 document.getElementById('stat-new-today').innerText = data.new_users_today;
+
+                // Update "Last Updated" timestamp — honest replacement for the fake "● Live" badge
+                const updatedEl = document.getElementById('feed-last-updated');
+                if (updatedEl) updatedEl.innerText = 'Diperbarui: ' + moment().format('HH:mm:ss');
 
                 const tbody = document.getElementById('feed-table');
                 tbody.innerHTML = '';
@@ -615,10 +656,11 @@
                 data.recent_logs.forEach(log => {
                     const time = moment(log.timestamp).format('HH:mm');
                     const relative = moment(log.timestamp).fromNow();
-                    const name = log.users ? log.users.full_name : 'User Dihapus';
-                    
-                    const statusClass = log.status.includes('Baru') 
-                        ? 'bg-sky-100 text-sky-700' 
+                    const name = sanitize(log.users ? log.users.full_name : 'User Dihapus');
+                    const status = sanitize(log.status);
+
+                    const statusClass = log.status.includes('Baru')
+                        ? 'bg-sky-100 text-sky-700'
                         : 'bg-emerald-100 text-emerald-700';
 
                     tbody.innerHTML += `
@@ -627,7 +669,7 @@
                                 <span class="font-bold text-slate-800 text-sm">${time}</span><br>${relative}
                             </td>
                             <td class="p-4 font-semibold text-slate-700">${name}</td>
-                            <td class="p-4"><span class="${statusClass} px-2 py-1 rounded text-xs font-bold">${log.status}</span></td>
+                            <td class="p-4"><span class="${statusClass} px-2 py-1 rounded text-xs font-bold">${status}</span></td>
                             <td class="p-4 text-right">
                                 <button onclick="deleteLog(${log.id})" class="text-red-400 hover:text-red-600" title="Hapus Log">🗑️</button>
                             </td>
@@ -679,13 +721,14 @@
             } else {
                 pageLogs.forEach(log => {
                     const time = moment(log.timestamp).format('DD MMM YYYY, HH:mm:ss');
-                    const name = log.users ? log.users.full_name : '<span class="text-red-400 italic">Dihapus</span>';
+                    const name = log.users ? sanitize(log.users.full_name) : '<span class="text-red-400 italic">Dihapus</span>';
+                    const status = sanitize(log.status);
                     const sClass = log.status.includes('Baru') ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700';
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50">
                             <td class="p-4 text-slate-600 font-mono text-xs whitespace-nowrap">${time}</td>
                             <td class="p-4 font-semibold text-slate-800">${name}</td>
-                            <td class="p-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${sClass}">${log.status}</span></td>
+                            <td class="p-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${sClass}">${status}</span></td>
                         </tr>
                     `;
                 });

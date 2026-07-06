@@ -4,17 +4,18 @@ from typing import List, Dict, Optional
 class DBService:
     @staticmethod
     def get_all_users() -> List[Dict]:
-        res = supabase.table("users").select("*").execute()
+        # Filter out soft-deleted users from all normal queries
+        res = supabase.table("users").select("*").eq("is_deleted", False).execute()
         return res.data
 
     @staticmethod
     def get_users_with_count() -> int:
-        res = supabase.table("users").select("id", count="exact").execute()
+        res = supabase.table("users").select("id", count="exact").eq("is_deleted", False).execute()
         return res.count
 
     @staticmethod
     def get_users_by_gender() -> List[Dict]:
-        res = supabase.table("users").select("gender").execute()
+        res = supabase.table("users").select("gender").eq("is_deleted", False).execute()
         return res.data
 
     @staticmethod
@@ -28,12 +29,22 @@ class DBService:
         return res.data
 
     @staticmethod
+    def soft_delete_user(user_id: int):
+        """Soft delete: marks user as deleted without destroying data or attendance history."""
+        from datetime import datetime, timezone
+        supabase.table("users").update({
+            "is_deleted": True,
+            "deleted_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", user_id).execute()
+
+    @staticmethod
     def delete_user(user_id: int):
+        """Hard delete — only used internally if needed. Prefer soft_delete_user() for UI actions."""
         supabase.table("users").delete().eq("id", user_id).execute()
 
     @staticmethod
     def get_user_by_name(full_name: str) -> List[Dict]:
-        res = supabase.table("users").select("id").eq("full_name", full_name).execute()
+        res = supabase.table("users").select("id").eq("full_name", full_name).eq("is_deleted", False).execute()
         return res.data
 
     @staticmethod

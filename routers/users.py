@@ -50,8 +50,10 @@ async def update_user(user_id: int, data: UpdateUserDto):
 @router.delete("/{user_id}")
 async def delete_user(user_id: int):
     try:
-        DBService.delete_logs_by_user(user_id)
-        DBService.delete_user(user_id)
-        return {"status": "success", "message": "User dan data absensinya dihapus."}
+        # Soft delete: preserves the user's attendance history in the database.
+        # The user disappears from all UI queries (is_deleted=true filter).
+        # Hard-deleting attendance logs alongside a user would destroy historical records.
+        DBService.soft_delete_user(user_id)
+        return {"status": "success", "message": "Jemaat telah diarsipkan (data kehadiran tetap tersimpan)."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
