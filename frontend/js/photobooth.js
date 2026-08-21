@@ -103,14 +103,14 @@
     if (timer3sBtn && timer5sBtn) {
         timer3sBtn.addEventListener('click', () => {
             timerDuration = 3;
-            timer3sBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-red-600 text-white border border-red-500 transition-all';
-            timer5sBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all';
+            timer3sBtn.className = 'px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-rose-600 text-white border border-rose-500 transition-all';
+            timer5sBtn.className = 'px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-obsidian-800 text-slate-400 border border-white/[0.08] hover:text-white transition-all';
         });
 
         timer5sBtn.addEventListener('click', () => {
             timerDuration = 5;
-            timer5sBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-red-600 text-white border border-red-500 transition-all';
-            timer3sBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all';
+            timer5sBtn.className = 'px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-rose-600 text-white border border-rose-500 transition-all';
+            timer3sBtn.className = 'px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-obsidian-800 text-slate-400 border border-white/[0.08] hover:text-white transition-all';
         });
     }
 
