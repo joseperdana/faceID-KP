@@ -176,7 +176,7 @@
 
             ctx.fillStyle = '#ffffff';
             ctx.font = `900 ${14 * scale}px sans-serif`;
-            ctx.fillText('🇮🇩 KP 45', 24 * scale, 34 * scale);
+            ctx.fillText('KP 45', 24 * scale, 34 * scale);
 
             ctx.fillStyle = '#991b1b';
             ctx.font = `800 ${9 * scale}px sans-serif`;
@@ -199,12 +199,12 @@
 
             ctx.fillStyle = '#94a3b8';
             ctx.font = `${10 * scale}px sans-serif`;
-            ctx.fillText(`✨ Saturday Fellowship • ${todayStr}`, 20 * scale, bannerY + 52 * scale);
+            ctx.fillText(`Saturday Fellowship • ${todayStr}`, 20 * scale, bannerY + 52 * scale);
 
             // Gold Star Badge
             ctx.fillStyle = '#fbbf24';
             ctx.font = `bold ${18 * scale}px sans-serif`;
-            ctx.fillText('★ KP45', width - 85 * scale, bannerY + 42 * scale);
+            ctx.fillText('KP45', width - 85 * scale, bannerY + 42 * scale);
 
         } else if (selectedFrame === 'batik-gold') {
             // Ornate Gold Border
@@ -253,7 +253,7 @@
 
             ctx.fillStyle = '#d4d4d8';
             ctx.font = `italic ${10 * scale}px serif`;
-            ctx.fillText(`⚜️ Special Event KP45 • ${todayStr} ⚜️`, width / 2, plateY + 48 * scale);
+            ctx.fillText(`Special Event KP45 • ${todayStr}`, width / 2, plateY + 48 * scale);
             ctx.textAlign = 'left';
 
         } else if (selectedFrame === 'retro-polaroid') {
@@ -275,7 +275,7 @@
             // Handwritten-style text
             ctx.fillStyle = '#0f172a';
             ctx.font = `900 ${15 * scale}px sans-serif`;
-            ctx.fillText(caption || 'Youth on Fire! 🔥', 25 * scale, height - 48 * scale);
+            ctx.fillText(caption || 'Youth on Fire!', 25 * scale, height - 48 * scale);
 
             ctx.fillStyle = '#64748b';
             ctx.font = `600 ${11 * scale}px monospace`;
