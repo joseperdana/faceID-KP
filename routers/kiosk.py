@@ -100,6 +100,7 @@ async def recognize_face(
     log_data = {
         "user_id": user_id,
         "status": "Hadir",
+        "method": "face",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     try:
@@ -118,7 +119,8 @@ async def recognize_face(
                     "name": user_name,
                     "similarity_score": round(user['similarity'], 2),
                     "total_attendance": total_attendance,
-                    "last_seen": last_seen
+                    "last_seen": last_seen,
+                    "method": "face"
                 }
             }
         raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
@@ -133,9 +135,97 @@ async def recognize_face(
             "name": user_name,
             "similarity_score": round(user['similarity'], 2),
             "total_attendance": total_attendance,
-            "last_seen": last_seen
+            "last_seen": last_seen,
+            "method": "face"
         }
     }
+
+@router.get("/users/search")
+@limiter.limit("60/minute")
+async def search_users(request: Request, q: str = ""):
+    """Public search endpoint for fast manual fallback autocomplete in Kiosk."""
+    if not q or len(q.strip()) < 1:
+        return {"status": "success", "data": []}
+    try:
+        results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 10)
+        return {"status": "success", "data": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@router.post("/attendance/manual-checkin")
+@limiter.limit("30/minute")
+async def manual_checkin(request: Request, user_id: int = Form(...)):
+    """Fast manual fallback checkin when facial recognition is unavailable."""
+    try:
+        user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
+        if not user_list:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Jemaat tidak ditemukan."})
+        
+        user = user_list[0]
+        user_name = user["full_name"]
+        today_start = datetime.now(timezone.utc).date().isoformat()
+
+        today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
+        history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
+        total_attendance = len(history)
+
+        last_seen = "Baru Pertama"
+        for log in history:
+            if log.get("timestamp", "") < today_start:
+                last_seen_date = datetime.fromisoformat(log["timestamp"][:19]).replace(tzinfo=timezone.utc)
+                last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+                break
+
+        if today_log:
+            return {
+                "status": "success",
+                "message": f"Halo {user_name}, kamu sudah absen hari ini!",
+                "data": {
+                    "name": user_name,
+                    "total_attendance": total_attendance,
+                    "last_seen": last_seen,
+                    "method": "manual"
+                }
+            }
+
+        log_data = {
+            "user_id": user_id,
+            "status": "Hadir",
+            "method": "manual",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        try:
+            await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
+            total_attendance += 1
+        except Exception as e:
+            err_str = str(e)
+            if "23505" in err_str or "unique" in err_str.lower():
+                return {
+                    "status": "success",
+                    "message": f"Halo {user_name}, kamu sudah absen hari ini!",
+                    "data": {
+                        "name": user_name,
+                        "total_attendance": total_attendance,
+                        "last_seen": last_seen,
+                        "method": "manual"
+                    }
+                }
+            raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
+
+        return {
+            "status": "success",
+            "message": f"Absen manual berhasil! Halo, {user_name}.",
+            "data": {
+                "name": user_name,
+                "total_attendance": total_attendance,
+                "last_seen": last_seen,
+                "method": "manual"
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.post("/register")
 async def register_user(

@@ -22,17 +22,40 @@
     </style>
 </head>
 
-<body class="bg-slate-950 text-white min-h-screen flex flex-col p-4 lg:p-6">
+<body class="bg-slate-950 text-white min-h-screen flex flex-col p-3 md:p-6 font-sans">
 
-    <nav class="w-full max-w-6xl mx-auto mb-4 flex justify-between items-center bg-slate-900/80 backdrop-blur rounded-2xl p-3 border border-slate-800 shadow-lg z-50">
-        <div class="flex items-center gap-2 px-2">
-            <span class="text-xl">🏛️</span>
-            <span class="font-bold text-sm lg:text-base hidden md:block">Komisi Pemuda GKI Bromo FaceID</span>
+    <!-- Top Navigation Bar -->
+    <nav class="w-full max-w-6xl mx-auto mb-4 flex justify-between items-center bg-slate-900/90 backdrop-blur-md rounded-2xl p-3 md:p-4 border border-slate-800 shadow-xl z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-600 to-blue-700 flex items-center justify-center text-xl shadow-lg shadow-sky-900/40">
+                🏛️
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-base tracking-wide flex items-center gap-2">
+                    <span>FaceID Absen KP</span>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-mono">v2.0</span>
+                </h1>
+                <p class="text-xs text-slate-400">GKI Bromo Malang</p>
+            </div>
         </div>
         
-        <div class="flex gap-2">
-            <a href="/register" class="flex items-center gap-2 px-4 py-2 bg-sky-900/50 hover:bg-sky-600 rounded-xl text-sm font-semibold text-sky-200 hover:text-white transition-colors border border-sky-800">
-                📝 Daftar Manual
+        <div class="flex items-center gap-2">
+            <!-- Special Event Photobooth Button -->
+            <a href="/photobooth" class="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-xl text-xs md:text-sm font-bold text-white shadow-lg shadow-red-900/40 transition-all active:scale-95 border border-red-400/30">
+                <span>🇮🇩</span>
+                <span class="hidden sm:inline">KP45 Photobooth</span>
+            </a>
+
+            <!-- Manual Search Fallback Trigger -->
+            <button id="btn-open-manual-search" class="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-semibold text-slate-200 border border-slate-700 transition-all active:scale-95">
+                <span>🔍</span>
+                <span class="hidden sm:inline">Cari Manual</span>
+            </button>
+
+            <!-- Register New Member -->
+            <a href="/register" class="flex items-center gap-1.5 px-3 py-2 bg-sky-900/40 hover:bg-sky-700 rounded-xl text-xs md:text-sm font-semibold text-sky-200 hover:text-white transition-all border border-sky-800">
+                <span>📝</span>
+                <span class="hidden md:inline">Daftar Wajah</span>
             </a>
         </div>
     </nav>
@@ -44,7 +67,8 @@
                 <span class="text-4xl">✅</span>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2">Halo, <span id="success-name" class="text-emerald-400">Nama</span>!</h2>
-            <p class="text-slate-300 text-sm mb-6" id="success-message">Kehadiran berhasil dicatat.</p>
+            <p class="text-slate-300 text-sm mb-4" id="success-message">Kehadiran berhasil dicatat.</p>
+            <div id="success-badge-method" class="inline-block mb-5 text-[11px] font-bold px-3 py-1 rounded-full bg-slate-800 text-sky-300 border border-slate-700">Scan Wajah</div>
             
             <div class="grid grid-cols-2 gap-3 mb-6">
                 <div class="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
@@ -63,9 +87,38 @@
         </div>
     </div>
 
+    <!-- MANUAL SEARCH FALLBACK MODAL (Hidden by default) -->
+    <div id="manual-search-modal" class="fixed inset-0 z-[90] hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span>🔍</span> Cari Nama Manual
+                    </h3>
+                    <p class="text-xs text-slate-400">Fallback jika kamera silau / wajah gagal dikenali</p>
+                </div>
+                <button id="btn-close-manual-search" class="text-slate-400 hover:text-white p-1 text-xl font-bold">✕</button>
+            </div>
 
+            <!-- Search Input -->
+            <div class="relative mb-4">
+                <input id="manual-search-input" type="text" placeholder="Ketik nama jemaat..." autocomplete="off" class="w-full bg-slate-800 border border-slate-700 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors">
+                <span class="absolute left-3.5 top-3.5 text-slate-400 text-sm">🔎</span>
+            </div>
+
+            <!-- Search Results List -->
+            <div id="manual-search-results" class="flex-grow overflow-y-auto space-y-2 pr-1 min-h-[200px] max-h-[350px]">
+                <div class="text-center py-10 text-slate-500 text-xs">
+                    Ketik minimal 1 huruf untuk mencari nama jemaat.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kiosk Scanner Main View -->
     <div class="w-full max-w-6xl mx-auto bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden flex flex-col lg:flex-row min-h-[550px] flex-grow">
         
+        <!-- Video Feed & Oval Overlay -->
         <div class="relative w-full lg:w-[65%] bg-black flex items-center justify-center group overflow-hidden">
             <video id="video" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
             <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100"></canvas>
@@ -87,7 +140,8 @@
             </div>
         </div>
 
-        <div class="w-full lg:w-[35%] bg-slate-800/50 p-8 flex flex-col justify-between border-l border-slate-700/50 relative">
+        <!-- Status Panel Sidebar -->
+        <div class="w-full lg:w-[35%] bg-slate-800/50 p-6 md:p-8 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-slate-700/50 relative">
             
             <div>
                 <h1 class="text-2xl font-bold text-white tracking-tight">Status Scan</h1>
@@ -97,15 +151,24 @@
             <div id="status-card" class="flex flex-col justify-center py-6 transition-colors duration-300 flex-grow">
                 <div id="status-icon" class="text-6xl mb-4 text-slate-500 transition-all duration-300">👤</div>
                 <h2 id="status-title" class="text-3xl font-extrabold text-white mb-2 leading-tight">Siap Absen</h2>
-                <p id="status-desc" class="text-slate-400 text-lg leading-relaxed">Silakan berdiri tegap di dalam pola oval.</p>
+                <p id="status-desc" class="text-slate-400 text-base md:text-lg leading-relaxed">Silakan berdiri tegap di dalam pola oval.</p>
 
                 <div class="mt-6 w-full bg-slate-700 rounded-full h-3 overflow-hidden">
                     <div id="scan-progress" class="bg-gradient-to-r from-sky-400 to-blue-600 h-full w-0 progress-bar-transition"></div>
                 </div>
             </div>
 
+            <!-- Fallback Search Trigger on Sidebar -->
+            <div class="pt-4 border-t border-slate-700/40 flex justify-between items-center">
+                <span class="text-xs text-slate-400">Kamera bermasalah?</span>
+                <button id="btn-sidebar-manual-search" class="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                    <span>🔍 Cari Nama Manual &rarr;</span>
+                </button>
+            </div>
+
+            <!-- Result Error Area -->
             <div id="result-area" class="absolute inset-0 bg-slate-800 p-8 flex flex-col justify-center items-center z-20 hidden fade-in text-center">
-                </div>
+            </div>
         </div>
     </div>
 

@@ -47,11 +47,14 @@
             </button>
         </nav>
 
-        <div class="p-4 border-t border-slate-800">
-            <a href="/" target="_blank" class="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl mb-3 font-semibold transition-all">
-                📸 Buka Kamera
+        <div class="p-4 border-t border-slate-800 space-y-2">
+            <a href="/photobooth" target="_blank" class="flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white py-2.5 rounded-xl font-bold text-sm transition-all shadow-md shadow-red-900/30">
+                🇮🇩 KP45 Photobooth
             </a>
-            <a href="/logout" class="flex items-center justify-center gap-2 text-red-400 hover:text-red-300 text-sm py-2">
+            <a href="/" target="_blank" class="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl font-semibold text-sm transition-all border border-slate-700">
+                📸 Kiosk Absensi
+            </a>
+            <a href="/logout" class="flex items-center justify-center gap-2 text-red-400 hover:text-red-300 text-xs py-1.5">
                 Keluar
             </a>
         </div>
@@ -75,14 +78,16 @@
                         <h3 class="text-3xl font-bold text-slate-800" id="stat-total-users">-</h3>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <!-- Clickable Card: Hadir Hari Ini -->
+                <div onclick="openDailyDetail(moment().format('YYYY-MM-DD'))" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all" title="Klik untuk lihat daftar hadir hari ini">
                     <div class="p-3 bg-emerald-100 text-emerald-600 rounded-xl text-2xl">✅</div>
                     <div>
                         <p class="text-slate-500 text-sm font-medium">Hadir Hari Ini</p>
                         <h3 class="text-3xl font-bold text-slate-800" id="stat-present-today">-</h3>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <!-- Clickable Card: Baru Daftar Hari Ini -->
+                <div onclick="showNewUsersToday()" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all" title="Klik untuk lihat jemaat baru hari ini">
                     <div class="p-3 bg-orange-100 text-orange-600 rounded-xl text-2xl">🆕</div>
                     <div>
                         <p class="text-slate-500 text-sm font-medium">Baru Daftar Hari Ini</p>
@@ -176,8 +181,11 @@
                     <div class="flex gap-2">
                         <button onclick="prevUsersPage()" id="btn-prev-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">&larr; Prev</button>
                         <button onclick="nextUsersPage()" id="btn-next-users" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Next &rarr;</button>
-                    </div>
-                <
+                </div>
+            </div>
+        </div>
+    </div>
+
         <div id="analytics" class="tab-content">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -585,6 +593,7 @@
         let allUsers = [];
         let attendanceChartInstance = null;
         let peakChartInstance = null;
+        let globalNewUsersToday = [];
 
         /**
          * XSS Prevention: Escapes HTML special characters before innerHTML injection.
@@ -643,6 +652,7 @@
                 document.getElementById('stat-total-users').innerText = data.total_users;
                 document.getElementById('stat-present-today').innerText = data.present_today;
                 document.getElementById('stat-new-today').innerText = data.new_users_today;
+                globalNewUsersToday = data.new_users_list || [];
 
                 // Update "Last Updated" timestamp — honest replacement for the fake "● Live" badge
                 const updatedEl = document.getElementById('feed-last-updated');
@@ -677,6 +687,42 @@
                     `;
                 });
             } catch (e) { console.error(e); }
+        }
+
+        // Action when clicking "Baru Daftar Hari Ini" card
+        function showNewUsersToday() {
+            if (!globalNewUsersToday || globalNewUsersToday.length === 0) {
+                Swal.fire({
+                    title: 'Jemaat Baru Hari Ini',
+                    text: 'Belum ada jemaat baru yang mendaftar hari ini.',
+                    icon: 'info',
+                    confirmButtonColor: '#0284c7'
+                });
+                return;
+            }
+
+            let htmlContent = '<ul class="text-left space-y-2 max-h-60 overflow-y-auto">';
+            globalNewUsersToday.forEach(u => {
+                const time = moment(u.created_at).format('HH:mm');
+                const name = sanitize(u.name);
+                const phone = sanitize(u.phone || '-');
+                htmlContent += `<li class="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-100">
+                    <div>
+                        <div class="font-semibold text-slate-700">${name}</div>
+                        <div class="text-xs text-slate-400">Terdaftar pukul ${time} WIB</div>
+                    </div>
+                    <span class="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded font-bold">${phone}</span>
+                </li>`;
+            });
+            htmlContent += '</ul>';
+
+            Swal.fire({
+                title: 'Jemaat Baru Hari Ini',
+                html: htmlContent,
+                icon: 'info',
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#0284c7'
+            });
         }
 
         // --- 1.B VIEW ALL LOGS (PAGINATION) ---

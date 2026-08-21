@@ -8,6 +8,10 @@ router = APIRouter(tags=["pages"])
 def kiosk_page():
     return FileResponse("frontend/index.html")
 
+@router.get("/photobooth")
+def photobooth_page():
+    return FileResponse("frontend/photobooth.html")
+
 @router.get("/login")
 def login_page():
     return FileResponse("frontend/login.html")

@@ -1,44 +1,34 @@
-# Todo List: System Audit Fixes (Audit Report — July 2026)
+# 📋 Master Todo List: Refactor Absen KP & KP45 Indonesian Photobooth
 
-## ✅ Previous Work (Completed)
-All Phase 1–5 items from prior refactoring are complete.
+## 🚀 Phase 1: PRD, Architecture & TDD Setup
+- [x] Write PRD v2.0 in `PRD.md` with explicit Kiosk, Manual Fallback, and KP45 Photobooth specs
+- [x] Write Implementation Plan in `tasks/implementation_plan.md`
+- [x] Create pytest test suite `tests/test_kiosk_and_attendance.py` (TDD First)
+- [x] Run pytest baseline to confirm test failures (Red phase)
 
----
+## ⚙️ Phase 2: Backend & Attendance Refactor (`attendance_engineer`)
+- [x] Update `routers/kiosk.py` to add `POST /api/attendance/manual-checkin` endpoint
+- [x] Add query endpoint `GET /api/users/search?q=` for fast autocomplete in kiosk
+- [x] Ensure `checkin_method` (`face` vs `manual`) is stored in `attendance_logs` table
+- [x] Run pytest to confirm tests pass (Green phase)
 
-## 🔴 Part 1: Security Hardening (B3)
-- [x] Remove hardcoded fallback secret key in `core/security.py` — fail loudly on missing env var
-- [x] Move Sentry DSN to environment variable in `main.py`
-- [x] Add `slowapi` to `requirements.txt` for rate limiting
-- [x] Add rate limiting: 5/min on `/api/login`, 30/min on `/api/recognize`
-- [x] Make geofence lat/lng mandatory (remove `Optional`) in `kiosk.py`
+## 🎨 Phase 3: Kiosk UX & Manual Fallback Modal (`creative_ui_engineer`)
+- [x] Add *"Cari Nama Manual"* button on `frontend/index.html`
+- [x] Implement fast debounce autocomplete search modal in `frontend/js/index.js`
+- [x] Update success modal to show streak count, last seen date & method badge cleanly
 
-## 🔴 Part 2: Race Condition Fix — TOCTOU (B1)
-- [x] Provide SQL migration for UNIQUE constraint on `attendance_logs(user_id, date)`
-- [x] Refactor `kiosk.py` `/recognize` — replace full history fetch with targeted `check_user_log_today`
-- [x] Wrap `insert_log` in try/except to catch DB-level duplicate constraint (code `23505`)
+## 🇮🇩 Phase 4: KP45 Indonesian Photobooth Module (`creative_ui_engineer`)
+- [x] Create `frontend/photobooth.html` with responsive mobile/desktop layout
+- [x] Implement `frontend/js/photobooth.js` using HTML5 Canvas
+  - Camera stream controller (switching front/back camera, mirror toggle)
+  - 3 Custom frames: Merah Putih KP45, Batik Heritage Gold, Modern Retro Polaroid
+  - 3-second countdown flash animation & synthetic audio shutter
+  - Snapshot composition onto high-res canvas (1080x1350)
+  - Direct image download & modal preview
+- [x] Add Photobooth navigation link to all page headers (`index.html`, `dashboard.html`)
+- [x] Serve `/photobooth` route in `routers/pages.py`
 
-## 🟠 Part 3: XSS + Soft Delete (U3)
-- [x] Provide SQL migration for `is_deleted` + `deleted_at` columns on `users` table
-- [x] Update `db_service.py`: add `soft_delete_user()`, filter `is_deleted=false` on all user queries
-- [x] Update `users.py` router: call `soft_delete_user` instead of hard delete
-- [x] Fix `dashboard.html` innerHTML injection — add a `sanitize()` helper to escape user-provided strings
-
-## 🔴 Part 4: Stop Blocking the Async Event Loop (B2)
-- [x] Wrap all synchronous DB calls in `kiosk.py` with `run_in_threadpool`
-- [x] Add 30-second in-memory TTL cache for `dashboard-stats` endpoint
-- [x] Wrap DB calls in `analytics.py` route with `run_in_threadpool`
-
-## 🟠 Part 5: UX Restructure (U1 + U2)
-- [x] Restructure Analytics tab: promote At-Risk panel to top, demote leaderboard
-- [x] Replace fake `● Live` badge with a `Last Updated` timestamp
-- [x] Add `setInterval` auto-refresh (every 30s) for the Overview feed
-- [x] Increase recent logs limit from 5 to 15
-
----
-
-## Git Checkpoints
-- After Part 1: `fix/security-hardening`
-- After Part 2: `fix/race-condition-toctou`
-- After Part 3: `fix/xss-soft-delete`
-- After Part 4: `fix/async-db-refactor`
-- After Part 5: `fix/ux-restructure`
+## 🔒 Phase 5: Security Hardening & DevBrain Sync (`security_architect`)
+- [x] Audit rate limits, CORS, and threadpool offloading (`run_in_threadpool`)
+- [x] Update `DEV_BRAIN.md` with ADR-003 and ADR-004
+- [x] Final end-to-end integration test (6/6 tests passing)
