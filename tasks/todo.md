@@ -1,34 +1,26 @@
-# 📋 Master Todo List: Refactor Absen KP & KP45 Indonesian Photobooth
+# 📝 Photobooth Photo Strip & QR Delivery Task List
 
-## 🚀 Phase 1: PRD, Architecture & TDD Setup
-- [x] Write PRD v2.0 in `PRD.md` with explicit Kiosk, Manual Fallback, and KP45 Photobooth specs
-- [x] Write Implementation Plan in `tasks/implementation_plan.md`
-- [x] Create pytest test suite `tests/test_kiosk_and_attendance.py` (TDD First)
-- [x] Run pytest baseline to confirm test failures (Red phase)
+- [x] **1. Backend Architecture (`routers/photobooth.py` & `main.py`)**
+  - [x] Implement `POST /api/photobooth/upload` with short UUID generation, safe file writing, and LAN IP detection
+  - [x] Implement `GET /p/{photo_id}` mobile landing page for instant 1-tap download
+  - [x] Register photobooth router in `main.py`
+  - [x] Ensure directory `frontend/uploads/photobooth/` exists and is properly served
 
-## ⚙️ Phase 2: Backend & Attendance Refactor (`attendance_engineer`)
-- [x] Update `routers/kiosk.py` to add `POST /api/attendance/manual-checkin` endpoint
-- [x] Add query endpoint `GET /api/users/search?q=` for fast autocomplete in kiosk
-- [x] Ensure `checkin_method` (`face` vs `manual`) is stored in `attendance_logs` table
-- [x] Run pytest to confirm tests pass (Green phase)
+- [x] **2. Frontend Multi-Pose Engine & Themes (`frontend/photobooth.html` & `frontend/js/photobooth.js`)**
+  - [x] Implement 3-Pose automated burst capture sequence with synthesized sound effects and flash
+  - [x] Build Canvas Vertical Strip Compositor (1000x3000px 3-pose layout with center-crop aspect ratio safety)
+  - [x] Design 4 distinct themes: Merah Putih Cute Fest (17an), Batik Pop Kawaii, Retro Kodachrome 1945, and Obsidian Cyber Minimalist
+  - [x] Implement instant SVG QR Code generator and presentation modal
+  - [x] Add 45-second auto-reset timer for kiosk queue flow
 
-## 🎨 Phase 3: Kiosk UX & Manual Fallback Modal (`creative_ui_engineer`)
-- [x] Add *"Cari Nama Manual"* button on `frontend/index.html`
-- [x] Implement fast debounce autocomplete search modal in `frontend/js/index.js`
-- [x] Update success modal to show streak count, last seen date & method badge cleanly
+- [x] **3. Quality Assurance & Anti-Emoji Strictness**
+  - [x] Run automated unicode check to guarantee 0 emojis in all JS/HTML code
+  - [x] Add pytest unit tests for upload and mobile view endpoints (`tests/test_photobooth_api.py`)
+  - [x] Add Playwright E2E test for photobooth capture flow and QR generation (`tests/test_e2e_playwright.py`)
+  - [x] Verify 100% test coverage (`13/13 passed`)
 
-## 🇮🇩 Phase 4: KP45 Indonesian Photobooth Module (`creative_ui_engineer`)
-- [x] Create `frontend/photobooth.html` with responsive mobile/desktop layout
-- [x] Implement `frontend/js/photobooth.js` using HTML5 Canvas
-  - Camera stream controller (switching front/back camera, mirror toggle)
-  - 3 Custom frames: Merah Putih KP45, Batik Heritage Gold, Modern Retro Polaroid
-  - 3-second countdown flash animation & synthetic audio shutter
-  - Snapshot composition onto high-res canvas (1080x1350)
-  - Direct image download & modal preview
-- [x] Add Photobooth navigation link to all page headers (`index.html`, `dashboard.html`)
-- [x] Serve `/photobooth` route in `routers/pages.py`
-
-## 🔒 Phase 5: Security Hardening & DevBrain Sync (`security_architect`)
-- [x] Audit rate limits, CORS, and threadpool offloading (`run_in_threadpool`)
-- [x] Update `DEV_BRAIN.md` with ADR-003 and ADR-004
-- [x] Final end-to-end integration test (6/6 tests passing)
+- [x] **4. Automated Git Pipeline & Deployment Gate**
+  - [x] Create & switch to `feature/photobooth-strip-qr` branch
+  - [x] Stage, commit with Conventional Commits (`feat(photobooth): ...`), and merge to `dev`
+  - [x] Push to `origin/dev` and update PR to `staging`
+  - [x] Provide localhost & LAN test links

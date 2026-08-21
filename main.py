@@ -16,7 +16,7 @@ sentry_sdk.init(
     profiles_sample_rate=1.0,
 )
 
-from routers import pages, auth, kiosk, users, analytics, attendance
+from routers import pages, auth, kiosk, users, analytics, attendance, photobooth
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="KPBromoMalang API")
@@ -37,6 +37,7 @@ app.include_router(kiosk.router)
 app.include_router(users.router)
 app.include_router(analytics.router)
 app.include_router(attendance.router)
+app.include_router(photobooth.router)
 
 if __name__ == "__main__":
     import uvicorn

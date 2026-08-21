@@ -40,17 +40,18 @@ def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContex
     expect(modal).to_have_class(re.compile(r"hidden"))
 
 def test_photobooth_page_interactions(page: Page):
-    """Test KP45 Indonesian Photobooth UI controls, frames, and timers."""
+    """Test KP45 Indonesian Photo Strip Booth UI controls, frames, filters, and timers."""
     page.goto(f"{BASE_URL}/photobooth")
     
     # Check Page Header
-    expect(page).to_have_title("Photobooth KP45 — Komisi Pemuda GKI Bromo")
-    expect(page.locator("text=KP45 PHOTOBOOTH")).to_be_visible()
+    expect(page).to_have_title(re.compile(r"Photo Strip Booth|Photobooth"))
+    expect(page.locator("text=PHOTO STRIP BOOTH")).to_be_visible()
     
-    # Check Frame selection
+    # Check 4 Frame selections
     frame_merah_putih = page.locator('[data-frame="merah-putih"]')
-    frame_batik = page.locator('[data-frame="batik-gold"]')
-    frame_polaroid = page.locator('[data-frame="retro-polaroid"]')
+    frame_batik = page.locator('[data-frame="batik-kawaii"]')
+    frame_retro = page.locator('[data-frame="retro-kodak"]')
+    frame_cyber = page.locator('[data-frame="obsidian-cyber"]')
     
     expect(frame_merah_putih).to_have_class(re.compile(r"frame-active"))
     
@@ -59,24 +60,36 @@ def test_photobooth_page_interactions(page: Page):
     expect(frame_batik).to_have_class(re.compile(r"frame-active"))
     expect(frame_merah_putih).not_to_have_class(re.compile(r"frame-active"))
     
-    # Click Polaroid frame
-    frame_polaroid.click()
-    expect(frame_polaroid).to_have_class(re.compile(r"frame-active"))
+    # Click Retro frame
+    frame_retro.click()
+    expect(frame_retro).to_have_class(re.compile(r"frame-active"))
     expect(frame_batik).not_to_have_class(re.compile(r"frame-active"))
+
+    # Click Cyber frame
+    frame_cyber.click()
+    expect(frame_cyber).to_have_class(re.compile(r"frame-active"))
+    
+    # Check Color Tone Filters
+    filter_warm = page.locator('[data-filter="warm"]')
+    filter_mono = page.locator('[data-filter="mono"]')
+    filter_warm.click()
+    expect(filter_warm).to_have_class(re.compile(r"filter-active"))
+    filter_mono.click()
+    expect(filter_mono).to_have_class(re.compile(r"filter-active"))
     
     # Check Timer toggle
     timer_5s = page.locator("#timer-5s")
     timer_5s.click()
-    expect(timer_5s).to_have_class(re.compile(r"bg-rose-600"))
+    expect(timer_5s).to_have_class(re.compile(r"bg-azure-600"))
     
     # Check Custom Caption input
     caption_input = page.locator("#custom-caption-input")
     caption_input.fill("Geng Pemuda Bromo 2026")
     expect(caption_input).to_have_value("Geng Pemuda Bromo 2026")
     
-    # Check Capture Button
-    btn_capture = page.locator("#btn-capture")
-    expect(btn_capture).to_be_visible()
+    # Check Start Session Button
+    btn_start = page.locator("#btn-start-session")
+    expect(btn_start).to_be_visible()
 
 def test_login_page_form(page: Page):
     """Test Admin login page."""
