@@ -73,4 +73,4 @@ To keep the project strictly organized, the AI must follow this workflow:
 2. **Verify Plan:** Wait for explicit user approval before starting implementation.
 3. **Track Progress:** Mark items as completed as the process runs.
 4. **Document Results:** Provide a high-level summary of the changes made, ensuring there are no side effects or new bugs introduced.
-5. **Git Guide:** On every completed task, provide a suggested Git branch name, commit message, and a brief description for the user to commit manually. If the next task is required to have a new branch, please inform the user at the end of current task.
+5. **Automated Git Management:** On every completed task or milestone, automatically execute Git operations directly (create/switch branch, stage changes, and commit using Conventional Commits format). Never ask the user to commit manually; always report the branch name and commit hash upon completion.

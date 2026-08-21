@@ -16,9 +16,18 @@ const statusDesc = document.getElementById('status-desc');
 const progressBar = document.getElementById('scan-progress');
 const resultArea = document.getElementById('result-area');
 
+// Manual Search DOM
+const manualSearchModal = document.getElementById('manual-search-modal');
+const manualSearchInput = document.getElementById('manual-search-input');
+const manualSearchResults = document.getElementById('manual-search-results');
+const btnOpenManualSearch = document.getElementById('btn-open-manual-search');
+const btnSidebarManualSearch = document.getElementById('btn-sidebar-manual-search');
+const btnCloseManualSearch = document.getElementById('btn-close-manual-search');
+
 let isProcessing = false;
 let stableFramesCount = 0;
 let lastNoseX = null; let lastNoseY = null;
+let searchDebounceTimer = null;
 
 let currentUserLat = null;
 let currentUserLng = null;
@@ -122,6 +131,45 @@ function updateStatus(state, title, desc) {
     }
 }
 
+function showSuccessModal(data, message) {
+    resultArea.classList.add('hidden');
+    
+    document.getElementById('success-name').innerText = data.name;
+    document.getElementById('success-message').innerText = message;
+    document.getElementById('success-streak').innerHTML = `${data.total_attendance || 1}<span class="text-sm font-normal text-sky-600 ml-1">x</span>`;
+    document.getElementById('success-last-seen').innerText = data.last_seen || "Hari Ini";
+
+    const badgeEl = document.getElementById('success-badge-method');
+    if (badgeEl) {
+        if (data.method === 'manual') {
+            badgeEl.innerText = "📝 Absen Manual";
+            badgeEl.className = "inline-block mb-5 text-[11px] font-bold px-3 py-1 rounded-full bg-amber-900/40 text-amber-300 border border-amber-600/40";
+        } else {
+            badgeEl.innerText = "📸 Scan Wajah";
+            badgeEl.className = "inline-block mb-5 text-[11px] font-bold px-3 py-1 rounded-full bg-sky-900/40 text-sky-300 border border-sky-600/40";
+        }
+    }
+    
+    const successModal = document.getElementById('success-modal');
+    const successContent = document.getElementById('success-modal-content');
+    successModal.classList.remove('hidden');
+    
+    setTimeout(() => {
+        successContent.classList.remove('scale-95', 'opacity-0');
+        successContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+
+    setTimeout(() => { 
+        successContent.classList.remove('scale-100', 'opacity-100');
+        successContent.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            successModal.classList.add('hidden');
+            resetScan(); 
+        }, 300);
+    }, AUTO_RESET_DELAY);
+}
+
 async function triggerAutoCapture() {
     isProcessing = true;
     loadingOverlay.classList.remove('hidden');
@@ -146,66 +194,30 @@ async function triggerAutoCapture() {
             loadingOverlay.classList.add('hidden');
             resultArea.classList.remove('hidden');
             
-            let resultHTML = '';
-            let isError = false;
-
             if (data.status === 'success') {
-                // Sembunyikan resultArea default
-                resultArea.classList.add('hidden');
-                
-                // Isi modal success baru (Phase E)
-                document.getElementById('success-name').innerText = data.data.name;
-                document.getElementById('success-message').innerText = data.message;
-                document.getElementById('success-streak').innerHTML = `${data.data.total_attendance}<span class="text-sm font-normal text-sky-600 ml-1">x</span>`;
-                document.getElementById('success-last-seen').innerText = data.data.last_seen;
-                
-                // Tampilkan modal overlay
-                const successModal = document.getElementById('success-modal');
-                const successContent = document.getElementById('success-modal-content');
-                successModal.classList.remove('hidden');
-                
-                // Animasi masuk
-                setTimeout(() => {
-                    successContent.classList.remove('scale-95', 'opacity-0');
-                    successContent.classList.add('scale-100', 'opacity-100');
-                }, 10);
+                showSuccessModal(data.data, data.message);
             } else if (response.status === 403) {
-                isError = true;
-                resultHTML = `
+                resultArea.innerHTML = `
                     <div class="text-6xl mb-4">📍</div>
                     <h3 class="text-xl font-bold text-orange-400 mb-2">Akses Ditolak</h3>
                     <p class="text-red-200 text-sm mb-6">${data.message || 'Anda berada di luar area GKI Bromo.'}</p>
                     <button onclick="resetScan()" class="text-slate-400 text-sm hover:text-white underline mt-2">Coba Scan Lagi</button>
                 `;
             } else {
-                isError = true;
-                resultHTML = `
+                resultArea.innerHTML = `
                     <div class="text-6xl mb-4">🤔</div>
                     <h3 class="text-xl font-bold text-white mb-2">Belum Terdaftar?</h3>
-                    <p class="text-red-200 text-sm mb-6">Wajah tidak dikenali di database.</p>
-                    <a href="/register" class="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-6 rounded-xl transition-transform active:scale-95 shadow-lg shadow-sky-900/50 mb-4">
-                        📝 Daftar Anggota Baru
-                    </a>
-                    <br>
-                    <button onclick="resetScan()" class="text-slate-400 text-sm hover:text-white underline mt-2">Coba Scan Lagi</button>
+                    <p class="text-red-200 text-sm mb-4">Wajah tidak dikenali di database.</p>
+                    <div class="flex flex-col gap-2 w-full max-w-xs">
+                        <button onclick="openManualSearchModal()" class="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-semibold transition-all">
+                            🔍 Cari Nama Manual
+                        </button>
+                        <a href="/register" class="py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow transition-all">
+                            📝 Daftar Anggota Baru
+                        </a>
+                    </div>
+                    <button onclick="resetScan()" class="text-slate-400 text-xs hover:text-white underline mt-4">Coba Scan Lagi</button>
                 `;
-            }
-
-            resultArea.innerHTML = resultHTML;
-
-            if (!isError) {
-                setTimeout(() => { 
-                    // Animasi keluar
-                    const successModal = document.getElementById('success-modal');
-                    const successContent = document.getElementById('success-modal-content');
-                    successContent.classList.remove('scale-100', 'opacity-100');
-                    successContent.classList.add('scale-95', 'opacity-0');
-                    
-                    setTimeout(() => {
-                        successModal.classList.add('hidden');
-                        resetScan(); 
-                    }, 300); // Tunggu transisi CSS selesai
-                }, AUTO_RESET_DELAY);
             }
         } catch (err) {
             loadingOverlay.classList.add('hidden');
@@ -215,16 +227,124 @@ async function triggerAutoCapture() {
     }, 'image/jpeg', 0.95);
 }
 
+// --- Fast Manual Search Fallback Flow ---
+function openManualSearchModal() {
+    if (manualSearchModal) {
+        manualSearchModal.classList.remove('hidden');
+        if (manualSearchInput) {
+            manualSearchInput.value = '';
+            manualSearchInput.focus();
+        }
+        if (manualSearchResults) {
+            manualSearchResults.innerHTML = `<div class="text-center py-10 text-slate-500 text-xs">Ketik minimal 1 huruf untuk mencari nama jemaat.</div>`;
+        }
+    }
+}
+
+function closeManualSearchModal() {
+    if (manualSearchModal) {
+        manualSearchModal.classList.add('hidden');
+    }
+}
+
+if (btnOpenManualSearch) btnOpenManualSearch.addEventListener('click', openManualSearchModal);
+if (btnSidebarManualSearch) btnSidebarManualSearch.addEventListener('click', openManualSearchModal);
+if (btnCloseManualSearch) btnCloseManualSearch.addEventListener('click', closeManualSearchModal);
+
+if (manualSearchInput) {
+    manualSearchInput.addEventListener('input', (e) => {
+        clearTimeout(searchDebounceTimer);
+        const query = e.target.value.trim();
+
+        if (query.length === 0) {
+            manualSearchResults.innerHTML = `<div class="text-center py-10 text-slate-500 text-xs">Ketik minimal 1 huruf untuk mencari nama jemaat.</div>`;
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(async () => {
+            try {
+                manualSearchResults.innerHTML = `<div class="text-center py-8 text-sky-400 text-xs animate-pulse">Mencari jemaat...</div>`;
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+                const result = await res.json();
+
+                if (result.status === 'success' && result.data && result.data.length > 0) {
+                    manualSearchResults.innerHTML = result.data.map(user => `
+                        <div class="p-3 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl border border-slate-700/60 flex items-center justify-between transition-all">
+                            <div>
+                                <h4 class="font-bold text-sm text-white">${escapeHtml(user.full_name)}</h4>
+                                <p class="text-[11px] text-slate-400">${escapeHtml(user.gender || '-')} • ${escapeHtml(user.phone_number || '')}</p>
+                            </div>
+                            <button onclick="executeManualCheckin(${user.id})" class="py-1.5 px-3.5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow shadow-sky-900/40">
+                                Absen
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    manualSearchResults.innerHTML = `
+                        <div class="text-center py-10">
+                            <p class="text-slate-400 text-xs mb-3">Tidak ada nama "${escapeHtml(query)}" ditemukan.</p>
+                            <a href="/register" class="inline-block py-2 px-4 bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 text-xs font-semibold rounded-xl border border-sky-500/40 transition-all">
+                                📝 Daftar Anggota Baru
+                            </a>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                manualSearchResults.innerHTML = `<div class="text-center py-8 text-red-400 text-xs">Gagal mencari data. Cek koneksi.</div>`;
+            }
+        }, 250);
+    });
+}
+
+window.executeManualCheckin = async function(userId) {
+    closeManualSearchModal();
+    loadingOverlay.classList.remove('hidden');
+
+    try {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+
+        const response = await fetch('/api/attendance/manual-checkin', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        loadingOverlay.classList.add('hidden');
+
+        if (data.status === 'success') {
+            showSuccessModal(data.data, data.message);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Absen',
+                text: data.message || 'Terjadi kesalahan sistem.',
+                confirmButtonColor: '#ef4444'
+            });
+            resetScan();
+        }
+    } catch (err) {
+        loadingOverlay.classList.add('hidden');
+        alert("Koneksi gagal. Coba lagi.");
+        resetScan();
+    }
+};
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
+
 window.resetScan = function() {
     isProcessing = false;
     resultArea.classList.add('hidden');
     resultArea.innerHTML = '';
     
-    // Pastikan modal success ikut kereset
     const successModal = document.getElementById('success-modal');
     if (successModal) successModal.classList.add('hidden');
     
     stableFramesCount = 0;
     updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap...');
     progressBar.style.width = '0%';
-}
+};
