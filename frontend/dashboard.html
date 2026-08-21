@@ -707,14 +707,17 @@
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+            const target = document.getElementById(tabId);
+            if (target) target.classList.add('active');
 
             document.querySelectorAll('.nav-item').forEach(el => {
                 el.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm font-semibold text-slate-400 hover:text-white hover:bg-obsidian-800";
             });
 
             const activeBtn = document.getElementById(`btn-${tabId}`);
-            activeBtn.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm font-semibold text-white bg-azure-600/15 border border-azure-500/30 shadow-sm";
+            if (activeBtn) {
+                activeBtn.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm font-semibold text-white bg-azure-600/15 border border-azure-500/30 shadow-sm";
+            }
 
             if (tabId === 'database') loadDatabase();
             if (tabId === 'analytics') loadAnalytics();
@@ -723,34 +726,38 @@
 
         async function loadDashboardData() {
             try {
-                const res = await fetch('/api/dashboard/stats');
+                const res = await fetch('/api/dashboard-stats');
                 if (!res.ok) throw new Error("Gagal mengambil data");
                 const data = await res.json();
                 
-                document.getElementById('stat-total-users').innerText = data.total_users;
-                document.getElementById('stat-present-today').innerText = data.present_today;
-                document.getElementById('stat-new-today').innerText = data.new_users_today;
-                globalNewUsersToday = data.new_users_today_list || [];
+                document.getElementById('stat-total-users').innerText = data.total_users ?? 0;
+                document.getElementById('stat-present-today').innerText = data.present_today ?? 0;
+                document.getElementById('stat-new-today').innerText = data.new_users_today ?? 0;
+                globalNewUsersToday = data.new_users_list || [];
 
                 const tbody = document.getElementById('feed-table');
                 tbody.innerHTML = '';
-                if(data.recent_logs.length === 0) {
+                const recentLogs = data.recent_logs || [];
+                if (recentLogs.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-mono text-xs">Belum ada absensi hari ini.</td></tr>';
                 } else {
-                    data.recent_logs.forEach(log => {
-                        const safeName = escapeHTML(log.full_name);
-                        const safeTime = escapeHTML(log.time);
-                        const safeId = escapeHTML(String(log.user_id));
+                    recentLogs.forEach(log => {
+                        const name = log.users ? log.users.full_name : (log.full_name || 'Tanpa Nama');
+                        const safeName = escapeHTML(name);
+                        const safeTime = moment(log.timestamp).format('HH:mm:ss');
+                        const userId = log.user_id || (log.users ? log.users.id : null);
 
                         tbody.innerHTML += `
                             <tr class="hover:bg-obsidian-850/60 transition-colors">
-                                <td class="p-4 text-slate-400 font-mono text-xs">${safeTime}</td>
+                                <td class="p-4 text-slate-400 font-mono text-xs">${safeTime} WIB</td>
                                 <td class="p-4 font-semibold text-white">${safeName}</td>
                                 <td class="p-4"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold">Hadir</span></td>
                                 <td class="p-4 text-right">
-                                    <button onclick="openProfileModal('${safeId}')" class="text-cyan-400 hover:text-cyan-300 text-xs font-mono font-semibold">
+                                    ${userId ? `
+                                    <button onclick="openProfileModal('${userId}')" class="text-cyan-400 hover:text-cyan-300 text-xs font-mono font-semibold">
                                         Detail &rarr;
                                     </button>
+                                    ` : '-'}
                                 </td>
                             </tr>
                         `;
@@ -760,7 +767,7 @@
                 const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 document.getElementById('feed-last-updated').innerText = `Diperbarui ${timeStr} WIB`;
             } catch (err) {
-                console.error(err);
+                console.error("Dashboard Stats Error:", err);
             }
         }
 
@@ -779,14 +786,12 @@
 
             let listHtml = `<ul class="text-left space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">`;
             globalNewUsersToday.forEach((user, idx) => {
-                const safeName = escapeHTML(user.full_name);
-                const safeGender = escapeHTML(user.gender || '-');
-                const safePhone = escapeHTML(user.phone_number || '-');
+                const safeName = escapeHTML(user.name || user.full_name);
+                const safePhone = escapeHTML(user.phone || user.phone_number || '-');
                 listHtml += `
                     <li class="p-3 bg-obsidian-850 rounded-xl border border-white/10 flex justify-between items-center text-xs">
                         <div>
                             <span class="font-bold text-white">${idx + 1}. ${safeName}</span>
-                            <span class="text-slate-400 font-mono text-[10px] ml-1">(${safeGender})</span>
                         </div>
                         <span class="text-cyan-400 font-mono text-[11px]">${safePhone}</span>
                     </li>
@@ -812,9 +817,10 @@
             document.getElementById('all-logs-modal').classList.remove('hidden');
             document.getElementById('all-logs-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Mengambil data dari server...</td></tr>';
             try {
-                const res = await fetch('/api/dashboard/all-logs');
+                const res = await fetch('/api/all-logs');
                 if (!res.ok) throw new Error("Gagal load riwayat absensi");
-                allLogsData = await res.json();
+                const json = await res.json();
+                allLogsData = json.data || [];
                 currentLogsPage = 1;
                 renderLogsTable();
             } catch (err) {
@@ -843,11 +849,12 @@
                 tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Tidak ada riwayat absensi.</td></tr>';
             } else {
                 pageData.forEach(log => {
-                    const safeName = escapeHTML(log.full_name);
-                    const safeTime = escapeHTML(log.timestamp);
+                    const name = log.users ? log.users.full_name : (log.full_name || 'Tanpa Nama');
+                    const safeName = escapeHTML(name);
+                    const safeTime = moment(log.timestamp).format('DD MMM YYYY, HH:mm:ss');
                     tbody.innerHTML += `
                         <tr class="hover:bg-obsidian-850/60 transition-colors">
-                            <td class="p-4 text-slate-400 font-mono text-xs">${safeTime}</td>
+                            <td class="p-4 text-slate-400 font-mono text-xs">${safeTime} WIB</td>
                             <td class="p-4 font-semibold text-white">${safeName}</td>
                             <td class="p-4"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold">Hadir</span></td>
                         </tr>
@@ -887,7 +894,7 @@
 
         async function loadDatabase() {
             try {
-                const res = await fetch('/api/dashboard/users');
+                const res = await fetch('/api/users');
                 if (!res.ok) throw new Error("Gagal mengambil database jemaat");
                 allUsers = await res.json();
                 applyUserFilters();
@@ -897,10 +904,10 @@
         }
 
         function applyUserFilters() {
-            const query = document.getElementById('search-user').value.toLowerCase();
+            const query = (document.getElementById('search-user').value || '').toLowerCase();
             const sortVal = document.getElementById('sort-user').value;
 
-            filteredUsers = allUsers.filter(u => u.full_name.toLowerCase().includes(query));
+            filteredUsers = allUsers.filter(u => (u.full_name || '').toLowerCase().includes(query));
 
             if (sortVal === 'name-asc') {
                 filteredUsers.sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -1009,7 +1016,16 @@
 
         async function openProfileModal(userId) {
             currentProfileId = userId;
-            const user = allUsers.find(u => String(u.id) === String(userId));
+            let user = allUsers.find(u => String(u.id) === String(userId));
+            if (!user) {
+                try {
+                    const res = await fetch('/api/users');
+                    if (res.ok) {
+                        allUsers = await res.json();
+                        user = allUsers.find(u => String(u.id) === String(userId));
+                    }
+                } catch(e) {}
+            }
             if (!user) return;
 
             document.getElementById('profile-modal').classList.remove('hidden');
@@ -1031,9 +1047,10 @@
             };
 
             try {
-                const res = await fetch(`/api/dashboard/user-logs/${userId}`);
+                const res = await fetch(`/api/users/${userId}/history`);
                 if (!res.ok) throw new Error("Gagal load history");
-                const logs = await res.json();
+                const json = await res.json();
+                const logs = json.data || [];
                 currentProfileLogs = logs;
                 document.getElementById('profile-total-attend').innerHTML = `${logs.length}<span class="text-xs font-normal text-slate-500 ml-1">x</span>`;
                 profileCalMoment = moment();
@@ -1055,7 +1072,6 @@
             document.getElementById('calendar-month-year').innerText = profileCalMoment.format('MMM YYYY');
 
             const startOfMonth = profileCalMoment.clone().startOf('month');
-            const endOfMonth = profileCalMoment.clone().endOf('month');
             const daysInMonth = profileCalMoment.daysInMonth();
             const startDay = startOfMonth.day();
 
@@ -1110,12 +1126,14 @@
             const id = document.getElementById('edit-id').value;
             const full_name = document.getElementById('edit-name').value;
             const phone_number = document.getElementById('edit-phone').value;
+            const user = allUsers.find(u => String(u.id) === String(id));
+            const gender = user ? user.gender : 'Pria';
 
             try {
-                const res = await fetch(`/api/dashboard/user/${id}`, {
+                const res = await fetch(`/api/users/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ full_name, phone_number })
+                    body: JSON.stringify({ full_name, phone_number, gender })
                 });
                 if (!res.ok) throw new Error("Gagal update user");
 
@@ -1157,7 +1175,7 @@
 
             if (confirm.isConfirmed) {
                 try {
-                    const res = await fetch(`/api/dashboard/user/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
                     if (!res.ok) throw new Error("Gagal menghapus");
 
                     closeProfileModal();
@@ -1249,23 +1267,26 @@
         async function loadAnalytics(filter = '30d') {
             try {
                 const atRiskDays = document.getElementById('at-risk-filter').value;
-                const res = await fetch(`/api/dashboard/analytics?filter=${filter}&at_risk_days=${atRiskDays}`);
+                const res = await fetch(`/api/analytics?filter_type=${filter}&at_risk_days=${atRiskDays}`);
                 if (!res.ok) throw new Error("Gagal load analytics");
                 const data = await res.json();
 
-                document.getElementById('stat-avg').innerText = data.stats.avg_attendance || 0;
+                document.getElementById('stat-avg').innerText = data.avg_attendance || 0;
 
                 // Trends Area Line Chart
                 const ctxTrend = document.getElementById('attendanceChart').getContext('2d');
                 if (attendanceChartInstance) attendanceChartInstance.destroy();
 
+                const trendLabels = (data.trend?.labels || []).map(d => moment(d).format('DD MMM'));
+                const trendValues = data.trend?.data || [];
+
                 attendanceChartInstance = new Chart(ctxTrend, {
                     type: 'line',
                     data: {
-                        labels: data.trends.map(t => moment(t.date).format('DD MMM')),
+                        labels: trendLabels,
                         datasets: [{
                             label: 'Jumlah Hadir',
-                            data: data.trends.map(t => t.count),
+                            data: trendValues,
                             borderColor: '#2563eb',
                             backgroundColor: 'rgba(37, 99, 235, 0.12)',
                             borderWidth: 2.5,
@@ -1310,8 +1331,11 @@
 
                 const peakLabels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
                 const peakData = Array(24).fill(0);
-                (data.peak_times || []).forEach(p => {
-                    peakData[p.hour] = p.count;
+                const peakObj = data.peak_time || {};
+                peakLabels.forEach((label, idx) => {
+                    if (peakObj[label]) {
+                        peakData[idx] = peakObj[label];
+                    }
                 });
 
                 peakChartInstance = new Chart(ctxPeak, {
@@ -1339,33 +1363,24 @@
                 });
 
                 // Gender Stats
-                const totalGender = (data.gender.Pria || 0) + (data.gender.Wanita || 0) + (data.gender.Unknown || 0);
-                const priaCount = data.gender.Pria || 0;
-                const wanitaCount = data.gender.Wanita || 0;
-                const unknownCount = data.gender.Unknown || 0;
+                const gender = data.gender_stats || {};
+                const priaCount = gender.pria || 0;
+                const wanitaCount = gender.wanita || 0;
+                const unknownCount = gender.unknown || 0;
 
                 document.getElementById('stat-pria').innerText = priaCount;
                 document.getElementById('stat-wanita').innerText = wanitaCount;
                 document.getElementById('stat-unknown').innerText = unknownCount;
 
-                if (totalGender > 0) {
-                    const priaPct = Math.round((priaCount / totalGender) * 100);
-                    const wanitaPct = Math.round((wanitaCount / totalGender) * 100);
-                    const unknownPct = 100 - priaPct - wanitaPct;
+                document.getElementById('persen-pria').innerText = `${gender.persen_pria || 0}%`;
+                document.getElementById('persen-wanita').innerText = `${gender.persen_wanita || 0}%`;
+                document.getElementById('bar-pria').style.width = `${gender.persen_pria || 0}%`;
+                document.getElementById('bar-wanita').style.width = `${gender.persen_wanita || 0}%`;
 
-                    document.getElementById('persen-pria').innerText = `${priaPct}%`;
-                    document.getElementById('persen-wanita').innerText = `${wanitaPct}%`;
-                    document.getElementById('bar-pria').style.width = `${priaPct}%`;
-                    document.getElementById('bar-wanita').style.width = `${wanitaPct}%`;
-                }
+                // Heatmap Calendar Map
+                globalAttendanceMap = data.heatmap_all || {};
 
-                // Populate Global Attendance Map for Heatmap
-                globalAttendanceMap = {};
-                (data.trends || []).forEach(t => {
-                    globalAttendanceMap[t.date] = t.count;
-                });
-
-                // Render Heatmap Wrapper
+                // Render Overview Heatmap Mini Row (last 28 days)
                 const heatmapWrapper = document.getElementById('global-heatmap');
                 heatmapWrapper.innerHTML = '';
 
@@ -1387,42 +1402,48 @@
                     `;
                 }
 
-                // At-Risk List
+                // At-Risk List & Top Users
                 renderAtRiskList(data.at_risk || []);
                 renderTopUsersList(data.top_users || []);
 
             } catch (err) {
-                console.error(err);
+                console.error("Analytics Load Error:", err);
             }
         }
 
         function renderAtRiskList(users) {
             const list = document.getElementById('at-risk-list');
+            const fullList = document.getElementById('full-at-risk-list');
             list.innerHTML = '';
+            if (fullList) fullList.innerHTML = '';
+            
             if (users.length === 0) {
                 list.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Semua jemaat aktif hadir.</li>';
+                if (fullList) fullList.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Semua jemaat aktif hadir.</li>';
                 return;
             }
 
-            users.slice(0, 4).forEach(u => {
-                const safeName = escapeHTML(u.full_name);
+            users.forEach((u, i) => {
+                const safeName = escapeHTML(u.name || u.full_name);
                 const safeDays = escapeHTML(String(u.days_absent));
-                const safePhone = escapeHTML(u.phone_number || '');
+                const safePhone = escapeHTML(u.phone || u.phone_number || '');
                 const waLink = safePhone ? `https://wa.me/${safePhone.replace(/^0/, '62')}` : null;
 
-                list.innerHTML += `
+                const itemHtml = `
                     <li class="p-3 bg-obsidian-850 rounded-xl border border-rose-500/20 flex justify-between items-center text-xs">
                         <div>
                             <span class="font-bold text-white">${safeName}</span>
-                            <span class="text-rose-400 font-mono text-[11px] ml-2">Absen ${safeDays} hari</span>
+                            <span class="text-rose-400 font-mono text-[11px] ml-2">Absen ${safeDays === '999' ? 'Belum pernah' : safeDays + ' hari'}</span>
                         </div>
                         ${waLink ? `
                             <a href="${waLink}" target="_blank" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-3 py-1 rounded-xl font-mono text-[11px] font-semibold transition-all">
-                                WA Care ➔
+                                WA Care &rarr;
                             </a>
                         ` : ''}
                     </li>
                 `;
+                if (i < 4) list.innerHTML += itemHtml;
+                if (fullList) fullList.innerHTML += itemHtml;
             });
         }
 
@@ -1432,16 +1453,20 @@
 
         function renderTopUsersList(users) {
             const list = document.getElementById('top-users-list');
+            const fullList = document.getElementById('full-top-users-list');
             list.innerHTML = '';
+            if (fullList) fullList.innerHTML = '';
+            
             if (users.length === 0) {
                 list.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Belum ada data kehadiran.</li>';
+                if (fullList) fullList.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Belum ada data kehadiran.</li>';
                 return;
             }
 
-            users.slice(0, 5).forEach((u, i) => {
-                const safeName = escapeHTML(u.full_name);
-                const count = u.attendance_count || 0;
-                list.innerHTML += `
+            users.forEach((u, i) => {
+                const safeName = escapeHTML(u.name || u.full_name);
+                const count = u.count || u.attendance_count || 0;
+                const itemHtml = `
                     <li class="p-3 bg-obsidian-850 rounded-xl border border-white/[0.06] flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
                             <span class="w-5 h-5 rounded-full bg-azure-600/20 text-azure-400 font-mono font-bold text-[10px] flex items-center justify-center">${i + 1}</span>
@@ -1450,6 +1475,8 @@
                         <span class="font-mono font-bold text-cyan-400">${count}x Hadir</span>
                     </li>
                 `;
+                if (i < 5) list.innerHTML += itemHtml;
+                if (fullList) fullList.innerHTML += itemHtml;
             });
         }
 
@@ -1458,20 +1485,12 @@
         }
 
         async function downloadExcel() {
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Mengunduh...';
-            btn.disabled = true;
-            try {
-                window.location.href = '/api/dashboard/export-excel';
-            } finally {
-                setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
-            }
+            window.location.href = '/api/export-excel';
         }
 
         async function downloadExcelToday() {
             const today = moment().format('YYYY-MM-DD');
-            window.location.href = `/api/dashboard/export-excel?date=${today}`;
+            window.location.href = `/api/export-excel/date/${today}`;
         }
 
         let currentDailyDate = null;
@@ -1488,15 +1507,23 @@
 
             document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Memuat data dari server...</td></tr>';
             try {
-                const res = await fetch(`/api/dashboard/daily-detail?date=${dateStr}`);
+                const res = await fetch(`/api/attendance/date/${dateStr}`);
                 if (!res.ok) throw new Error("Gagal mengambil detail harian");
-                const data = await res.json();
+                const json = await res.json();
+                const logs = json.data || [];
                 
-                dailyAllLogs = data.logs || [];
-                document.getElementById('daily-total-attend').innerText = data.total_attend;
+                dailyAllLogs = logs.map(l => ({
+                    full_name: l.users ? l.users.full_name : 'Tanpa Nama',
+                    gender: l.users ? l.users.gender : '-',
+                    timestamp: l.timestamp
+                }));
+                document.getElementById('daily-total-attend').innerText = dailyAllLogs.length;
 
-                const pria = data.gender.Pria || 0;
-                const wanita = data.gender.Wanita || 0;
+                let pria = 0, wanita = 0;
+                dailyAllLogs.forEach(l => {
+                    if (l.gender === 'Pria') pria++;
+                    else if (l.gender === 'Wanita') wanita++;
+                });
                 const total = pria + wanita;
 
                 document.getElementById('daily-stat-pria').innerText = pria;
@@ -1509,6 +1536,11 @@
                     document.getElementById('daily-persen-wanita').innerText = `${wPct}%`;
                     document.getElementById('daily-bar-pria').style.width = `${pPct}%`;
                     document.getElementById('daily-bar-wanita').style.width = `${wPct}%`;
+                } else {
+                    document.getElementById('daily-persen-pria').innerText = `0%`;
+                    document.getElementById('daily-persen-wanita').innerText = `0%`;
+                    document.getElementById('daily-bar-pria').style.width = `0%`;
+                    document.getElementById('daily-bar-wanita').style.width = `0%`;
                 }
 
                 applyDailyFilter();
@@ -1544,7 +1576,7 @@
             const pageData = dailyFilteredLogs.slice(start, end);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Tidak ada data kehadiran yang cocok.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-500 font-mono text-xs">Tidak ada data kehadiran yang cocok.</td></tr>';
             } else {
                 pageData.forEach(l => {
                     const safeName = escapeHTML(l.full_name);
@@ -1581,7 +1613,7 @@
 
         function downloadExcelSpecificDate() {
             if (!currentDailyDate) return;
-            window.location.href = `/api/dashboard/export-excel?date=${currentDailyDate}`;
+            window.location.href = `/api/export-excel/date/${currentDailyDate}`;
         }
 
         // Initialize on load

@@ -1,12 +1,12 @@
 import re
 import pytest
 from playwright.sync_api import Page, BrowserContext, expect
+from core.security import create_access_token, COOKIE_NAME
 
 BASE_URL = "http://127.0.0.1:8000"
 
 def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContext):
     """Test Kiosk root page and interactive manual search modal with geolocation granted."""
-    # Grant geolocation permission to avoid blocking alert
     context.grant_permissions(["geolocation"])
     context.set_geolocation({"latitude": -7.979261, "longitude": 112.625760})
 
@@ -88,3 +88,78 @@ def test_protected_routes_redirect_to_login(page: Page):
     """Verify that unauthenticated access to /dashboard redirects to /login."""
     page.goto(f"{BASE_URL}/dashboard")
     expect(page).to_have_url(f"{BASE_URL}/login")
+
+def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: BrowserContext):
+    """E2E Test ensuring dashboard loads all live data, stats, graphs, and handles tabs with 0 console errors."""
+    console_errors = []
+    page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+
+    # Set authenticated admin cookie
+    token = create_access_token(data={"sub": "admin"})
+    context.add_cookies([{
+        "name": COOKIE_NAME,
+        "value": token,
+        "domain": "127.0.0.1",
+        "path": "/"
+    }])
+
+    # Navigate to Dashboard
+    page.goto(f"{BASE_URL}/dashboard")
+    expect(page).to_have_title(re.compile(r"Attendance Intelligence Hub|Dashboard Presensi"))
+
+    # 1. Overview Tab & Stats assertions
+    page.wait_for_selector("#stat-total-users")
+    page.wait_for_timeout(800)  # Wait for API fetch resolution
+
+    stat_total = page.locator("#stat-total-users").inner_text()
+    stat_present = page.locator("#stat-present-today").inner_text()
+    stat_new = page.locator("#stat-new-today").inner_text()
+
+    assert stat_total != "", "stat-total-users should not be empty"
+    assert stat_present != "", "stat-present-today should not be empty"
+    assert stat_new != "", "stat-new-today should not be empty"
+
+    # Verify Feed Table renders
+    expect(page.locator("#feed-table")).to_be_visible()
+
+    # 2. Test Tab Switch to "Database Jemaat"
+    page.locator("#btn-database").click()
+    expect(page.locator("#database")).to_have_class(re.compile(r"active"))
+    page.wait_for_timeout(600)
+    expect(page.locator("#users-table")).to_be_visible()
+
+    # Test Search filter in Database
+    search_input = page.locator("#search-user")
+    search_input.fill("a")
+    page.wait_for_timeout(200)
+
+    # 3. Test Tab Switch to "Statistik & Analytics"
+    page.locator("#btn-analytics").click()
+    expect(page.locator("#analytics")).to_have_class(re.compile(r"active"))
+    page.wait_for_timeout(600)
+
+    # Verify Charts and Analytics Stats
+    expect(page.locator("#attendanceChart")).to_be_visible()
+    expect(page.locator("#peakChart")).to_be_visible()
+    expect(page.locator("#stat-avg")).to_be_visible()
+    expect(page.locator("#stat-pria")).to_be_visible()
+    expect(page.locator("#stat-wanita")).to_be_visible()
+
+    # 4. Test Modals (All Logs Modal)
+    page.evaluate("openAllLogsModal()")
+    modal_all_logs = page.locator("#all-logs-modal")
+    expect(modal_all_logs).not_to_have_class(re.compile(r"\bhidden\b"))
+    page.wait_for_timeout(400)
+    page.evaluate("closeAllLogsModal()")
+    expect(modal_all_logs).to_have_class(re.compile(r"hidden"))
+
+    # 5. Test Global Calendar Modal
+    page.evaluate("openGlobalCalendarModal()")
+    modal_cal = page.locator("#global-calendar-modal")
+    expect(modal_cal).not_to_have_class(re.compile(r"\bhidden\b"))
+    page.wait_for_timeout(400)
+    page.evaluate("closeGlobalCalendarModal()")
+    expect(modal_cal).to_have_class(re.compile(r"hidden"))
+
+    # Assert 0 console errors occurred during entire dashboard session
+    assert len(console_errors) == 0, f"Dashboard had console errors: {console_errors}"
