@@ -116,7 +116,7 @@ def test_photobooth_page_interactions(page: Page):
     # Check Viewfinder and Retake Quota Badge
     expect(page.locator("#video-stream")).to_be_visible()
     expect(page.locator("#retake-quota-badge")).to_be_visible()
-    expect(page.locator("#retake-count-text")).to_contain_text("3x")
+    expect(page.locator("#retake-count-text")).to_contain_text("2x")
     expect(page.locator("#btn-retake-pose")).to_be_attached()
     expect(page.locator("#btn-next-pose")).to_be_attached()
     
@@ -147,7 +147,7 @@ def test_photobooth_retake_flow_and_timer_interval(page: Page):
     # Start session
     page.locator("#btn-start-session").click()
     expect(page.locator("#camera-stage")).to_be_visible()
-    expect(page.locator("#retake-count-text")).to_have_text("3x")
+    expect(page.locator("#retake-count-text")).to_have_text("2x")
     expect(page.locator("#center-countdown")).to_be_attached()
 
     # Cancel session

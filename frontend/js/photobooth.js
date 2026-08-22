@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cameraStage.classList.add('hidden');
         welcomeStage.classList.remove('hidden');
-        remainingRetakes = 3;
+        remainingRetakes = 2;
         updateRetakeQuotaUI();
     }
 
@@ -333,12 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isSessionRunning) return;
         isSessionRunning = true;
         capturedPoses = [];
-        remainingRetakes = 3;
-        updateRetakeQuotaUI();
 
         for (let i = 0; i < targetPoses; i++) {
             let currentPoseIndex = i;
             let poseAccepted = false;
+            
+            // Jatah retake 2x per ronde pose (restart setiap pose baru)
+            remainingRetakes = 2;
+            updateRetakeQuotaUI();
 
             while (!poseAccepted && isSessionRunning) {
                 poseIndicatorText.innerText = `Pose ${currentPoseIndex + 1} dari ${targetPoses}`;
@@ -621,7 +623,60 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillText(`${dateStr} • MALANG`, margin + photoW - 60, footerY + 140);
     }
 
-    // --- 5. Animated Looping GIF Generator ---
+    // --- 5. Animated Looping Framed GIF Generator ---
+    function renderFramedGifFrame(poseCanvas, poseIdx, totalPoses, caption, dateStr) {
+        const W = 600;
+        const H = 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Bold Editorial Crimson Red Backdrop
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Photo slot in upper region
+        const margin = 28;
+        const photoW = W - (margin * 2);
+        const photoH = Math.round(photoW * 0.75); // 4:3 Aspect Ratio (544 * 0.75 = 408)
+        const photoY = 28;
+
+        ctx.drawImage(poseCanvas, margin, photoY, photoW, photoH);
+
+        // Inverted White Branding Footer Box
+        const footerY = photoY + photoH + 18;
+        const footerH = H - footerY - 24;
+        const footerW = photoW;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(margin, footerY, footerW, footerH);
+
+        // kp.45 Brand Logo (Left)
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '900 48px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('kp.45', margin + 20, footerY + 54);
+
+        // Pose Pill Stamp (e.g. "[1/3]")
+        ctx.fillStyle = '#1d3557';
+        ctx.font = '800 16px "JetBrains Mono", monospace';
+        ctx.fillText(`[${poseIdx + 1}/${totalPoses}]`, margin + 20, footerY + 84);
+
+        // Caption & Date (Right)
+        ctx.fillStyle = '#1d3557';
+        ctx.font = '800 20px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'right';
+        const displayCaption = caption || 'Komisi Pemuda GKI Bromo';
+        ctx.fillText(displayCaption, margin + footerW - 20, footerY + 44);
+
+        ctx.fillStyle = '#5b403f';
+        ctx.font = '700 14px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, margin + footerW - 20, footerY + 76);
+
+        return canvas;
+    }
+
     function generateAnimatedGif(poses) {
         return new Promise((resolve) => {
             if (typeof gifshot === 'undefined' || poses.length === 0) {
@@ -629,13 +684,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const frameImages = poses.map(c => c.toDataURL('image/jpeg', 0.85));
+            const customCaption = (customCaptionInput.value || '').trim();
+            const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
+
+            // Render each frame inside the editorial KP45 frame
+            const framedFrames = poses.map((poseCanvas, idx) => {
+                const framedCanvas = renderFramedGifFrame(poseCanvas, idx, poses.length, customCaption, todayStr);
+                return framedCanvas.toDataURL('image/jpeg', 0.88);
+            });
 
             gifshot.createGIF({
-                images: frameImages,
-                interval: 0.45,
+                images: framedFrames,
+                interval: 0.5,
                 gifWidth: 480,
-                gifHeight: 360,
+                gifHeight: 576,
                 numWorkers: 2,
             }, (obj) => {
                 if (!obj.error) {
