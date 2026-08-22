@@ -11,3 +11,11 @@
 ## 3. End-to-End Test Robustness for Authenticated Flows
 - **Issue:** Playwright tests previously only validated that unauthenticated users got redirected, failing to test actual dashboard rendering, data loading, tab switching, and console errors.
 - **Rule:** Every authenticated UI page must have an active E2E test verifying full payload rendering, interactive modal operations, tab switches, and zero browser console errors.
+
+## 4. Database Schema Backward Compatibility in Write Operations
+- **Issue:** Backend tried to insert `method` into `attendance_logs` table before the column was migrated in PostgreSQL, causing PostgREST error `PGRST204` on every attendance insert.
+- **Rule:** Always make DB service insertion methods defensive against schema drift, falling back to verified core columns if newly introduced optional auditing columns are not yet in the target database schema.
+
+## 5. Kiosk Detection & Auto-Capture Threshold Calibration
+- **Issue:** Setting `REQUIRED_STABLE_FRAMES` to 45 with a tight movement threshold (0.03) forced users to remain completely still for 3 seconds, causing false auto-capture failures in real-world kiosk environments.
+- **Rule:** Keep kiosk stability thresholds responsive (~15 frames / 0.5s, 0.045 movement allowance, 0.45 detection confidence) to accommodate real-world lighting and posture movements.

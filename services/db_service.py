@@ -59,8 +59,16 @@ class DBService:
         return res.data
 
     @staticmethod
-    def search_active_users(query: str, limit: int = 10) -> List[Dict]:
-        res = supabase.table("users").select("id, full_name, gender, phone_number").ilike("full_name", f"%{query}%").eq("is_deleted", False).limit(limit).execute()
+    def search_active_users(query: str, limit: int = 25) -> List[Dict]:
+        clean_q = query.strip()
+        if not clean_q:
+            return []
+        res = supabase.table("users") \
+            .select("id, full_name, gender, phone_number") \
+            .or_(f"full_name.ilike.%{clean_q}%,phone_number.ilike.%{clean_q}%") \
+            .eq("is_deleted", False) \
+            .limit(limit) \
+            .execute()
         return res.data
 
     @staticmethod
@@ -103,7 +111,19 @@ class DBService:
 
     @staticmethod
     def insert_log(log_data: dict):
-        supabase.table("attendance_logs").insert(log_data).execute()
+        try:
+            return supabase.table("attendance_logs").insert(log_data).execute()
+        except Exception as e:
+            err_msg = str(e)
+            # If the database schema does not yet have 'method' column (PGRST204), fallback to core columns
+            if "method" in err_msg or "PGRST204" in err_msg:
+                fallback_data = {
+                    "user_id": log_data["user_id"],
+                    "status": log_data.get("status", "Hadir"),
+                    "timestamp": log_data.get("timestamp")
+                }
+                return supabase.table("attendance_logs").insert(fallback_data).execute()
+            raise
 
     @staticmethod
     def delete_log(log_id: int):
@@ -114,7 +134,7 @@ class DBService:
         supabase.table("attendance_logs").delete().eq("user_id", user_id).execute()
 
     @staticmethod
-    def match_faces(query_embedding: list, threshold: float = 0.5, limit: int = 1) -> List[Dict]:
+    def match_faces(query_embedding: list, threshold: float = 0.42, limit: int = 1) -> List[Dict]:
         res = supabase.rpc("match_faces", {
             "query_embedding": query_embedding,
             "match_threshold": threshold,
