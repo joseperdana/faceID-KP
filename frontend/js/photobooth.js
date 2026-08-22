@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRetake = document.getElementById('btn-retake');
     const btnCloseModal = document.getElementById('btn-close-modal');
     const autoResetTimerEl = document.getElementById('auto-reset-timer');
+    const modalCustomCaption = document.getElementById('modal-custom-caption');
 
     // State Variables
     let currentStream = null;
@@ -1047,22 +1048,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 6. Processing & Output Delivery ---
+    // --- 6. Processing & Output Delivery (Instant Presentation & Asynchronous Upload) ---
     async function processAndDeliverOutputs() {
-        Swal.fire({
-            title: 'Mencetak Foto KP45...',
-            text: 'Merangkai strip foto beresolusi tinggi...',
-            allowOutsideClick: false,
-            background: '#fff8f1',
-            color: '#211b0b',
-            didOpen: () => { Swal.showLoading(); }
-        });
-
-        let base64Strip = '';
-        let base64Gif = '';
         const customCaption = getCustomCaption();
 
-        // 1. Render Strip Canvas
+        // 1. Generate local HD Photo Strip immediately in memory
+        let base64Strip = '';
         try {
             const stripCanvas = renderCompositeStripCanvas();
             base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
@@ -1073,42 +1064,47 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2. Generate GIF with timeout protection
-        try {
-            base64Gif = await generateAnimatedGif(capturedPoses);
-        } catch (gifErr) {
-            console.warn("GIF generation skipped:", gifErr);
-        }
+        // 2. IMMEDIATELY show Result Modal with local assets (Zero waiting for user!)
+        showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, null);
 
-        // 3. Upload to backend (safe with local fallback)
-        let uploadData = null;
-        try {
-            const response = await fetch('/api/photobooth/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    image: base64Strip,
-                    gif_image: base64Gif || '',
-                    frame: selectedLayout,
-                    caption: customCaption
-                })
-            });
-            if (response.ok) {
-                uploadData = await response.json();
+        // 3. Generate GIF and Upload in background without blocking the user
+        (async () => {
+            let base64Gif = '';
+            try {
+                base64Gif = await generateAnimatedGif(capturedPoses);
+                if (base64Gif && resultGifImg && btnDownloadGif && tabShowGif) {
+                    resultGifImg.src = base64Gif;
+                    btnDownloadGif.href = base64Gif;
+                    btnDownloadGif.classList.remove('opacity-50', 'pointer-events-none');
+                    tabShowGif.classList.remove('hidden');
+                }
+            } catch (gifErr) {
+                console.warn("Background GIF generation skipped:", gifErr);
             }
-        } catch (uploadErr) {
-            console.warn("Upload API network failed, using local offline fallback:", uploadErr);
-        }
 
-        // 4. Always close loading popup
-        try { Swal.close(); } catch(e) {}
+            // Upload to server for permanent storage & mobile QR code
+            try {
+                const response = await fetch('/api/photobooth/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: base64Strip,
+                        gif_image: base64Gif || '',
+                        frame: selectedLayout,
+                        caption: customCaption
+                    })
+                });
 
-        // 5. Present result modal (Guaranteed to show)
-        if (uploadData && uploadData.status === 'success') {
-            showResultModal(uploadData, base64Strip, base64Gif);
-        } else {
-            showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
-        }
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.status === 'success') {
+                        updateModalWithServerData(data);
+                    }
+                }
+            } catch (uploadErr) {
+                console.warn("Background upload error (offline fallback active):", uploadErr);
+            }
+        })();
     }
 
     // --- 7. Result Modal Presentation & Skeuomorphic Printing Animation ---
@@ -1158,25 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showStripTab();
 
-        if (qrCodeContainer) {
-            qrCodeContainer.innerHTML = '';
-            const qrTargetUrl = (uploadData && uploadData.qr_url) || window.location.href;
-            
-            try {
-                if (typeof QRCode !== 'undefined') {
-                    qrCodeInstance = new QRCode(qrCodeContainer, {
-                        text: qrTargetUrl,
-                        width: 135,
-                        height: 135,
-                        colorDark: "#1d3557",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                }
-            } catch (qrErr) {
-                console.warn("QR code generation warning:", qrErr);
-            }
-        }
+        renderQrCode((uploadData && uploadData.qr_url) || window.location.href);
 
         if (resultModal) {
             resultModal.classList.remove('hidden');
@@ -1193,6 +1171,42 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
 
         startAutoResetTimer(45);
+    }
+
+    function renderQrCode(targetUrl) {
+        if (!qrCodeContainer) return;
+        qrCodeContainer.innerHTML = '';
+        try {
+            if (typeof QRCode !== 'undefined') {
+                qrCodeInstance = new QRCode(qrCodeContainer, {
+                    text: targetUrl,
+                    width: 135,
+                    height: 135,
+                    colorDark: "#1d3557",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+        } catch (qrErr) {
+            console.warn("QR code generation warning:", qrErr);
+        }
+    }
+
+    function updateModalWithServerData(data) {
+        if (data.download_url && btnDownloadStrip) {
+            btnDownloadStrip.href = data.download_url;
+            btnDownloadStrip.download = `KP45_PhotoStrip_${data.photo_id}.jpg`;
+        }
+        if (data.gif_download_url && btnDownloadGif && resultGifImg && tabShowGif) {
+            resultGifImg.src = data.gif_download_url;
+            btnDownloadGif.href = data.gif_download_url;
+            btnDownloadGif.download = `KP45_Animated_${data.photo_id}.gif`;
+            btnDownloadGif.classList.remove('opacity-50', 'pointer-events-none');
+            tabShowGif.classList.remove('hidden');
+        }
+        if (data.qr_url) {
+            renderQrCode(data.qr_url);
+        }
     }
 
     function showStripTab() {
@@ -1268,4 +1282,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnRetake) btnRetake.addEventListener('click', closeResultModal);
     if (btnCloseModal) btnCloseModal.addEventListener('click', closeResultModal);
+
+    // Global Test Hook for Playwright E2E Automation
+    window.__photobooth = {
+        processAndDeliverOutputs,
+        showResultModal,
+        closeResultModal,
+        getCapturedPoses: () => capturedPoses,
+        setCapturedPoses: (poses) => { capturedPoses = poses; }
+    };
 });

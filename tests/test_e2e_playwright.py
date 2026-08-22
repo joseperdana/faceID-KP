@@ -153,6 +153,58 @@ def test_photobooth_retake_flow_and_timer_interval(page: Page):
     page.locator("#btn-cancel-session").click()
     expect(page.locator("#welcome-stage")).to_be_visible()
 
+def test_photobooth_full_delivery_to_result_modal(page: Page):
+    """Test that photobooth completes output processing, opens result modal, renders Stitch photostrip, and updates custom caption in real-time."""
+    errors = []
+    page.on("pageerror", lambda err: errors.append(str(err)))
+    page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
+
+    page.goto(f"{BASE_URL}/photobooth")
+    page.wait_for_load_state("networkidle")
+    
+    if errors:
+        print(f"Page errors: {errors}")
+
+    # Trigger full processAndDeliverOutputs with simulated canvas poses
+    page.evaluate("""() => {
+        const dummyCanvas = document.createElement('canvas');
+        dummyCanvas.width = 640;
+        dummyCanvas.height = 480;
+        const ctx = dummyCanvas.getContext('2d');
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, 640, 480);
+        
+        window.__photobooth.setCapturedPoses([dummyCanvas, dummyCanvas, dummyCanvas]);
+        window.__photobooth.processAndDeliverOutputs();
+    }""")
+
+    # Assert Result Modal is immediately visible
+    result_modal = page.locator("#result-modal")
+    expect(result_modal).to_be_visible()
+
+    # Assert Stitch photostrip preview is visible
+    stitch_wrapper = page.locator("#stitch-photostrip-wrapper")
+    expect(stitch_wrapper).to_be_visible()
+
+    # Assert Download button is ready
+    btn_download = page.locator("#btn-download-strip")
+    expect(btn_download).to_be_visible()
+
+    # Test Live Custom Caption Input
+    caption_input = page.locator("#modal-custom-caption")
+    expect(caption_input).to_be_visible()
+    caption_input.fill("Geng Pemuda Bromo 2026")
+    expect(caption_input).to_have_value("Geng Pemuda Bromo 2026")
+
+    # Assert live DOM preview text updates
+    preview_message = page.locator("#strip-preview-message")
+    expect(preview_message).to_have_text("Geng Pemuda Bromo 2026")
+
+    # Close modal and verify return to welcome stage
+    page.locator("#btn-retake").click()
+    expect(result_modal).to_have_class(re.compile(r"hidden"))
+    expect(page.locator("#welcome-stage")).to_be_visible()
+
 def test_login_page_form(page: Page):
     """Test Admin login page."""
     page.goto(f"{BASE_URL}/login")
