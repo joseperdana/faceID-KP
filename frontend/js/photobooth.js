@@ -1003,34 +1003,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateAnimatedGif(poses) {
         return new Promise((resolve) => {
-            if (typeof gifshot === 'undefined' || poses.length === 0) {
+            if (typeof gifshot === 'undefined' || !poses || poses.length === 0) {
                 resolve(null);
                 return;
             }
 
-            const customCaption = getCustomCaption();
-            const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
+            // 2.5 second fallback timeout so UI NEVER hangs
+            const timeoutId = setTimeout(() => {
+                console.warn("GIF generation timed out, continuing without GIF.");
+                resolve(null);
+            }, 2500);
 
-            // Render each frame inside the editorial KP45 frame
-            const framedFrames = poses.map((poseCanvas, idx) => {
-                const framedCanvas = renderFramedGifFrame(poseCanvas, idx, poses.length, customCaption, todayStr);
-                return framedCanvas.toDataURL('image/jpeg', 0.88);
-            });
+            try {
+                const customCaption = getCustomCaption();
+                const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
 
-            gifshot.createGIF({
-                images: framedFrames,
-                interval: 0.5,
-                gifWidth: 480,
-                gifHeight: 576,
-                numWorkers: 2,
-            }, (obj) => {
-                if (!obj.error) {
-                    resolve(obj.image);
-                } else {
-                    console.error("GIF generation error:", obj.error);
-                    resolve(null);
-                }
-            });
+                // Render each frame inside the editorial KP45 frame
+                const framedFrames = poses.map((poseCanvas, idx) => {
+                    const framedCanvas = renderFramedGifFrame(poseCanvas, idx, poses.length, customCaption, todayStr);
+                    return framedCanvas.toDataURL('image/jpeg', 0.85);
+                });
+
+                gifshot.createGIF({
+                    images: framedFrames,
+                    interval: 0.45,
+                    gifWidth: 400,
+                    gifHeight: 480,
+                    numWorkers: 2,
+                }, (obj) => {
+                    clearTimeout(timeoutId);
+                    if (obj && !obj.error && obj.image) {
+                        resolve(obj.image);
+                    } else {
+                        console.error("GIF generation error:", obj ? obj.error : 'Unknown error');
+                        resolve(null);
+                    }
+                });
+            } catch (err) {
+                clearTimeout(timeoutId);
+                console.error("GIF generation exception:", err);
+                resolve(null);
+            }
         });
     }
 
@@ -1045,34 +1058,65 @@ document.addEventListener('DOMContentLoaded', () => {
             didOpen: () => { Swal.showLoading(); }
         });
 
-        const customCaption = getCustomCaption();
-        const stripCanvas = renderCompositeStripCanvas();
-        const base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
-        const base64Gif = await generateAnimatedGif(capturedPoses);
-
         try {
-            const response = await fetch('/api/photobooth/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    image: base64Strip,
-                    gif_image: base64Gif || '',
-                    frame: selectedLayout,
-                    caption: customCaption
-                })
-            });
-
-            const data = await response.json();
-            Swal.close();
-
-            if (data.status === 'success') {
-                showResultModal(data, base64Strip, base64Gif);
-            } else {
-                throw new Error(data.message || 'Gagal menyimpan hasil foto');
+            const customCaption = getCustomCaption();
+            let base64Strip = '';
+            try {
+                const stripCanvas = renderCompositeStripCanvas();
+                base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
+            } catch (canvasErr) {
+                console.error("Error creating composite strip canvas:", canvasErr);
+                if (capturedPoses.length > 0) {
+                    base64Strip = capturedPoses[0].toDataURL('image/jpeg', 0.95);
+                }
             }
-        } catch (err) {
+
+            let base64Gif = '';
+            try {
+                base64Gif = await generateAnimatedGif(capturedPoses);
+            } catch (gifErr) {
+                console.warn("GIF generation skipped due to error:", gifErr);
+            }
+
+            try {
+                const response = await fetch('/api/photobooth/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: base64Strip,
+                        gif_image: base64Gif || '',
+                        frame: selectedLayout,
+                        caption: customCaption
+                    })
+                });
+
+                const data = await response.json();
+                Swal.close();
+
+                if (data && data.status === 'success') {
+                    showResultModal(data, base64Strip, base64Gif);
+                } else {
+                    showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
+                }
+            } catch (uploadErr) {
+                console.warn("Upload API failed, displaying local result modal:", uploadErr);
+                Swal.close();
+                showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
+            }
+        } catch (fatalErr) {
+            console.error("Fatal error during photo processing:", fatalErr);
             Swal.close();
-            showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Memproses Foto',
+                text: 'Terjadi kendala saat merangkai foto. Silakan coba kembali.',
+                confirmButtonText: 'Kembali',
+                confirmButtonColor: '#b7102a'
+            }).then(() => {
+                returnToWelcomeStage();
+            });
+        } finally {
+            try { Swal.close(); } catch(e) {}
         }
     }
 
