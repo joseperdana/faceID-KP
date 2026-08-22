@@ -1,47 +1,165 @@
-# 📸 Implementation Plan: Landing Page Camera Preview, Center Countdown, Interval Fix & Retake Engine
+# 🚀 Production Deployment Plan: FaceID-KP on Ubuntu 24.04 VPS
 
-## 📌 Requirements Summary
-1. **Center Overlay Countdown:** Reposition countdown from top-right to exact center of viewfinder with large, high-contrast typography (`text-9xl md:text-[12rem] text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.85)]`) while keeping camera preview 100% visible (zero blackout/dark overlay).
-2. **Landing Page Revamp (Welcome Stage):**
-   - Live Camera Preview right on the landing page so users can check hair/lighting before starting.
-   - Time interval selector (3s vs 5s) moved to landing page.
-   - Mirror mode toggle moved to landing page.
-   - Layout selector (3-strip, 4-strip, 2x2, single) + Custom Message input + "Mulai Foto" button.
-3. **Timer Interval Fix & Comprehensive E2E Testing:**
-   - Fix timer interval state and countdown lifecycle ensuring 3s and 5s both trigger accurate, monotonic 1000ms ticks.
-   - Add automated Playwright tests for both 3s and 5s countdown configurations.
-4. **Per-Pose Retake Engine (3x Quota per Session):**
-   - After each shot, present a 3.5s review pill with thumbnail:
-     - Button: `Retake Pose Ini (Sisa: X)`
-     - Button: `Lanjut` (or auto-proceed after 3.5s)
-   - If retaken: decrement quota, discard current pose, and re-trigger countdown for the same pose index.
+## 📋 Server Profile (Based on VPS Dashboard)
+* **Provider:** Biznet Gio Cloud (Neo Virtual Compute)
+* **OS:** Ubuntu 24.04 LTS (Noble Numbat)
+* **Specifications:** 1 vCPU, 2 GB RAM, 60 GB Disk
+* **Region:** West Java
 
 ---
 
-## 🛠️ Architecture & Component Breakdown
+## ⚠️ Critical Engineering Realities & Risk Mitigations
 
-### A. Landing Page (`frontend/photobooth.html` & `frontend/js/photobooth.js`)
-* **Welcome Stage Grid:**
-  - Left column (Hero): Live Webcam Viewfinder with mirror toggle and live aspect ratio guide.
-  - Right column: Layout Cards (3-Strip, 4-Strip, 2x2 Bento, Single), Time Interval selector (3s / 5s), Custom Message input, and "Mulai Foto" primary button.
-* **Camera Capture Stage:**
-  - Transition when "Mulai Foto" is clicked.
-  - Giant center countdown number (`#center-countdown`).
-  - Review / Retake Bar (`#retake-bar`) displayed after each shot with countdown progress ring.
+### 1. Memori & CPU Constraint (2 GB RAM, 1 vCPU)
+* **Risiko:** Model AI (Face Detection & DeepFace Embedding) serta OpenCV memerlukan alokasi RAM yang cukup saat inisialisasi (~500MB - 1GB). Jika RAM 2 GB habis, kernel Linux akan memicu **OOM (Out-Of-Memory) Killer** dan mematikan proses FastAPI.
+* **Mitigasi:**
+  1. **Wajib Pasang 4 GB Swapfile**: Mengalokasikan ruang disk 60 GB sebagai virtual memory penahan beban burst.
+  2. **Worker Concurrency Terukur**: Gunakan **1 atau 2 Uvicorn Workers** (`-w 1` atau `-w 2`). Jangan lebih dari 2 worker pada server 1 vCPU.
 
-### B. State Management in `photobooth.js`
-* `timerDuration` (3 or 5, set on landing page).
-* `isMirrored` (toggled on landing page).
-* `remainingRetakes` (starts at 3).
-* Pose review promise resolution (`retake` vs `proceed`).
+### 2. Keharusan HTTPS (SSL) untuk Kamera Web
+* **Risiko:** Browser modern (Chrome, Safari iOS, Edge, Firefox) **memblokir total akses kamera (`navigator.mediaDevices.getUserMedia`)** jika aplikasi diakses melalui IP publik non-HTTPS (`http://`).
+* **Mitigasi:**
+  - Setup **Nginx Reverse Proxy** + **Let's Encrypt SSL (Certbot)** menggunakan domain atau subdomain (misal: `absen.gereja.org` / DuckDNS / Cloudflare).
 
 ---
 
-## 🧪 Testing & Verification
-* Playwright E2E:
-  - Test landing page camera preview initialization.
-  - Test switching time interval (3s & 5s) on landing page.
-  - Test mirror toggle.
-  - Test center countdown visibility.
-  - Test retake button interaction and quota decrement.
-* Pytest API suite (13/13 passing).
+## 🛠️ Step-by-Step Production Deployment Guide
+
+### Tahap 1: Persiapan Server & Swap Memory (SSH ke Server)
+```bash
+# 1. Update repository & paket sistem
+sudo apt update && sudo apt upgrade -y
+
+# 2. Buat 4GB Swapfile untuk mencegah crash OOM
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# 3. Install paket dependency sistem
+sudo apt install -y python3-pip python3-venv git nginx certbot python3-certbot-nginx libgl1 libglib2.0-0 ufw
+```
+
+---
+
+### Tahap 2: Konfigurasi Firewall (UFW Security)
+```bash
+# Buka hanya port yang diperlukan
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP
+sudo ufw allow 443/tcp   # HTTPS
+sudo ufw enable
+```
+
+---
+
+### Tahap 3: Clone Codebase & Setup Python Virtual Environment
+```bash
+# 1. Clone repository ke direktori /var/www/
+cd /var/www
+sudo git clone https://github.com/joseperdana/faceID-KP.git
+sudo chown -R $USER:$USER /var/www/faceID-KP
+cd /var/www/faceID-KP
+
+# 2. Checkout ke branch dev / staging / main
+git checkout dev
+
+# 3. Buat Virtual Environment & Install Dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install gunicorn uvicorn[standard]
+```
+
+---
+
+### Tahap 4: Konfigurasi Environment Secrets (`.env`)
+Buat file `.env` di `/var/www/faceID-KP/.env`:
+```ini
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-service-role-key
+ADMIN_PASSWORD_HASH=$2b$12$...
+JWT_SECRET=your-super-secure-jwt-secret-key-32-chars-long
+PHOTOBOOTH_BASE_URL=https://yourdomain.com
+ENABLE_GEOFENCE=true
+CHURCH_LAT=-7.9734182
+CHURCH_LNG=112.6322894
+GEOFENCE_RADIUS_METERS=150
+SENTRY_DSN=
+```
+
+---
+
+### Tahap 5: Setup Systemd Service Daemon (`faceid.service`)
+Buat file service di `/etc/systemd/system/faceid.service`:
+```ini
+[Unit]
+Description=FaceID KP Attendance & Photobooth Service
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/var/www/faceID-KP
+Environment="PATH=/var/www/faceID-KP/venv/bin"
+ExecStart=/var/www/faceID-KP/venv/bin/gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000 --access-logfile - --error-logfile -
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktifkan service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable faceid
+sudo systemctl start faceid
+sudo systemctl status faceid
+```
+
+---
+
+### Tahap 6: Konfigurasi Nginx Reverse Proxy & Let's Encrypt SSL
+Buat file konfigurasi Nginx di `/etc/nginx/sites-available/faceid`:
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com; # Ganti dengan domain / subdomain Anda
+
+    client_max_body_size 25M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Aktifkan konfigurasi Nginx & Pasang SSL:
+```bash
+sudo ln -s /etc/nginx/sites-available/faceid /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+# Pasang SSL Gratis Otomatis dengan Certbot
+sudo certbot --nginx -d yourdomain.com
+```
+
+---
+
+## 🔒 Verification & Post-Deployment Checklist
+- [ ] Swapfile 4 GB aktif (`free -h`).
+- [ ] Service `faceid` berstatus `active (running)` (`systemctl status faceid`).
+- [ ] Nginx merutekan trafik port 80/443 ke 127.0.0.1:8000.
+- [ ] Akses HTTPS berjalan lancar dan browser mengizinkan kamera tanpa peringatan keamanan.
+- [ ] Akses URL Kiosk (`/`), Photobooth (`/photobooth`), dan Dashboard Admin (`/dashboard`) terverifikasi.
