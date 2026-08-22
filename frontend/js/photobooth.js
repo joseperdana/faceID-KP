@@ -1,4 +1,4 @@
-// --- Pesta Merdeka Photo Strip & Animated GIF Engine ---
+// --- KP45 Photo Strip & Animated GIF Engine ---
 document.addEventListener('DOMContentLoaded', () => {
     // Stages & Layouts
     const welcomeStage = document.getElementById('welcome-stage');
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state === 'active') {
             dot.className = "w-9 h-2.5 rounded-full bg-merdeka-red shadow-pesta-sm transition-all border-2 border-merdeka-navy";
         } else if (state === 'done') {
-            dot.className = "w-7 h-2.5 rounded-full bg-merdeka-gold-container shadow-pesta-sm transition-all border-2 border-merdeka-navy";
+            dot.className = "w-7 h-2.5 rounded-full bg-merdeka-navy shadow-pesta-sm transition-all border-2 border-merdeka-navy";
         }
     }
 
@@ -218,16 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isSessionRunning = true;
         capturedPoses = [];
 
-        const posePrompts = [
-            { text: "Pose 1: Senyum Manis!", next: "Siapkan Gaya 2!" },
-            { text: "Pose 2: Gaya Lucu / Bebas!", next: "Siapkan Gaya 3!" },
-            { text: "Pose 3: Gaya Terbaik!", next: "Pose Terakhir! Paling Heboh!" },
-            { text: "Pose 4: Gaya Paling Heboh!", next: "Selesai! Merangkai Foto..." }
-        ];
-
         for (let i = 0; i < targetPoses; i++) {
-            const promptObj = posePrompts[Math.min(i, posePrompts.length - 1)];
-            poseIndicatorText.innerText = `Pose ${i + 1} dari ${targetPoses}: ${promptObj.text}`;
+            poseIndicatorText.innerText = `Pose ${i + 1} dari ${targetPoses}`;
             updatePoseDot(i, 'active');
 
             // 1. Floating Non-Intrusive Countdown (VIEWFINDER 100% CLEAR)
@@ -242,9 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 3. Inter-pose Break
             if (i < targetPoses - 1) {
-                interposeTitle.innerText = promptObj.next;
+                interposeTitle.innerText = `Siapkan Pose ${i + 2}`;
                 interposeOverlay.classList.remove('hidden');
-                await new Promise(r => setTimeout(r, 2200));
+                await new Promise(r => setTimeout(r, 2000));
                 interposeOverlay.classList.add('hidden');
             }
         }
@@ -303,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let srcX = 0, srcY = 0, srcW = vW, srcH = vH;
         const videoRatio = vW / vH;
-        const targetRatio = targetW / targetH; // 1.333
+        const targetRatio = targetW / targetH;
 
         if (videoRatio > targetRatio) {
             srcW = vH * targetRatio;
@@ -325,42 +317,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return frameCanvas;
     }
 
-    // Helper: Draw 5-Point Sticker Star
-    function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, color) {
-        let rot = Math.PI / 2 * 3;
-        let x = cx;
-        let y = cy;
-        let step = Math.PI / spikes;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - outerRadius);
-        for (let i = 0; i < spikes; i++) {
-            x = cx + Math.cos(rot) * outerRadius;
-            y = cy + Math.sin(rot) * outerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-
-            x = cx + Math.cos(rot) * innerRadius;
-            y = cy + Math.sin(rot) * innerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-        }
-        ctx.lineTo(cx, cy - outerRadius);
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.lineWidth = 3.5;
-        ctx.strokeStyle = '#1d3557';
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    // --- 4. High-Res Canvas Compositor for Pesta Merdeka System ---
+    // --- 4. Editorial High-End Canvas Compositor (Red Backdrop Inspired by se.du) ---
     function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
         const customCaption = (customCaptionInput.value || '').trim();
-        const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+        const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
 
         let STRIP_W = 1000;
         let STRIP_H = 3000;
@@ -379,231 +340,130 @@ document.addEventListener('DOMContentLoaded', () => {
         stripCanvas.height = STRIP_H;
         const ctx = stripCanvas.getContext('2d');
 
-        // Render Background (Pesta Merdeka Warm Paper)
-        ctx.fillStyle = '#fff8f1';
+        // Bold Crimson Editorial Red Backdrop
+        ctx.fillStyle = '#b7102a';
         ctx.fillRect(0, 0, STRIP_W, STRIP_H);
 
-        // Chunky Red & Navy Outer Border
-        ctx.fillStyle = '#b7102a';
-        ctx.fillRect(0, 0, STRIP_W, 36);
-        ctx.fillRect(0, STRIP_H - 36, STRIP_W, 36);
-        ctx.fillRect(0, 0, 36, STRIP_H);
-        ctx.fillRect(STRIP_W - 36, 0, 36, STRIP_H);
-
         if (selectedLayout === '3-strip' || selectedLayout === '4-strip') {
-            renderVerticalStripLayout(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderVerticalEditorialStrip(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else if (selectedLayout === '2x2-grid') {
-            renderBentoGridLayout(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderBentoEditorialGrid(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else {
-            renderSingleWideLayout(ctx, STRIP_W, STRIP_H, capturedPoses[0], customCaption, todayStr);
+            renderSingleWideEditorial(ctx, STRIP_W, STRIP_H, capturedPoses[0], customCaption, todayStr);
         }
 
         return stripCanvas;
     }
 
-    function renderVerticalStripLayout(ctx, W, H, poses, caption, dateStr) {
-        // Top Header Badge in Bricolage Grotesque
-        ctx.save();
-        ctx.fillStyle = '#1d3557';
-        ctx.beginPath();
-        ctx.roundRect(76, 76, W - 140, 150, 24);
-        ctx.fill();
-
-        ctx.fillStyle = '#b7102a';
-        ctx.beginPath();
-        ctx.roundRect(70, 70, W - 140, 150, 24);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1d3557';
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '800 46px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DIRGAHAYU INDONESIA', W / 2, 135);
-
-        ctx.fillStyle = '#fcd400';
-        ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('PESTA MERDEKA • KP GKI BROMO', W / 2, 180);
-        ctx.restore();
-
+    function renderVerticalEditorialStrip(ctx, W, H, poses, caption, dateStr) {
         const count = poses.length;
-        const photoW = 840;
-        const photoH = count === 3 ? 630 : 540;
-        const photoX = (W - photoW) / 2;
-        const startY = 265;
-        const gapY = count === 3 ? 55 : 45;
+        const marginX = 60;
+        const photoW = W - (marginX * 2);
+        const photoH = count === 3 ? 660 : 570;
+        const gapY = 40;
+        const startY = 80;
 
+        // Render Photo Slots
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
-            // Hard Navy Drop Shadow
-            ctx.fillStyle = '#1d3557';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
-            ctx.fill();
-
-            // Photo Card Frame
             ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 20);
-            ctx.clip();
-            ctx.drawImage(pose, photoX, posY, photoW, photoH);
+            ctx.drawImage(pose, marginX, posY, photoW, photoH);
             ctx.restore();
-
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#1d3557';
-            ctx.strokeRect(photoX, posY, photoW, photoH);
-
-            // Numbered Tab
-            ctx.save();
-            ctx.fillStyle = '#1d3557';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 24, posY + 24, 64, 40, 10);
-            ctx.fill();
-
-            ctx.fillStyle = '#b7102a';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 20, posY + 20, 64, 40, 10);
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#1d3557';
-            ctx.stroke();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '800 22px "Bricolage Grotesque", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`0${idx + 1}`, photoX + 52, posY + 48);
-            ctx.restore();
-
-            // Decorative Corner Stars
-            if (idx === 0) drawStar(ctx, photoX + photoW - 32, posY + 32, 5, 24, 11, '#ffd700');
-            if (idx === count - 1) drawStar(ctx, photoX + photoW - 32, posY + photoH - 32, 5, 24, 11, '#fcd400');
         });
 
-        // Bottom Footer
+        // Bottom Editorial Brand & Details (Inspired by se.du)
         const footerY = startY + count * (photoH + gapY) + 30;
-        
-        ctx.fillStyle = '#211b0b';
-        ctx.font = '800 40px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 55);
 
-        ctx.fillStyle = '#b7102a';
-        ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 105);
-
-        ctx.fillStyle = '#705d00';
-        ctx.font = '800 26px "Bricolage Grotesque", sans-serif';
-        ctx.fillText('MERDEKA DALAM KEBERSAMAAN', W / 2, footerY + 155);
-    }
-
-    function renderBentoGridLayout(ctx, W, H, poses, caption, dateStr) {
-        ctx.fillStyle = '#b7102a';
-        ctx.beginPath();
-        ctx.roundRect(80, 80, W - 160, 160, 24);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1d3557';
-        ctx.stroke();
+        // White Inverted Brand Card for KP45
+        const brandBoxW = photoW;
+        const brandBoxH = H - footerY - 80;
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '800 58px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 160);
+        ctx.fillRect(marginX, footerY, brandBoxW, brandBoxH);
 
-        ctx.fillStyle = '#fcd400';
+        // KP45 Bold Branding in Bricolage Grotesque
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '900 76px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('kp.45', marginX + 40, footerY + 95);
+
+        // Custom Message & Date
+        ctx.fillStyle = '#1d3557';
         ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('PESTA MERDEKA • KP GKI BROMO MALANG', W / 2, 210);
+        ctx.textAlign = 'right';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', marginX + brandBoxW - 40, footerY + 65);
 
-        const photoW = 860;
-        const photoH = 645;
-        const gap = 60;
-        const startX = (W - (photoW * 2 + gap)) / 2;
-        const startY = 290;
+        ctx.fillStyle = '#5b403f';
+        ctx.font = '600 20px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, marginX + brandBoxW - 40, footerY + 105);
+    }
+
+    function renderBentoEditorialGrid(ctx, W, H, poses, caption, dateStr) {
+        const gap = 50;
+        const margin = 70;
+        const photoW = (W - (margin * 2) - gap) / 2;
+        const photoH = photoW * 0.75;
+        const startY = 80;
 
         poses.forEach((pose, idx) => {
             const col = idx % 2;
             const row = Math.floor(idx / 2);
-            const pX = startX + col * (photoW + gap);
+            const pX = margin + col * (photoW + gap);
             const pY = startY + row * (photoH + gap);
 
-            ctx.fillStyle = '#1d3557';
-            ctx.beginPath();
-            ctx.roundRect(pX + 8, pY + 8, photoW, photoH, 20);
-            ctx.fill();
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(pX, pY, photoW, photoH, 20);
-            ctx.clip();
             ctx.drawImage(pose, pX, pY, photoW, photoH);
-            ctx.restore();
-
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#1d3557';
-            ctx.strokeRect(pX, pY, photoW, photoH);
         });
 
-        const footerY = H - 240;
-        ctx.fillStyle = '#211b0b';
-        ctx.font = '800 50px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 60);
-
-        ctx.fillStyle = '#b7102a';
-        ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
-    }
-
-    function renderSingleWideLayout(ctx, W, H, pose, caption, dateStr) {
-        ctx.fillStyle = '#b7102a';
-        ctx.beginPath();
-        ctx.roundRect(80, 80, W - 160, 140, 24);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1d3557';
-        ctx.stroke();
+        // Footer Inverted Card
+        const footerY = startY + 2 * (photoH + gap) + 20;
+        const brandBoxH = H - footerY - 70;
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '800 48px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 155);
-
-        ctx.fillStyle = '#fcd400';
-        ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('PESTA MERDEKA • KP BROMO', W / 2, 195);
-
-        const photoW = 1400;
-        const photoH = 1050;
-        const photoX = (W - photoW) / 2;
-        const photoY = 270;
-
-        ctx.fillStyle = '#1d3557';
-        ctx.beginPath();
-        ctx.roundRect(photoX + 10, photoY + 10, photoW, photoH, 24);
-        ctx.fill();
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(photoX, photoY, photoW, photoH, 24);
-        ctx.clip();
-        ctx.drawImage(pose, photoX, photoY, photoW, photoH);
-        ctx.restore();
-
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1d3557';
-        ctx.strokeRect(photoX, photoY, photoW, photoH);
-
-        const footerY = photoY + photoH + 70;
-        ctx.fillStyle = '#211b0b';
-        ctx.font = '800 54px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 50);
+        ctx.fillRect(margin, footerY, W - (margin * 2), brandBoxH);
 
         ctx.fillStyle = '#b7102a';
-        ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
+        ctx.font = '900 84px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('kp.45', margin + 50, footerY + 110);
+
+        ctx.fillStyle = '#1d3557';
+        ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W - margin - 50, footerY + 75);
+
+        ctx.fillStyle = '#5b403f';
+        ctx.font = '600 24px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, W - margin - 50, footerY + 120);
+    }
+
+    function renderSingleWideEditorial(ctx, W, H, pose, caption, dateStr) {
+        const margin = 80;
+        const photoW = W - (margin * 2);
+        const photoH = photoW * 0.75;
+        const photoY = 80;
+
+        ctx.drawImage(pose, margin, photoY, photoW, photoH);
+
+        const footerY = photoY + photoH + 50;
+        const brandBoxH = H - footerY - 80;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(margin, footerY, photoW, brandBoxH);
+
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '900 96px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('kp.45', margin + 60, footerY + 130);
+
+        ctx.fillStyle = '#1d3557';
+        ctx.font = '800 42px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + photoW - 60, footerY + 85);
+
+        ctx.fillStyle = '#5b403f';
+        ctx.font = '600 26px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, margin + photoW - 60, footerY + 140);
     }
 
     // --- 5. Animated Looping GIF Generator ---
@@ -636,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Processing & Output Delivery ---
     async function processAndDeliverOutputs() {
         Swal.fire({
-            title: 'Mencetak Foto Pesta Merdeka...',
+            title: 'Mencetak Foto KP45...',
             text: 'Merangkai strip foto beresolusi tinggi...',
             allowOutsideClick: false,
             background: '#fff8f1',
@@ -681,12 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultStripImg.src = localStrip;
         btnDownloadStrip.href = uploadData.download_url || localStrip;
-        btnDownloadStrip.download = `KP_Bromo_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
+        btnDownloadStrip.download = `KP45_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
 
         if (localGif || uploadData.gif_download_url) {
             resultGifImg.src = uploadData.gif_download_url || localGif;
             btnDownloadGif.href = uploadData.gif_download_url || localGif;
-            btnDownloadGif.download = `KP_Bromo_Animated_${uploadData.photo_id || 'gif'}.gif`;
+            btnDownloadGif.download = `KP45_Animated_${uploadData.photo_id || 'gif'}.gif`;
             btnDownloadGif.classList.remove('opacity-50', 'pointer-events-none');
             tabShowGif.classList.remove('hidden');
         } else {

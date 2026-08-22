@@ -129,7 +129,7 @@ async def view_photobooth_photo(photo_id: str):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Strip Pesta Merdeka — KP Bromo</title>
+    <title>KP45 Photo Strip — KP Bromo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,7 +140,7 @@ async def view_photobooth_photo(photo_id: str):
                 extend: {{
                     fontFamily: {{
                         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        display: ['"Bricolage Grotesk"', 'sans-serif'],
+                        display: ['"Bricolage Grotesque"', 'sans-serif'],
                     }},
                     colors: {{
                         merdeka: {{
@@ -166,11 +166,11 @@ async def view_photobooth_photo(photo_id: str):
     <!-- Top Bar -->
     <header class="w-full max-w-sm flex items-center justify-between py-3 border-b-2 border-merdeka-navy/15 mb-3">
         <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-2xl bg-merdeka-red flex items-center justify-center font-display font-extrabold text-xs text-white border-2 border-merdeka-navy shadow-pesta-sm -rotate-2">
-                KP
+            <div class="w-9 h-9 rounded-2xl bg-merdeka-red flex items-center justify-center font-display font-extrabold text-xs text-white border-2 border-merdeka-navy shadow-pesta-sm">
+                KP45
             </div>
             <div>
-                <h1 class="text-xs font-display font-extrabold tracking-tight text-merdeka-on-surface leading-none">PESTA MERDEKA</h1>
+                <h1 class="text-xs font-display font-extrabold tracking-tight text-merdeka-on-surface leading-none">KP45 PHOTO STRIP</h1>
                 <p class="text-[10px] text-slate-500 font-medium mt-0.5">Komisi Pemuda GKI Bromo</p>
             </div>
         </div>
@@ -191,15 +191,15 @@ async def view_photobooth_photo(photo_id: str):
         </div>
 
         <div class="relative bg-white p-3 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta max-h-[64vh] flex items-center justify-center">
-            <img id="mobile-img-strip" src="{image_src}" alt="KP Bromo Photo Strip" class="max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
-            <img id="mobile-img-gif" src="{gif_src}" alt="KP Bromo Animated GIF" class="hidden max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
+            <img id="mobile-img-strip" src="{image_src}" alt="KP45 Photo Strip" class="max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
+            <img id="mobile-img-gif" src="{gif_src}" alt="KP45 Animated GIF" class="hidden max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
         </div>
     </main>
 
     <!-- Actions Bottom Bar -->
     <footer class="w-full max-w-sm flex flex-col gap-2 pt-3 pb-2 border-t-2 border-merdeka-navy/15">
         <div class="grid grid-cols-2 gap-2">
-            <a id="btn-mobile-download" href="{image_src}" download="KP_Bromo_Photo_{photo_id}.jpg" class="py-3 px-3 bg-merdeka-red hover:bg-[#e63946] active:translate-x-0.5 active:translate-y-0.5 text-white rounded-full text-xs font-display font-extrabold text-center shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all">
+            <a id="btn-mobile-download" href="{image_src}" download="KP45_Photo_{photo_id}.jpg" class="py-3 px-3 bg-merdeka-red hover:bg-[#e63946] active:translate-x-0.5 active:translate-y-0.5 text-white rounded-full text-xs font-display font-extrabold text-center shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
@@ -233,7 +233,7 @@ async def view_photobooth_photo(photo_id: str):
                 tabStrip.className = "py-1 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red";
                 tabGif.className = "py-1 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-navy";
                 btnDownload.href = "{image_src}";
-                btnDownload.download = "KP_Bromo_Photo_{photo_id}.jpg";
+                btnDownload.download = "KP45_Photo_{photo_id}.jpg";
             }});
 
             tabGif.addEventListener('click', () => {{
@@ -242,7 +242,7 @@ async def view_photobooth_photo(photo_id: str):
                 tabGif.className = "py-1 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-navy";
                 tabStrip.className = "py-1 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-navy";
                 btnDownload.href = "{gif_src}";
-                btnDownload.download = "KP_Bromo_Animated_{photo_id}.gif";
+                btnDownload.download = "KP45_Animated_{photo_id}.gif";
             }});
         }}
 
@@ -250,8 +250,8 @@ async def view_photobooth_photo(photo_id: str):
             if (navigator.share) {{
                 try {{
                     await navigator.share({{
-                        title: 'Pesta Merdeka Photo Strip KP Bromo',
-                        text: 'Keseruan Photobooth 17an di Komisi Pemuda GKI Bromo Malang!',
+                        title: 'KP45 Photo Strip',
+                        text: 'Photo Strip KP45 di Komisi Pemuda GKI Bromo Malang!',
                         url: window.location.href
                     }});
                 }} catch (err) {{

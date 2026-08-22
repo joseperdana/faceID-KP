@@ -44,8 +44,8 @@ def test_photobooth_page_interactions(page: Page):
     page.goto(f"{BASE_URL}/photobooth")
     
     # Check Page Header
-    expect(page).to_have_title(re.compile(r"Pesta Merdeka|Nusantara|Photobooth"))
-    expect(page.locator("text=PESTA MERDEKA PHOTOBOOTH")).to_be_visible()
+    expect(page).to_have_title(re.compile(r"KP45|Photobooth"))
+    expect(page.locator("text=KP45 PHOTOBOOTH")).to_be_visible()
     
     # Check 4 Layout Card selections on Welcome Stage
     layout_3strip = page.locator('[data-layout="3-strip"]')

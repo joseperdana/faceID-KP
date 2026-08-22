@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pesta Merdeka Photo Strip — Komisi Pemuda GKI Bromo</title>
+    <title>KP45 Photo Strip — Komisi Pemuda GKI Bromo</title>
     
     <!-- Premium Google Fonts: Bricolage Grotesque & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,17 +26,12 @@
                             'surface-dim': '#e5d9bf',
                             'surface-container': '#faedd2',
                             'surface-container-high': '#f4e7cc',
-                            'surface-container-highest': '#eee1c7',
                             'on-surface': '#211b0b',
                             'on-surface-variant': '#5b403f',
                             navy: '#1d3557',
-                            'navy-dim': '#465d81',
                             red: '#b7102a',
                             'red-bright': '#e63946',
-                            'red-container': '#db313f',
                             gold: '#ffd700',
-                            'gold-dark': '#705d00',
-                            'gold-container': '#fcd400',
                             paper: '#fdf0d5',
                         }
                     },
@@ -44,8 +39,6 @@
                         'pesta': '4px 4px 0px #1d3557',
                         'pesta-sm': '2px 2px 0px #1d3557',
                         'pesta-lg': '6px 6px 0px #1d3557',
-                        'pesta-red': '4px 4px 0px #b7102a',
-                        'pesta-gold': '4px 4px 0px #705d00',
                     }
                 }
             }
@@ -64,7 +57,7 @@
             border-color: #b7102a !important;
             background-color: #ffffff !important;
             box-shadow: 4px 4px 0px #1d3557 !important;
-            transform: translate(-2px, -2px) rotate(-1deg);
+            transform: translate(-2px, -2px);
         }
 
         @keyframes printSlideDown {
@@ -86,18 +79,12 @@
     <!-- Top Navigation Header -->
     <header class="w-full max-w-5xl mx-auto mb-5 flex justify-between items-center bg-white rounded-3xl p-3.5 md:p-4 border-[3px] border-merdeka-navy shadow-pesta z-50">
         <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl bg-merdeka-red flex items-center justify-center border-2 border-merdeka-navy shadow-pesta-sm -rotate-2">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+            <div class="w-11 h-11 rounded-2xl bg-merdeka-red flex items-center justify-center border-2 border-merdeka-navy shadow-pesta-sm">
+                <span class="text-white font-display font-extrabold text-sm tracking-tighter">KP45</span>
             </div>
             <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="font-display font-extrabold text-base md:text-lg tracking-tight text-merdeka-on-surface">PESTA MERDEKA PHOTOBOOTH</h1>
-                    <span class="text-[10px] bg-merdeka-gold-container text-merdeka-gold-dark px-2.5 py-0.5 rounded-full border-2 border-merdeka-navy font-display font-extrabold rotate-2 shadow-pesta-sm">17 AGUSTUS</span>
-                </div>
-                <p class="text-xs text-merdeka-on-surface-variant font-medium">Komisi Pemuda GKI Bromo Malang</p>
+                <h1 class="font-display font-extrabold text-base md:text-lg tracking-tight text-merdeka-on-surface leading-none">KP45 PHOTOBOOTH</h1>
+                <p class="text-xs text-merdeka-on-surface-variant font-medium mt-0.5">Komisi Pemuda GKI Bromo Malang</p>
             </div>
         </div>
         
@@ -109,7 +96,7 @@
                 <span class="hidden sm:inline">Absen Wajah</span>
             </a>
             <a href="/dashboard" class="flex items-center gap-2 px-4 py-2 bg-merdeka-surface-container hover:bg-white rounded-full text-xs md:text-sm font-display font-bold transition-all border-2 border-merdeka-navy text-merdeka-navy shadow-pesta-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
-                <svg class="w-4 h-4 text-merdeka-gold-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <svg class="w-4 h-4 text-merdeka-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 <span class="hidden sm:inline">Dashboard</span>
@@ -120,100 +107,74 @@
     <!-- STAGE 1: Welcome & Layout Selection Screen -->
     <main id="welcome-stage" class="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow">
         
-        <div class="w-full bg-white rounded-3xl p-6 md:p-9 border-[3px] border-merdeka-navy shadow-pesta-lg text-center flex flex-col items-center relative overflow-hidden">
+        <div class="w-full bg-white rounded-3xl p-6 md:p-10 border-[3px] border-merdeka-navy shadow-pesta-lg text-center flex flex-col items-center relative">
             
-            <!-- Festive Doodle Ribbon Badge -->
-            <div class="inline-flex items-center gap-2 bg-merdeka-gold-container border-2 border-merdeka-navy px-4 py-1.5 rounded-full text-xs font-display font-extrabold text-merdeka-on-surface mb-3.5 -rotate-1 shadow-pesta-sm">
-                <span>DIRGAHAYU REPUBLIK INDONESIA</span>
-                <span>•</span>
-                <span>FESTIVAL PEMUDA NUSANTARA</span>
-            </div>
-
-            <h2 class="text-3xl md:text-5xl font-display font-extrabold text-merdeka-on-surface tracking-tight max-w-2xl leading-tight">
-                Pesta Merdeka Photo Studio
+            <h2 class="text-3xl md:text-5xl font-display font-extrabold text-merdeka-on-surface tracking-tight">
+                KP45 Photo Studio
             </h2>
-            <p class="text-sm md:text-base text-merdeka-on-surface-variant font-medium mt-2.5 max-w-lg">
-                Pilih format foto strip favoritmu, abadikan momen kebersamaan 17an, dan dapatkan Photo Strip HD & Animated GIF instan!
-            </p>
 
-            <!-- 4 Layout Selection Cards (Doodle Scrapbook Style) -->
-            <div class="w-full max-w-3xl mt-8 grid grid-cols-2 md:grid-cols-4 gap-3.5 md:gap-4 text-left">
+            <!-- 4 Layout Selection Cards (Pose Count Only) -->
+            <div class="w-full max-w-2xl mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3.5 md:gap-4 text-center">
                 
-                <!-- Layout 1: 3-Strip Vertikal (Default) -->
-                <button class="layout-card layout-card-active p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col justify-between cursor-pointer shadow-pesta-sm" data-layout="3-strip" data-poses="3">
+                <!-- Layout 1: 3 Poses (Default) -->
+                <button class="layout-card layout-card-active p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col items-center justify-between cursor-pointer shadow-pesta-sm" data-layout="3-strip" data-poses="3">
                     <div class="w-full aspect-[2/3] bg-white rounded-2xl border-2 border-merdeka-navy p-2 flex flex-col justify-between items-center mb-3 shadow-inner">
                         <div class="w-full h-[26%] bg-merdeka-red/20 rounded-lg border border-merdeka-red/40"></div>
-                        <div class="w-full h-[26%] bg-merdeka-gold-container/40 rounded-lg border border-merdeka-gold-dark/40"></div>
+                        <div class="w-full h-[26%] bg-merdeka-surface-dim rounded-lg border border-merdeka-navy/20"></div>
                         <div class="w-full h-[26%] bg-merdeka-navy/20 rounded-lg border border-merdeka-navy/40"></div>
                     </div>
-                    <div>
-                        <span class="text-[10px] font-display font-extrabold text-merdeka-red bg-merdeka-red/10 px-2 py-0.5 rounded-full border border-merdeka-red/30">3 POSE</span>
-                        <h3 class="text-xs md:text-sm font-display font-extrabold text-merdeka-on-surface mt-1.5">3-Strip Vertikal</h3>
-                        <p class="text-[11px] text-merdeka-on-surface-variant mt-0.5">Format studio paling viral</p>
-                    </div>
+                    <span class="text-xs font-display font-extrabold text-merdeka-red bg-merdeka-red/10 px-3 py-1 rounded-full border border-merdeka-red/30">3 Pose</span>
                 </button>
 
-                <!-- Layout 2: 4-Strip Vertikal -->
-                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col justify-between cursor-pointer shadow-pesta-sm" data-layout="4-strip" data-poses="4">
+                <!-- Layout 2: 4 Poses (4-Strip) -->
+                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col items-center justify-between cursor-pointer shadow-pesta-sm" data-layout="4-strip" data-poses="4">
                     <div class="w-full aspect-[2/3] bg-white rounded-2xl border-2 border-merdeka-navy p-1.5 flex flex-col justify-between items-center mb-3 shadow-inner">
                         <div class="w-full h-[20%] bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full h-[20%] bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full h-[20%] bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full h-[20%] bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                     </div>
-                    <div>
-                        <span class="text-[10px] font-display font-extrabold text-merdeka-navy bg-merdeka-navy/10 px-2 py-0.5 rounded-full border border-merdeka-navy/30">4 POSE</span>
-                        <h3 class="text-xs md:text-sm font-display font-extrabold text-merdeka-on-surface mt-1.5">4-Strip Klasik</h3>
-                        <p class="text-[11px] text-merdeka-on-surface-variant mt-0.5">Strip foto panjang klasik</p>
-                    </div>
+                    <span class="text-xs font-display font-extrabold text-merdeka-navy bg-merdeka-navy/10 px-3 py-1 rounded-full border border-merdeka-navy/30">4 Pose</span>
                 </button>
 
-                <!-- Layout 3: 2x2 Bento Grid -->
-                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col justify-between cursor-pointer shadow-pesta-sm" data-layout="2x2-grid" data-poses="4">
+                <!-- Layout 3: 4 Poses (2x2 Bento) -->
+                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col items-center justify-between cursor-pointer shadow-pesta-sm" data-layout="2x2-grid" data-poses="4">
                     <div class="w-full aspect-[2/3] bg-white rounded-2xl border-2 border-merdeka-navy p-2 grid grid-cols-2 gap-1.5 items-center mb-3 shadow-inner">
                         <div class="w-full aspect-square bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full aspect-square bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full aspect-square bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                         <div class="w-full aspect-square bg-merdeka-paper rounded-md border border-merdeka-navy/20"></div>
                     </div>
-                    <div>
-                        <span class="text-[10px] font-display font-extrabold text-merdeka-gold-dark bg-merdeka-gold/20 px-2 py-0.5 rounded-full border border-merdeka-gold-dark/30">4 POSE</span>
-                        <h3 class="text-xs md:text-sm font-display font-extrabold text-merdeka-on-surface mt-1.5">2x2 Bento Box</h3>
-                        <p class="text-[11px] text-merdeka-on-surface-variant mt-0.5">Format kolase kotak seru</p>
-                    </div>
+                    <span class="text-xs font-display font-extrabold text-merdeka-navy bg-merdeka-navy/10 px-3 py-1 rounded-full border border-merdeka-navy/30">4 Pose</span>
                 </button>
 
-                <!-- Layout 4: Single Wide Polaroid -->
-                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col justify-between cursor-pointer shadow-pesta-sm" data-layout="single-wide" data-poses="1">
+                <!-- Layout 4: 1 Pose (Single Wide) -->
+                <button class="layout-card p-4 rounded-3xl bg-merdeka-surface-container hover:bg-white border-[3px] border-merdeka-navy transition-all flex flex-col items-center justify-between cursor-pointer shadow-pesta-sm" data-layout="single-wide" data-poses="1">
                     <div class="w-full aspect-[2/3] bg-white rounded-2xl border-2 border-merdeka-navy p-2 flex flex-col justify-start items-center mb-3 shadow-inner">
                         <div class="w-full aspect-[4/3] bg-merdeka-paper rounded-lg border border-merdeka-navy/20 mb-2"></div>
                         <div class="w-2/3 h-2 bg-merdeka-surface-dim rounded-full"></div>
                     </div>
-                    <div>
-                        <span class="text-[10px] font-display font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-800/30">1 POSE</span>
-                        <h3 class="text-xs md:text-sm font-display font-extrabold text-merdeka-on-surface mt-1.5">Wide Polaroid</h3>
-                        <p class="text-[11px] text-merdeka-on-surface-variant mt-0.5">Cocok untuk grup ramai</p>
-                    </div>
+                    <span class="text-xs font-display font-extrabold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-800/30">1 Pose</span>
                 </button>
 
             </div>
 
-            <!-- Custom Message / Geng Name Input -->
-            <div class="w-full max-w-md mt-6 text-left">
+            <!-- Custom Message Input -->
+            <div class="w-full max-w-md mt-7 text-left">
                 <label for="custom-caption-input" class="block text-xs font-display font-extrabold text-merdeka-on-surface mb-1.5">
-                    Nama Jemaat / Kelompok / Geng (Opsional)
+                    Custom Message
                 </label>
-                <input id="custom-caption-input" type="text" maxlength="32" placeholder="Contoh: Sie Multimedia / Geng Pemuda Bromo" class="w-full bg-merdeka-surface border-[3px] border-merdeka-navy rounded-2xl px-4 py-3 text-xs md:text-sm text-merdeka-on-surface placeholder:text-slate-400 focus:outline-none focus:bg-white focus:shadow-pesta-sm transition-all font-medium">
+                <input id="custom-caption-input" type="text" maxlength="32" placeholder="Tulis pesan / nama (opsional)" class="w-full bg-merdeka-surface border-[3px] border-merdeka-navy rounded-2xl px-4 py-3 text-xs md:text-sm text-merdeka-on-surface placeholder:text-slate-400 focus:outline-none focus:bg-white focus:shadow-pesta-sm transition-all font-medium">
             </div>
 
-            <!-- Start Session Button (Pill Shape with Hard Drop Shadow) -->
+            <!-- Start Button (Mulai Foto) -->
             <div class="mt-8">
-                <button id="btn-start-session" class="py-4 px-10 bg-merdeka-red hover:bg-merdeka-red-bright text-white font-display font-extrabold text-base md:text-lg rounded-full border-[3px] border-merdeka-navy shadow-pesta-lg transition-all active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer flex items-center gap-3">
+                <button id="btn-start-session" class="py-4 px-12 bg-merdeka-red hover:bg-merdeka-red-bright text-white font-display font-extrabold text-base md:text-lg rounded-full border-[3px] border-merdeka-navy shadow-pesta-lg transition-all active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer flex items-center gap-3">
                     <svg class="w-6 h-6 text-merdeka-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Mulai Sesi Foto Merdeka</span>
+                    <span>Mulai Foto</span>
                 </button>
             </div>
 
@@ -240,22 +201,22 @@
                 </div>
 
                 <!-- Floating Active Pose Status Pill (Top Left) -->
-                <div id="pose-indicator" class="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-md border-2 border-merdeka-navy px-4 py-1.5 rounded-full flex items-center gap-2 shadow-pesta-sm -rotate-1">
+                <div id="pose-indicator" class="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-md border-2 border-merdeka-navy px-4 py-1.5 rounded-full flex items-center gap-2 shadow-pesta-sm">
                     <span class="w-2.5 h-2.5 rounded-full bg-merdeka-red animate-pulse"></span>
-                    <span id="pose-indicator-text" class="text-xs font-display font-extrabold text-merdeka-on-surface">Pose 1 dari 3: Senyum Manis!</span>
+                    <span id="pose-indicator-text" class="text-xs font-display font-extrabold text-merdeka-on-surface">Pose 1 dari 3</span>
                 </div>
 
                 <!-- Floating Non-Intrusive Countdown Pill (Top Right - NO BLACKOUT) -->
                 <div id="floating-countdown" class="hidden absolute top-4 right-4 md:top-6 md:right-6 z-30 bg-white/95 backdrop-blur-md border-[3px] border-merdeka-navy px-5 py-2 rounded-2xl shadow-pesta-lg flex items-center gap-3 animate-bounce">
-                    <span class="text-xs font-display font-extrabold text-merdeka-red uppercase">Jepret Dalam</span>
+                    <span class="text-xs font-display font-extrabold text-merdeka-red uppercase">Hitungan</span>
                     <span id="countdown-number" class="text-3xl md:text-4xl font-display font-black text-merdeka-navy leading-none">3</span>
                 </div>
 
                 <!-- Inter-Pose Prompt Floating Card -->
                 <div id="interpose-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center pointer-events-none">
-                    <div class="bg-white/95 backdrop-blur-md border-[3px] border-merdeka-navy p-6 rounded-3xl shadow-pesta-lg max-w-sm animate-pulse rotate-1">
-                        <h3 id="interpose-title" class="text-xl md:text-2xl font-display font-extrabold text-merdeka-on-surface">Siapkan Gaya 2!</h3>
-                        <p class="text-xs text-merdeka-on-surface-variant font-mono mt-1">Ganti pose terbaikmu sekarang...</p>
+                    <div class="bg-white/95 backdrop-blur-md border-[3px] border-merdeka-navy p-6 rounded-3xl shadow-pesta-lg max-w-sm animate-pulse">
+                        <h3 id="interpose-title" class="text-xl md:text-2xl font-display font-extrabold text-merdeka-on-surface">Pose Berikutnya</h3>
+                        <p class="text-xs text-merdeka-on-surface-variant font-mono mt-1">Siapkan gaya terbaikmu...</p>
                     </div>
                 </div>
 
@@ -316,12 +277,12 @@
             <!-- Modal Header with Auto-Reset Timer -->
             <div class="w-full flex justify-between items-center mb-6 pb-4 border-b-2 border-merdeka-navy/15">
                 <div>
-                    <h3 class="text-xl md:text-2xl font-display font-extrabold text-merdeka-on-surface tracking-tight">Foto Pesta Merdeka Selesai!</h3>
-                    <p class="text-xs text-merdeka-on-surface-variant font-medium mt-0.5">Scan QR dengan HP untuk langsung menyimpan foto strip & animasi GIF ke galeri.</p>
+                    <h3 class="text-xl md:text-2xl font-display font-extrabold text-merdeka-on-surface tracking-tight">Foto Selesai!</h3>
+                    <p class="text-xs text-merdeka-on-surface-variant font-medium mt-0.5">Scan QR dengan HP untuk menyimpan foto strip & animasi GIF ke galeri.</p>
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <div class="flex items-center gap-1.5 bg-merdeka-gold-container border-2 border-merdeka-navy px-3.5 py-1 rounded-full text-xs font-display font-black text-merdeka-on-surface shadow-pesta-sm rotate-1">
+                    <div class="flex items-center gap-1.5 bg-merdeka-surface-container border-2 border-merdeka-navy px-3.5 py-1 rounded-full text-xs font-display font-black text-merdeka-on-surface shadow-pesta-sm">
                         <span>Reset:</span>
                         <span id="auto-reset-timer">45s</span>
                     </div>
@@ -352,10 +313,10 @@
                     <div class="relative w-full max-w-[320px] flex justify-center bg-white p-3.5 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta">
                         
                         <!-- Static Photo Strip Image -->
-                        <img id="result-strip-img" src="" alt="KP Bromo Photo Strip" class="max-h-[48vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm animate-print-slide" />
+                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[48vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm animate-print-slide" />
                         
                         <!-- Animated GIF Image -->
-                        <img id="result-gif-img" src="" alt="KP Bromo Animated GIF" class="hidden max-h-[48vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm" />
+                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[48vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm" />
                     </div>
 
                 </div>
@@ -367,7 +328,7 @@
                         <div id="qr-code-container" class="bg-white p-3.5 rounded-2xl border-2 border-merdeka-navy shadow-pesta-sm flex items-center justify-center">
                             <!-- QR Code renders here -->
                         </div>
-                        <span class="inline-block mt-3 px-3.5 py-1 bg-merdeka-gold-container text-merdeka-on-surface font-display font-extrabold text-xs rounded-full border-2 border-merdeka-navy shadow-pesta-sm -rotate-1">
+                        <span class="inline-block mt-3 px-4 py-1 bg-merdeka-red text-white font-display font-extrabold text-xs rounded-full border-2 border-merdeka-navy shadow-pesta-sm">
                             SCAN UNTUK SIMPAN KE HP
                         </span>
                         <p class="text-[11px] text-merdeka-on-surface-variant font-mono mt-2">Arahkan kamera HP ke QR Code, lalu ketuk tautan unduh</p>
@@ -375,14 +336,14 @@
 
                     <!-- Direct Download Buttons -->
                     <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <a id="btn-download-strip" href="#" download="KP_Bromo_PhotoStrip.jpg" class="py-3 px-4 bg-merdeka-red hover:bg-merdeka-red-bright active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
+                        <a id="btn-download-strip" href="#" download="KP45_PhotoStrip.jpg" class="py-3 px-4 bg-merdeka-red hover:bg-merdeka-red-bright active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                             <span>Unduh Strip HD</span>
                         </a>
 
-                        <a id="btn-download-gif" href="#" download="KP_Bromo_Animated.gif" class="py-3 px-4 bg-merdeka-navy hover:bg-merdeka-navy-dim active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
+                        <a id="btn-download-gif" href="#" download="KP45_Animated.gif" class="py-3 px-4 bg-merdeka-navy hover:bg-merdeka-navy-dim active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
                             <svg class="w-4 h-4 text-merdeka-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
