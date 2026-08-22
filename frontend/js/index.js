@@ -1,9 +1,9 @@
 // --- Konstanta AI & DOM ---
-const REQUIRED_STABLE_FRAMES = 45; 
-const MOVEMENT_THRESHOLD = 0.03; 
+const REQUIRED_STABLE_FRAMES = 15; 
+const MOVEMENT_THRESHOLD = 0.045; 
 const AUTO_RESET_DELAY = 3500; 
-const SAFE_ZONE_X_MIN = 0.30; const SAFE_ZONE_X_MAX = 0.70;
-const SAFE_ZONE_Y_MIN = 0.20; const SAFE_ZONE_Y_MAX = 0.80;
+const SAFE_ZONE_X_MIN = 0.20; const SAFE_ZONE_X_MAX = 0.80;
+const SAFE_ZONE_Y_MIN = 0.15; const SAFE_ZONE_Y_MAX = 0.85;
 
 const videoElement = document.getElementById('video');
 const canvasElement = document.getElementById('output_canvas');
@@ -63,7 +63,7 @@ function requestLocation() {
 
 // --- Inisialisasi MediaPipe AI ---
 const faceDetection = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
-faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.6 });
+faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.45 });
 faceDetection.onResults(onResults);
 
 const camera = new Camera(videoElement, {

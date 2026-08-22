@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from main import app
 from datetime import datetime, timezone
+from services.db_service import DBService
 
 client = TestClient(app)
 
@@ -49,7 +50,6 @@ def test_manual_checkin_success():
         assert "Jonathan Kristi" in data["message"]
         assert data["data"]["method"] == "manual"
         
-        # Verify insert_log was called with method='manual'
         mock_insert.assert_called_once()
         inserted_data = mock_insert.call_args[0][0]
         assert inserted_data["user_id"] == 1
@@ -82,3 +82,21 @@ def test_recognize_geofence_rejection():
         )
         assert response.status_code == 403
         assert "Akses ditolak" in response.json()["message"]
+
+def test_db_service_insert_log_resilience():
+    """Verify that insert_log falls back to core fields if Supabase schema lacks method column."""
+    with patch("services.db_service.supabase") as mock_supabase:
+        # First call fails with PGRST204 (missing method column), second call (fallback) succeeds
+        mock_execute = MagicMock()
+        mock_execute.execute.side_effect = [Exception("PGRST204: Could not find the 'method' column"), MagicMock(data=[{"id": 100}])]
+        mock_supabase.table.return_value.insert.return_value = mock_execute
+        
+        log_data = {"user_id": 1, "status": "Hadir", "method": "manual", "timestamp": "2026-08-22T00:00:00Z"}
+        res = DBService.insert_log(log_data)
+        
+        assert mock_supabase.table.return_value.insert.call_count == 2
+        # Verify fallback insert did not include 'method'
+        fallback_call_args = mock_supabase.table.return_value.insert.call_args_list[1][0][0]
+        assert "method" not in fallback_call_args
+        assert fallback_call_args["user_id"] == 1
+        assert fallback_call_args["status"] == "Hadir"

@@ -90,10 +90,14 @@ async def recognize_face(
 
     last_seen = "Baru Pertama"
     for log in history:
-        if log['timestamp'] < today_start:
-            last_seen_date = datetime.fromisoformat(log['timestamp'][:19]).replace(tzinfo=timezone.utc)
-            last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
-            break
+        ts = log.get('timestamp')
+        if ts and ts < today_start:
+            try:
+                last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
+                last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+                break
+            except Exception:
+                pass
 
     if today_log:
         return {
@@ -157,7 +161,7 @@ async def search_users(request: Request, q: str = ""):
     if not q or len(q.strip()) < 1:
         return {"status": "success", "data": []}
     try:
-        results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 10)
+        results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 25)
         return {"status": "success", "data": results}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -181,10 +185,14 @@ async def manual_checkin(request: Request, user_id: int = Form(...)):
 
         last_seen = "Baru Pertama"
         for log in history:
-            if log.get("timestamp", "") < today_start:
-                last_seen_date = datetime.fromisoformat(log["timestamp"][:19]).replace(tzinfo=timezone.utc)
-                last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
-                break
+            ts = log.get("timestamp")
+            if ts and ts < today_start:
+                try:
+                    last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
+                    last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+                    break
+                except Exception:
+                    pass
 
         if today_log:
             return {
