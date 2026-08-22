@@ -439,13 +439,21 @@
                         </button>
                     </div>
 
-                    <!-- Output Preview Box with Large Height -->
-                    <div class="relative w-full max-w-[360px] flex justify-center bg-white p-3 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta min-h-[440px] md:min-h-[500px]">
+                    <!-- Output Preview Box with Stitch Photo Strip Styling (8px hard drop shadow, subtle -1deg tilt, decorative star) -->
+                    <div class="relative w-full max-w-[340px] flex justify-center bg-white p-2 rounded-2xl border-[3px] border-[#410007] shadow-[8px_8px_0px_0px_#410007] rotate-[-1deg] transition-all hover:rotate-0 min-h-[440px] md:min-h-[500px]">
+                        
+                        <!-- Decorative Star from Stitch -->
+                        <div class="absolute -top-3.5 -left-3.5 z-30 transform -rotate-12 bg-merdeka-gold text-merdeka-red border-2 border-[#410007] rounded-full p-1.5 shadow-[2px_2px_0px_0px_#410007] flex items-center justify-center pointer-events-none">
+                            <svg class="w-4 h-4 fill-merdeka-red" viewBox="0 0 24 24">
+                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                            </svg>
+                        </div>
+
                         <!-- Static Photo Strip Image (Hero Size) -->
-                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[55vh] md:max-h-[60vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm animate-print-slide" />
+                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[55vh] md:max-h-[60vh] w-auto rounded-lg object-contain animate-print-slide" />
                         
                         <!-- Animated GIF Image -->
-                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[55vh] md:max-h-[60vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm" />
+                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[55vh] md:max-h-[60vh] w-auto rounded-lg object-contain" />
                     </div>
 
                     <p class="text-xs font-display font-bold text-merdeka-red text-center mt-3">
