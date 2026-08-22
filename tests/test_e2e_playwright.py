@@ -40,57 +40,60 @@ def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContex
     expect(modal).to_have_class(re.compile(r"hidden"))
 
 def test_photobooth_page_interactions(page: Page):
-    """Test KP45 Indonesian Photo Strip Booth UI controls, frames, filters, and timers."""
+    """Test Nusantara Festive Light Photobooth UI controls, 4 Layouts, and Stage transitions."""
     page.goto(f"{BASE_URL}/photobooth")
     
     # Check Page Header
-    expect(page).to_have_title(re.compile(r"Photo Strip Booth|Photobooth"))
-    expect(page.locator("text=PHOTO STRIP BOOTH")).to_be_visible()
+    expect(page).to_have_title(re.compile(r"Nusantara Photo Strip|Photobooth"))
+    expect(page.locator("text=NUSANTARA PHOTOBOOTH")).to_be_visible()
     
-    # Check 4 Frame selections
-    frame_merah_putih = page.locator('[data-frame="merah-putih"]')
-    frame_y2k = page.locator('[data-frame="y2k-pastel"]')
-    frame_batik = page.locator('[data-frame="batik-nusantara"]')
-    frame_retro = page.locator('[data-frame="retro-kodak"]')
+    # Check 4 Layout Card selections on Welcome Stage
+    layout_3strip = page.locator('[data-layout="3-strip"]')
+    layout_4strip = page.locator('[data-layout="4-strip"]')
+    layout_bento = page.locator('[data-layout="2x2-grid"]')
+    layout_single = page.locator('[data-layout="single-wide"]')
     
-    expect(frame_merah_putih).to_have_class(re.compile(r"frame-active"))
+    expect(layout_3strip).to_have_class(re.compile(r"layout-card-active"))
     
-    # Click Y2K frame
-    frame_y2k.click()
-    expect(frame_y2k).to_have_class(re.compile(r"frame-active"))
-    expect(frame_merah_putih).not_to_have_class(re.compile(r"frame-active"))
+    # Click 4-Strip layout
+    layout_4strip.click()
+    expect(layout_4strip).to_have_class(re.compile(r"layout-card-active"))
+    expect(layout_3strip).not_to_have_class(re.compile(r"layout-card-active"))
     
-    # Click Batik frame
-    frame_batik.click()
-    expect(frame_batik).to_have_class(re.compile(r"frame-active"))
-    expect(frame_y2k).not_to_have_class(re.compile(r"frame-active"))
+    # Click 2x2 Bento layout
+    layout_bento.click()
+    expect(layout_bento).to_have_class(re.compile(r"layout-card-active"))
+    expect(layout_4strip).not_to_have_class(re.compile(r"layout-card-active"))
 
-    # Click Retro frame
-    frame_retro.click()
-    expect(frame_retro).to_have_class(re.compile(r"frame-active"))
-    expect(frame_batik).not_to_have_class(re.compile(r"frame-active"))
+    # Click Single Wide layout
+    layout_single.click()
+    expect(layout_single).to_have_class(re.compile(r"layout-card-active"))
     
-    # Check Color Tone Filters
-    filter_warm = page.locator('[data-filter="warm"]')
-    filter_mono = page.locator('[data-filter="mono"]')
-    filter_warm.click()
-    expect(filter_warm).to_have_class(re.compile(r"filter-active"))
-    filter_mono.click()
-    expect(filter_mono).to_have_class(re.compile(r"filter-active"))
-    
-    # Check Timer toggle
-    timer_5s = page.locator("#timer-5s")
-    timer_5s.click()
-    expect(timer_5s).to_have_class(re.compile(r"bg-pop-blue"))
+    # Switch back to 3-Strip
+    layout_3strip.click()
+    expect(layout_3strip).to_have_class(re.compile(r"layout-card-active"))
     
     # Check Custom Caption input
     caption_input = page.locator("#custom-caption-input")
     caption_input.fill("Geng Pemuda Bromo 2026")
     expect(caption_input).to_have_value("Geng Pemuda Bromo 2026")
     
-    # Check Start Session Button
+    # Click Start Session Button -> Transitions to Camera Stage
     btn_start = page.locator("#btn-start-session")
     expect(btn_start).to_be_visible()
+    btn_start.click()
+    
+    # Check Welcome stage hidden, Camera stage visible
+    welcome_stage = page.locator("#welcome-stage")
+    camera_stage = page.locator("#camera-stage")
+    expect(welcome_stage).to_have_class(re.compile(r"hidden"))
+    expect(camera_stage).not_to_have_class(re.compile(r"hidden"))
+    
+    # Check Cancel button returns to Welcome stage
+    btn_cancel = page.locator("#btn-cancel-session")
+    btn_cancel.click()
+    expect(welcome_stage).not_to_have_class(re.compile(r"hidden"))
+    expect(camera_stage).to_have_class(re.compile(r"hidden"))
 
 def test_login_page_form(page: Page):
     """Test Admin login page."""

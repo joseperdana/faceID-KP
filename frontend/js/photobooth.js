@@ -1,32 +1,37 @@
-// --- Superpower Photo Strip Engine & Tactile Compositor ---
+// --- Nusantara Festive Light Photo Strip & Animated GIF Engine ---
 document.addEventListener('DOMContentLoaded', () => {
-    const video = document.getElementById('video-stream');
+    // Stages & Layouts
+    const welcomeStage = document.getElementById('welcome-stage');
+    const cameraStage = document.getElementById('camera-stage');
+    const layoutCards = document.querySelectorAll('.layout-card');
+    const customCaptionInput = document.getElementById('custom-caption-input');
     const btnStartSession = document.getElementById('btn-start-session');
-    const countdownOverlay = document.getElementById('countdown-overlay');
+    const btnCancelSession = document.getElementById('btn-cancel-session');
+
+    // Camera & Viewfinder Elements
+    const video = document.getElementById('video-stream');
+    const poseIndicatorText = document.getElementById('pose-indicator-text');
+    const floatingCountdown = document.getElementById('floating-countdown');
     const countdownNumber = document.getElementById('countdown-number');
-    const countdownSubtext = document.getElementById('countdown-subtext');
     const interposeOverlay = document.getElementById('interpose-overlay');
     const interposeTitle = document.getElementById('interpose-title');
     const cameraFlash = document.getElementById('camera-flash');
-    
+    const poseDotsContainer = document.getElementById('pose-dots-container');
+
     const btnToggleMirror = document.getElementById('btn-toggle-mirror');
     const btnSwitchCam = document.getElementById('btn-switch-cam');
     const timer3sBtn = document.getElementById('timer-3s');
     const timer5sBtn = document.getElementById('timer-5s');
-    
-    const poseIndicatorText = document.getElementById('pose-indicator-text');
-    const dotPose1 = document.getElementById('dot-pose-1');
-    const dotPose2 = document.getElementById('dot-pose-2');
-    const dotPose3 = document.getElementById('dot-pose-3');
-    
-    const frameCards = document.querySelectorAll('.frame-card');
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    const customCaptionInput = document.getElementById('custom-caption-input');
-    
+
+    // Result Modal & Dispenser Elements
     const resultModal = document.getElementById('result-modal');
     const resultStripImg = document.getElementById('result-strip-img');
+    const resultGifImg = document.getElementById('result-gif-img');
+    const tabShowStrip = document.getElementById('tab-show-strip');
+    const tabShowGif = document.getElementById('tab-show-gif');
     const qrCodeContainer = document.getElementById('qr-code-container');
-    const btnDownloadDirect = document.getElementById('btn-download-direct');
+    const btnDownloadStrip = document.getElementById('btn-download-strip');
+    const btnDownloadGif = document.getElementById('btn-download-gif');
     const btnRetake = document.getElementById('btn-retake');
     const btnCloseModal = document.getElementById('btn-close-modal');
     const autoResetTimerEl = document.getElementById('auto-reset-timer');
@@ -35,15 +40,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentStream = null;
     let isMirrored = true;
     let currentFacingMode = 'user';
-    let selectedFrame = 'merah-putih';
-    let selectedFilter = 'natural';
+    let selectedLayout = '3-strip';
+    let targetPoses = 3;
     let timerDuration = 3;
     let isSessionRunning = false;
-    let capturedPoses = []; // Holds 3 frame canvases
+    let capturedPoses = []; // Array of snapshot canvases
     let autoResetInterval = null;
     let qrCodeInstance = null;
 
-    // --- 1. Web Audio API Physical Shutter Synthesizer ---
+    // --- 1. Web Audio API Physical Sound Synthesizer ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     function playBeep(freq = 880, duration = 0.1) {
@@ -62,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playShutterSound() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        // Mechanical shutter click: Noise burst + twin resonant clicks
         const bufferSize = audioCtx.sampleRate * 0.09;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -79,7 +83,66 @@ document.addEventListener('DOMContentLoaded', () => {
         noise.start();
     }
 
-    // --- 2. Camera Setup & Streaming ---
+    function playPrinterSound() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        // Synthesize mechanical paper dispenser whir
+        const bufferSize = audioCtx.sampleRate * 0.6;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = ((Math.random() * 2 - 1) * 0.3) * (1 - i / bufferSize);
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+        noise.connect(filter);
+        filter.connect(audioCtx.destination);
+        noise.start();
+    }
+
+    // --- 2. Layout Selection Handling ---
+    layoutCards.forEach(card => {
+        card.addEventListener('click', () => {
+            layoutCards.forEach(c => c.classList.remove('layout-card-active'));
+            card.classList.add('layout-card-active');
+            selectedLayout = card.getAttribute('data-layout');
+            targetPoses = parseInt(card.getAttribute('data-poses'), 10) || 3;
+        });
+    });
+
+    // Timer Selector Buttons
+    timer3sBtn.addEventListener('click', () => {
+        timerDuration = 3;
+        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-paper-900 text-white border-2 border-paper-900 shadow-tactile-sm transition-all";
+        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-white text-slate-600 border-2 border-paper-900 hover:bg-paper-100 transition-all";
+    });
+
+    timer5sBtn.addEventListener('click', () => {
+        timerDuration = 5;
+        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-paper-900 text-white border-2 border-paper-900 shadow-tactile-sm transition-all";
+        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-white text-slate-600 border-2 border-paper-900 hover:bg-paper-100 transition-all";
+    });
+
+    // Camera Controls
+    btnToggleMirror.addEventListener('click', () => {
+        isMirrored = !isMirrored;
+        video.classList.toggle('-scale-x-100', isMirrored);
+    });
+
+    btnSwitchCam.addEventListener('click', () => {
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        if (currentFacingMode === 'environment') {
+            isMirrored = false;
+            video.classList.remove('-scale-x-100');
+        } else {
+            isMirrored = true;
+            video.classList.add('-scale-x-100');
+        }
+        startCamera();
+    });
+
     async function startCamera() {
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
@@ -98,141 +161,108 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error("Camera access error:", err);
             Swal.fire({
-                title: 'Akses Kamera Ditolak',
-                text: 'Harap izinkan akses kamera pada browser Anda untuk menggunakan Photobooth.',
+                title: 'Akses Kamera Diperlukan',
+                text: 'Harap izinkan akses kamera pada peramban Anda untuk memulai Photobooth.',
                 icon: 'error',
-                background: '#0c0f17',
-                color: '#f8fafc',
-                confirmButtonColor: '#2563eb'
+                background: '#FAF7F2',
+                color: '#1E1B18',
+                confirmButtonColor: '#DC2626'
             });
         }
     }
 
-    startCamera();
-
-    // Mirroring & Camera Toggle Handlers
-    btnToggleMirror.addEventListener('click', () => {
-        isMirrored = !isMirrored;
-        video.classList.toggle('-scale-x-100', isMirrored);
+    // --- 3. Stage Navigation & Burst Capture Loop ---
+    btnStartSession.addEventListener('click', async () => {
+        welcomeStage.classList.add('hidden');
+        cameraStage.classList.remove('hidden');
+        renderPoseDots();
+        await startCamera();
+        // Small delay to let camera warm up, then launch multi-pose burst
+        setTimeout(runMultiPoseCaptureSequence, 800);
     });
 
-    btnSwitchCam.addEventListener('click', () => {
-        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-        if (currentFacingMode === 'environment') {
-            isMirrored = false;
-            video.classList.remove('-scale-x-100');
-        } else {
-            isMirrored = true;
-            video.classList.add('-scale-x-100');
+    btnCancelSession.addEventListener('click', returnToWelcomeStage);
+
+    function returnToWelcomeStage() {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
         }
-        startCamera();
-    });
+        isSessionRunning = false;
+        cameraStage.classList.add('hidden');
+        welcomeStage.classList.remove('hidden');
+        floatingCountdown.classList.add('hidden');
+        interposeOverlay.classList.add('hidden');
+    }
 
-    // Timer Selector
-    timer3sBtn.addEventListener('click', () => {
-        timerDuration = 3;
-        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-pop-blue text-white border-2 border-black shadow-neo-sm transition-all";
-        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-canvas-800 text-slate-400 border-2 border-white/10 hover:text-white transition-all";
-    });
-
-    timer5sBtn.addEventListener('click', () => {
-        timerDuration = 5;
-        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-pop-blue text-white border-2 border-black shadow-neo-sm transition-all";
-        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-canvas-800 text-slate-400 border-2 border-white/10 hover:text-white transition-all";
-    });
-
-    // Frame Selection Handlers
-    frameCards.forEach(card => {
-        card.addEventListener('click', () => {
-            frameCards.forEach(c => c.classList.remove('frame-active'));
-            card.classList.add('frame-active');
-            selectedFrame = card.getAttribute('data-frame');
-        });
-    });
-
-    // Color Tone Filter Handlers
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterBtns.forEach(b => {
-                b.classList.remove('filter-active');
-                b.classList.add('text-slate-400');
-            });
-            btn.classList.add('filter-active');
-            btn.classList.remove('text-slate-400');
-            selectedFilter = btn.getAttribute('data-filter');
-            applyVideoCssFilter();
-        });
-    });
-
-    function applyVideoCssFilter() {
-        if (selectedFilter === 'warm') {
-            video.style.filter = 'sepia(0.28) saturate(1.25) contrast(1.08)';
-        } else if (selectedFilter === 'mono') {
-            video.style.filter = 'grayscale(1) contrast(1.3) brightness(0.95)';
-        } else if (selectedFilter === 'soft') {
-            video.style.filter = 'brightness(1.1) contrast(0.95) saturate(1.15)';
-        } else {
-            video.style.filter = 'none';
+    function renderPoseDots() {
+        poseDotsContainer.innerHTML = '';
+        for (let i = 0; i < targetPoses; i++) {
+            const dot = document.createElement('span');
+            dot.id = `dot-pose-${i}`;
+            dot.className = "w-7 h-2 rounded-full bg-paper-300 border border-paper-900/30 transition-all";
+            poseDotsContainer.appendChild(dot);
         }
     }
 
-    // --- 3. Multi-Pose Automated Burst Capture Flow ---
-    btnStartSession.addEventListener('click', startMultiPoseSession);
+    function updatePoseDot(index, state) {
+        const dot = document.getElementById(`dot-pose-${index}`);
+        if (!dot) return;
+        if (state === 'active') {
+            dot.className = "w-9 h-2 rounded-full bg-festive-crimson shadow-tactile-sm transition-all border border-paper-900";
+        } else if (state === 'done') {
+            dot.className = "w-7 h-2 rounded-full bg-festive-sage shadow-tactile-sm transition-all border border-paper-900";
+        }
+    }
 
-    async function startMultiPoseSession() {
+    async function runMultiPoseCaptureSequence() {
         if (isSessionRunning) return;
         isSessionRunning = true;
         capturedPoses = [];
-        btnStartSession.disabled = true;
-        btnStartSession.classList.add('opacity-50', 'cursor-not-allowed');
-
-        resetPoseDots();
 
         const posePrompts = [
-            { text: "Pose 1 dari 3: Gaya Keren / Senyum Manis!", sub: "Pose 1 dari 3: Senyum Manis!", next: "Siapkan Gaya 2!" },
-            { text: "Pose 2 dari 3: Gaya Lucu / Bebas!", sub: "Pose 2 dari 3: Gaya Lucu Bebas!", next: "Pose Terakhir! Paling Heboh!" },
-            { text: "Pose 3 dari 3: Pose Paling Heboh!", sub: "Pose 3 dari 3: Pose Paling Heboh!", next: "Selesai! Merangkai Foto..." }
+            { text: "Pose 1: Senyum Manis!", next: "Siapkan Gaya 2!" },
+            { text: "Pose 2: Gaya Lucu / Bebas!", next: "Siapkan Gaya 3!" },
+            { text: "Pose 3: Gaya Terbaik!", next: "Pose Terakhir! Paling Heboh!" },
+            { text: "Pose 4: Gaya Paling Heboh!", next: "Selesai! Merangkai Foto..." }
         ];
 
-        for (let i = 0; i < 3; i++) {
-            poseIndicatorText.innerText = posePrompts[i].text;
-            highlightPoseDot(i, 'active');
+        for (let i = 0; i < targetPoses; i++) {
+            const promptObj = posePrompts[Math.min(i, posePrompts.length - 1)];
+            poseIndicatorText.innerText = `Pose ${i + 1} dari ${targetPoses}: ${promptObj.text}`;
+            updatePoseDot(i, 'active');
 
-            // 1. Run Countdown
-            await runCountdown(timerDuration, i + 1, posePrompts[i].sub);
+            // 1. Floating Non-Intrusive Countdown (VIEWFINDER 100% CLEAR)
+            await runFloatingCountdown(timerDuration);
 
-            // 2. Flash & Capture Frame
+            // 2. Flash & Mechanical Shutter
             triggerFlash();
             playShutterSound();
             const poseCanvas = captureSingleFrame();
             capturedPoses.push(poseCanvas);
-            highlightPoseDot(i, 'done');
+            updatePoseDot(i, 'done');
 
             // 3. Inter-pose Break
-            if (i < 2) {
-                interposeTitle.innerText = posePrompts[i].next;
+            if (i < targetPoses - 1) {
+                interposeTitle.innerText = promptObj.next;
                 interposeOverlay.classList.remove('hidden');
                 await new Promise(r => setTimeout(r, 2200));
                 interposeOverlay.classList.add('hidden');
             }
         }
 
-        poseIndicatorText.innerText = "Merangkai Photo Strip HD...";
-        await new Promise(r => setTimeout(r, 400));
+        poseIndicatorText.innerText = "Merangkai Foto & Animasi GIF...";
+        await new Promise(r => setTimeout(r, 500));
 
-        // 4. Compose Canvas & Upload
-        await generateAndUploadPhotoStrip();
+        // 4. Generate Composite Strip & Animated GIF
+        await processAndDeliverOutputs();
 
         isSessionRunning = false;
-        btnStartSession.disabled = false;
-        btnStartSession.classList.remove('opacity-50', 'cursor-not-allowed');
-        poseIndicatorText.innerText = "Siap Sesi Foto (3 Pose)";
     }
 
-    function runCountdown(seconds, poseNum, subtext) {
+    function runFloatingCountdown(seconds) {
         return new Promise(resolve => {
-            countdownOverlay.classList.remove('hidden');
-            countdownSubtext.innerText = subtext;
+            floatingCountdown.classList.remove('hidden');
             let remaining = seconds;
             countdownNumber.innerText = remaining;
             playBeep(660, 0.1);
@@ -244,8 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     playBeep(660, 0.1);
                 } else {
                     clearInterval(timer);
-                    countdownOverlay.classList.add('hidden');
-                    playBeep(1200, 0.25);
+                    floatingCountdown.classList.add('hidden');
+                    playBeep(1200, 0.2);
                     resolve();
                 }
             }, 1000);
@@ -266,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vW = video.videoWidth || 1280;
         const vH = video.videoHeight || 960;
         
-        // Exact 4:3 Ratio for Crisp Studio Portrait Slots
+        // Exact 4:3 Ratio for Crisp Portrait Slots (960x720)
         const targetW = 960;
         const targetH = 720;
         frameCanvas.width = targetW;
@@ -294,50 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
         ctx.restore();
 
-        // Apply Color Filter
-        applyFilterToCanvas(ctx, targetW, targetH, selectedFilter);
-
         return frameCanvas;
-    }
-
-    function applyFilterToCanvas(ctx, w, h, filterName) {
-        if (filterName === 'mono') {
-            const imgData = ctx.getImageData(0, 0, w, h);
-            const d = imgData.data;
-            for (let i = 0; i < d.length; i += 4) {
-                const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                const highContrast = (gray - 128) * 1.28 + 128;
-                d[i] = highContrast;
-                d[i + 1] = highContrast;
-                d[i + 2] = highContrast;
-            }
-            ctx.putImageData(imgData, 0, 0);
-        } else if (filterName === 'warm') {
-            ctx.save();
-            ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
-            ctx.fillRect(0, 0, w, h);
-            ctx.restore();
-        } else if (filterName === 'soft') {
-            ctx.save();
-            ctx.fillStyle = 'rgba(254, 242, 242, 0.08)';
-            ctx.fillRect(0, 0, w, h);
-            ctx.restore();
-        }
-    }
-
-    function resetPoseDots() {
-        [dotPose1, dotPose2, dotPose3].forEach(dot => {
-            dot.className = "w-8 h-2.5 rounded-full bg-canvas-800 border-2 border-white/10 transition-all";
-        });
-    }
-
-    function highlightPoseDot(index, state) {
-        const dots = [dotPose1, dotPose2, dotPose3];
-        if (state === 'active') {
-            dots[index].className = "w-10 h-2.5 rounded-full bg-pop-yellow shadow-neo-sm transition-all animate-pulse border-2 border-black";
-        } else if (state === 'done') {
-            dots[index].className = "w-8 h-2.5 rounded-full bg-emerald-400 shadow-neo-sm transition-all border-2 border-black";
-        }
     }
 
     // Helper: Draw 5-Point Sticker Star
@@ -365,235 +352,95 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = '#1E1B18';
         ctx.stroke();
         ctx.restore();
     }
 
-    // --- 4. High-Res Canvas Compositor (1000 x 3000 px, 300 DPI) ---
-    async function generateAndUploadPhotoStrip() {
+    // --- 4. High-Res Canvas Compositor for 4 Layouts ---
+    function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
-        const STRIP_W = 1000;
-        const STRIP_H = 3000;
+        const customCaption = (customCaptionInput.value || '').trim();
+        const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+
+        let STRIP_W = 1000;
+        let STRIP_H = 3000;
+
+        if (selectedLayout === '4-strip') {
+            STRIP_H = 3400;
+        } else if (selectedLayout === '2x2-grid') {
+            STRIP_W = 2000;
+            STRIP_H = 2100;
+        } else if (selectedLayout === 'single-wide') {
+            STRIP_W = 1600;
+            STRIP_H = 1900;
+        }
+
         stripCanvas.width = STRIP_W;
         stripCanvas.height = STRIP_H;
         const ctx = stripCanvas.getContext('2d');
 
-        const customCaption = (customCaptionInput.value || '').trim();
-        const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+        // Render Background (Warm Paper)
+        ctx.fillStyle = '#FFFDF7';
+        ctx.fillRect(0, 0, STRIP_W, STRIP_H);
 
-        // Render Chosen Theme
-        if (selectedFrame === 'merah-putih') {
-            renderMerahPutihFestiveTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
-        } else if (selectedFrame === 'y2k-pastel') {
-            renderY2KPastelTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
-        } else if (selectedFrame === 'batik-nusantara') {
-            renderBatikNusantaraTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        // Chunky Terracotta & Crimson Outer Border
+        ctx.fillStyle = '#DC2626';
+        ctx.fillRect(0, 0, STRIP_W, 34);
+        ctx.fillRect(0, STRIP_H - 34, STRIP_W, 34);
+        ctx.fillRect(0, 0, 34, STRIP_H);
+        ctx.fillRect(STRIP_W - 34, 0, 34, STRIP_H);
+
+        if (selectedLayout === '3-strip' || selectedLayout === '4-strip') {
+            renderVerticalStripLayout(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        } else if (selectedLayout === '2x2-grid') {
+            renderBentoGridLayout(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else {
-            renderRetroKodakTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderSingleWideLayout(ctx, STRIP_W, STRIP_H, capturedPoses[0], customCaption, todayStr);
         }
 
-        const base64Image = stripCanvas.toDataURL('image/jpeg', 0.92);
-
-        try {
-            Swal.fire({
-                title: 'Menyiapkan QR Code...',
-                text: 'Mengunggah hasil strip foto...',
-                allowOutsideClick: false,
-                background: '#0c0f17',
-                color: '#f8fafc',
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const response = await fetch('/api/photobooth/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    image: base64Image,
-                    frame: selectedFrame,
-                    caption: customCaption
-                })
-            });
-
-            const data = await response.json();
-            Swal.close();
-
-            if (data.status === 'success') {
-                showResultModal(data, base64Image);
-            } else {
-                throw new Error(data.message || 'Gagal menyimpan foto');
-            }
-        } catch (err) {
-            Swal.fire({
-                title: 'Gagal Menyimpan Otomatis',
-                text: 'Terjadi kendala jaringan saat upload. Anda tetap bisa mengunduh foto langsung.',
-                icon: 'warning',
-                background: '#0c0f17',
-                color: '#f8fafc',
-                confirmButtonColor: '#2563eb'
-            });
-            showResultModal({ download_url: base64Image, qr_url: window.location.href }, base64Image);
-        }
+        return stripCanvas;
     }
 
-    // --- THEME 1: Merah Putih Festive 17an (Playful Neo-Brutalism) ---
-    function renderMerahPutihFestiveTheme(ctx, W, H, poses, caption, dateStr) {
-        // Warm Cream Paper Background
-        ctx.fillStyle = '#fffdf8';
-        ctx.fillRect(0, 0, W, H);
-
-        // Chunky Red Outer Border
-        ctx.fillStyle = '#dc2626';
-        ctx.fillRect(0, 0, W, 36);
-        ctx.fillRect(0, H - 36, W, 36);
-        ctx.fillRect(0, 0, 36, H);
-        ctx.fillRect(W - 36, 0, 36, H);
-
-        // Top Red Header Banner with Neo-Shadow
+    function renderVerticalStripLayout(ctx, W, H, poses, caption, dateStr) {
+        // Top Header Badge
         ctx.save();
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.roundRect(76, 76, W - 140, 160, 24);
-        ctx.fill();
-
-        ctx.fillStyle = '#dc2626';
-        ctx.beginPath();
-        ctx.roundRect(70, 70, W - 140, 160, 24);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000000';
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 44px "Space Grotesk", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DIRGAHAYU INDONESIA', W / 2, 135);
-
-        ctx.fillStyle = '#fef08a';
-        ctx.font = '800 24px "JetBrains Mono", monospace';
-        ctx.fillText('17 AGUSTUS • KOMISI PEMUDA GKI BROMO', W / 2, 185);
-        ctx.restore();
-
-        // 3 Photo Cutouts Layout with Solid Drop Shadows
-        const photoW = 840;
-        const photoH = 630;
-        const photoX = (W - photoW) / 2;
-        const startY = 280;
-        const gapY = 55;
-
-        poses.forEach((pose, idx) => {
-            const posY = startY + idx * (photoH + gapY);
-
-            // Solid Black Neo-Shadow
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
-            ctx.fill();
-
-            // Photo Card Frame
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 20);
-            ctx.clip();
-            ctx.drawImage(pose, photoX, posY, photoW, photoH);
-            ctx.restore();
-
-            // Solid Outer Border
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#000000';
-            ctx.strokeRect(photoX, posY, photoW, photoH);
-
-            // Numbered Badge
-            ctx.save();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 28, posY + 28, 70, 44, 12);
-            ctx.fill();
-
-            ctx.fillStyle = '#dc2626';
-            ctx.beginPath();
-            ctx.roundRect(photoX + 24, posY + 24, 70, 44, 12);
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#000000';
-            ctx.stroke();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '900 24px "Space Grotesk", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`0${idx + 1}`, photoX + 59, posY + 55);
-            ctx.restore();
-
-            // Decorative Sticker Star on Alternate Corners
-            if (idx === 0) drawStar(ctx, photoX + photoW - 35, posY + 35, 5, 26, 12, '#fbbf24');
-            if (idx === 2) drawStar(ctx, photoX + photoW - 35, posY + photoH - 35, 5, 26, 12, '#38bdf8');
-        });
-
-        // Bottom Footer Banner
-        const footerY = startY + 3 * (photoH + gapY) + 30;
-        
-        ctx.fillStyle = '#0f172a';
-        ctx.font = '900 38px "Space Grotesk", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 65);
-
-        ctx.fillStyle = '#64748b';
-        ctx.font = '700 22px "JetBrains Mono", monospace';
-        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 115);
-
-        ctx.fillStyle = '#dc2626';
-        ctx.font = '900 28px "Space Grotesk", sans-serif';
-        ctx.fillText('YOUTH ON FIRE FOR CHRIST', W / 2, footerY + 165);
-    }
-
-    // --- THEME 2: Y2K Photomatix Seoul (Pastel & Stars Aesthetic) ---
-    function renderY2KPastelTheme(ctx, W, H, poses, caption, dateStr) {
-        // Pastel Lilac to Baby Blue Gradient
-        const grad = ctx.createLinearGradient(0, 0, W, H);
-        grad.addColorStop(0, '#f5f3ff');
-        grad.addColorStop(0.5, '#ede9fe');
-        grad.addColorStop(1, '#e0f2fe');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
-
-        // Header Sticker Plate
-        ctx.save();
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = '#1E1B18';
         ctx.beginPath();
         ctx.roundRect(76, 76, W - 140, 150, 24);
         ctx.fill();
 
-        ctx.fillStyle = '#8b5cf6';
+        ctx.fillStyle = '#DC2626';
         ctx.beginPath();
         ctx.roundRect(70, 70, W - 140, 150, 24);
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = '#1E1B18';
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 46px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 42px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Y2K PHOTO STUDIO', W / 2, 135);
+        ctx.fillText('DIRGAHAYU INDONESIA', W / 2, 135);
 
-        ctx.fillStyle = '#fde047';
+        ctx.fillStyle = '#FEF08A';
         ctx.font = '800 22px "JetBrains Mono", monospace';
-        ctx.fillText('SEOUL AESTHETIC • KP BROMO', W / 2, 180);
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', W / 2, 180);
         ctx.restore();
 
-        // 3 Photo Cutouts with Soft Lilac Cards
+        const count = poses.length;
         const photoW = 840;
-        const photoH = 630;
+        const photoH = count === 3 ? 630 : 540;
         const photoX = (W - photoW) / 2;
-        const startY = 270;
-        const gapY = 55;
+        const startY = 265;
+        const gapY = count === 3 ? 55 : 45;
 
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
-            // Lilac Neo-Shadow
-            ctx.fillStyle = '#c4b5fd';
+            // Drop shadow
+            ctx.fillStyle = '#1E1B18';
             ctx.beginPath();
             ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
             ctx.fill();
@@ -607,179 +454,267 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
 
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#000000';
+            ctx.strokeStyle = '#1E1B18';
             ctx.strokeRect(photoX, posY, photoW, photoH);
 
-            // Doodle Star Stickers
-            drawStar(ctx, photoX + 40, posY + 40, 5, 22, 10, '#fde047');
-            drawStar(ctx, photoX + photoW - 40, posY + 40, 5, 18, 8, '#f472b6');
-        });
-
-        // Bottom Footer with Barcode & Minimalist Tag
-        const footerY = startY + 3 * (photoH + gapY) + 30;
-
-        ctx.fillStyle = '#1e1b4b';
-        ctx.font = '900 36px "Space Grotesk", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'KP BROMO MEMORIES', W / 2, footerY + 60);
-
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '700 22px "JetBrains Mono", monospace';
-        ctx.fillText(`||| | |||| || | |||  ${dateStr}  ||| ||| |`, W / 2, footerY + 110);
-    }
-
-    // --- THEME 3: Nusantara Modern Batik ---
-    function renderBatikNusantaraTheme(ctx, W, H, poses, caption, dateStr) {
-        // Latte Kraft Background
-        ctx.fillStyle = '#fefce8';
-        ctx.fillRect(0, 0, W, H);
-
-        // Ornate Terracotta Border
-        ctx.strokeStyle = '#9a3412';
-        ctx.lineWidth = 30;
-        ctx.strokeRect(15, 15, W - 30, H - 30);
-
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(45, 45, W - 90, H - 90);
-
-        // Header Plate
-        ctx.fillStyle = '#7c2d12';
-        ctx.beginPath();
-        ctx.roundRect(80, 80, W - 160, 150, 20);
-        ctx.fill();
-
-        ctx.fillStyle = '#fef08a';
-        ctx.font = '900 44px "Cinzel", serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('NUSANTARA HERITAGE', W / 2, 145);
-
-        ctx.fillStyle = '#fed7aa';
-        ctx.font = '700 22px "JetBrains Mono", monospace';
-        ctx.fillText('KOMISI PEMUDA GKI BROMO', W / 2, 190);
-
-        // 3 Photo Cutouts
-        const photoW = 820;
-        const photoH = 615;
-        const photoX = (W - photoW) / 2;
-        const startY = 280;
-        const gapY = 55;
-
-        poses.forEach((pose, idx) => {
-            const posY = startY + idx * (photoH + gapY);
-
-            ctx.fillStyle = '#fef3c7';
+            // Numbered Tab
+            ctx.save();
+            ctx.fillStyle = '#1E1B18';
             ctx.beginPath();
-            ctx.roundRect(photoX - 8, posY - 8, photoW + 16, photoH + 16, 20);
+            ctx.roundRect(photoX + 24, posY + 24, 64, 40, 10);
             ctx.fill();
 
-            ctx.save();
+            ctx.fillStyle = '#DC2626';
             ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 16);
-            ctx.clip();
-            ctx.drawImage(pose, photoX, posY, photoW, photoH);
-            ctx.restore();
-
+            ctx.roundRect(photoX + 20, posY + 20, 64, 40, 10);
+            ctx.fill();
             ctx.lineWidth = 3;
-            ctx.strokeStyle = '#b45309';
-            ctx.strokeRect(photoX, posY, photoW, photoH);
-        });
+            ctx.strokeStyle = '#1E1B18';
+            ctx.stroke();
 
-        // Bottom Plate
-        const footerY = startY + 3 * (photoH + gapY) + 30;
-        ctx.fillStyle = '#7c2d12';
-        ctx.beginPath();
-        ctx.roundRect(80, footerY, W - 160, 210, 20);
-        ctx.fill();
-
-        ctx.fillStyle = '#fef08a';
-        ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'SATURDAY FELLOWSHIP', W / 2, footerY + 80);
-
-        ctx.fillStyle = '#fed7aa';
-        ctx.font = '600 24px "JetBrains Mono", monospace';
-        ctx.fillText(dateStr, W / 2, footerY + 140);
-    }
-
-    // --- THEME 4: Retro Kodachrome 1945 (Film Analog Perforations) ---
-    function renderRetroKodakTheme(ctx, W, H, poses, caption, dateStr) {
-        // Dark Slate Analog Film Border
-        ctx.fillStyle = '#18181b';
-        ctx.fillRect(0, 0, W, H);
-
-        // Film Sprocket Holes along left and right margins
-        ctx.fillStyle = '#ffffff';
-        const numHoles = 32;
-        const holeH = 40;
-        const holeW = 26;
-        const holeGap = (H - 100) / numHoles;
-
-        for (let i = 0; i < numHoles; i++) {
-            const hY = 50 + i * holeGap;
-            // Left Sprocket
-            ctx.beginPath();
-            ctx.roundRect(24, hY, holeW, holeH, 6);
-            ctx.fill();
-
-            // Right Sprocket
-            ctx.beginPath();
-            ctx.roundRect(W - 24 - holeW, hY, holeW, holeH, 6);
-            ctx.fill();
-        }
-
-        // Header Typewriter Text
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = '800 32px "JetBrains Mono", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('SAFETY FILM 1945', 90, 110);
-
-        ctx.textAlign = 'right';
-        ctx.fillText('ISO 400 • KP45', W - 90, 110);
-
-        // 3 Photo Cutouts
-        const photoW = 780;
-        const photoH = 585;
-        const photoX = (W - photoW) / 2;
-        const startY = 160;
-        const gapY = 70;
-
-        poses.forEach((pose, idx) => {
-            const posY = startY + idx * (photoH + gapY);
-
-            ctx.save();
-            ctx.drawImage(pose, photoX, posY, photoW, photoH);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 22px "Space Grotesk", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`0${idx + 1}`, photoX + 52, posY + 48);
             ctx.restore();
 
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#52525b';
-            ctx.strokeRect(photoX, posY, photoW, photoH);
-
-            // Film frame marker
-            ctx.fillStyle = '#a1a1aa';
-            ctx.font = '700 20px "JetBrains Mono", monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText(`FRAME ${idx + 1}A  ••••`, photoX, posY + photoH + 30);
+            // Decorative Corner Stars
+            if (idx === 0) drawStar(ctx, photoX + photoW - 32, posY + 32, 5, 24, 11, '#F59E0B');
+            if (idx === count - 1) drawStar(ctx, photoX + photoW - 32, posY + photoH - 32, 5, 24, 11, '#C2410C');
         });
 
-        // Bottom Typewriter Notes
-        const footerY = startY + 3 * (photoH + gapY) + 50;
+        // Bottom Footer
+        const footerY = startY + count * (photoH + gapY) + 30;
         
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = '#1E1B18';
         ctx.font = '900 38px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(caption || 'GKI BROMO YOUTH FELLOWSHIP', W / 2, footerY + 50);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 55);
 
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = '700 24px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 110);
+        ctx.fillStyle = '#C2410C';
+        ctx.font = '700 22px "JetBrains Mono", monospace';
+        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 105);
+
+        ctx.fillStyle = '#DC2626';
+        ctx.font = '900 26px "Space Grotesk", sans-serif';
+        ctx.fillText('YOUTH ON FIRE FOR CHRIST', W / 2, footerY + 155);
     }
 
-    // --- 5. Result Modal & QR Code Delivery Presentation ---
-    function showResultModal(uploadData, localBase64) {
-        resultStripImg.src = localBase64;
-        btnDownloadDirect.href = uploadData.download_url || localBase64;
-        btnDownloadDirect.download = `KP_Bromo_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
+    function renderBentoGridLayout(ctx, W, H, poses, caption, dateStr) {
+        // Header
+        ctx.fillStyle = '#DC2626';
+        ctx.beginPath();
+        ctx.roundRect(80, 80, W - 160, 160, 24);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#1E1B18';
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 56px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 160);
+
+        ctx.fillStyle = '#FEF08A';
+        ctx.font = '800 28px "JetBrains Mono", monospace';
+        ctx.fillText('EDISI 17 AGUSTUS • KP BROMO MALANG', W / 2, 210);
+
+        // 2x2 Bento Photo Layout
+        const photoW = 860;
+        const photoH = 645;
+        const gap = 60;
+        const startX = (W - (photoW * 2 + gap)) / 2;
+        const startY = 290;
+
+        poses.forEach((pose, idx) => {
+            const col = idx % 2;
+            const row = Math.floor(idx / 2);
+            const pX = startX + col * (photoW + gap);
+            const pY = startY + row * (photoH + gap);
+
+            ctx.fillStyle = '#1E1B18';
+            ctx.beginPath();
+            ctx.roundRect(pX + 8, pY + 8, photoW, photoH, 20);
+            ctx.fill();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(pX, pY, photoW, photoH, 20);
+            ctx.clip();
+            ctx.drawImage(pose, pX, pY, photoW, photoH);
+            ctx.restore();
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#1E1B18';
+            ctx.strokeRect(pX, pY, photoW, photoH);
+        });
+
+        // Bottom Banner
+        const footerY = H - 240;
+        ctx.fillStyle = '#1E1B18';
+        ctx.font = '900 48px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 60);
+
+        ctx.fillStyle = '#DC2626';
+        ctx.font = '800 30px "JetBrains Mono", monospace';
+        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
+    }
+
+    function renderSingleWideLayout(ctx, W, H, pose, caption, dateStr) {
+        // Top Header
+        ctx.fillStyle = '#DC2626';
+        ctx.beginPath();
+        ctx.roundRect(80, 80, W - 160, 140, 24);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#1E1B18';
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 46px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 155);
+
+        ctx.fillStyle = '#FEF08A';
+        ctx.font = '700 24px "JetBrains Mono", monospace';
+        ctx.fillText('EDISI 17 AGUSTUS • KP BROMO', W / 2, 195);
+
+        // 1 Large Wide Photo (4:3)
+        const photoW = 1400;
+        const photoH = 1050;
+        const photoX = (W - photoW) / 2;
+        const photoY = 270;
+
+        ctx.fillStyle = '#1E1B18';
+        ctx.beginPath();
+        ctx.roundRect(photoX + 10, photoY + 10, photoW, photoH, 24);
+        ctx.fill();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(photoX, photoY, photoW, photoH, 24);
+        ctx.clip();
+        ctx.drawImage(pose, photoX, photoY, photoW, photoH);
+        ctx.restore();
+
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeRect(photoX, photoY, photoW, photoH);
+
+        // Polaroid Footnote
+        const footerY = photoY + photoH + 70;
+        ctx.fillStyle = '#1E1B18';
+        ctx.font = '900 52px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 50);
+
+        ctx.fillStyle = '#C2410C';
+        ctx.font = '700 30px "JetBrains Mono", monospace';
+        ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
+    }
+
+    // --- 5. Animated Looping GIF Generator ---
+    function generateAnimatedGif(poses) {
+        return new Promise((resolve) => {
+            if (typeof gifshot === 'undefined' || poses.length === 0) {
+                resolve(null);
+                return;
+            }
+
+            // Convert canvases to lightweight image data URLs
+            const frameImages = poses.map(c => c.toDataURL('image/jpeg', 0.85));
+
+            gifshot.createGIF({
+                images: frameImages,
+                interval: 0.45, // 450ms per frame
+                gifWidth: 480,
+                gifHeight: 360,
+                numWorkers: 2,
+            }, (obj) => {
+                if (!obj.error) {
+                    resolve(obj.image);
+                } else {
+                    console.error("GIF generation error:", obj.error);
+                    resolve(null);
+                }
+            });
+        });
+    }
+
+    // --- 6. Processing & Output Delivery ---
+    async function processAndDeliverOutputs() {
+        Swal.fire({
+            title: 'Mencetak Foto & Animasi GIF...',
+            text: 'Merangkai strip foto beresolusi tinggi...',
+            allowOutsideClick: false,
+            background: '#FAF7F2',
+            color: '#1E1B18',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        // 1. Render Composite Strip
+        const stripCanvas = renderCompositeStripCanvas();
+        const base64Strip = stripCanvas.toDataURL('image/jpeg', 0.92);
+
+        // 2. Generate Animated GIF
+        const base64Gif = await generateAnimatedGif(capturedPoses);
+
+        const customCaption = (customCaptionInput.value || '').trim();
+
+        // 3. Upload to Backend
+        try {
+            const response = await fetch('/api/photobooth/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: base64Strip,
+                    gif_image: base64Gif || '',
+                    frame: selectedLayout,
+                    caption: customCaption
+                })
+            });
+
+            const data = await response.json();
+            Swal.close();
+
+            if (data.status === 'success') {
+                showResultModal(data, base64Strip, base64Gif);
+            } else {
+                throw new Error(data.message || 'Gagal menyimpan hasil foto');
+            }
+        } catch (err) {
+            Swal.close();
+            showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
+        }
+    }
+
+    // --- 7. Result Modal Presentation & Skeuomorphic Printing Animation ---
+    function showResultModal(uploadData, localStrip, localGif) {
+        playPrinterSound();
+
+        resultStripImg.src = localStrip;
+        btnDownloadStrip.href = uploadData.download_url || localStrip;
+        btnDownloadStrip.download = `KP_Bromo_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
+
+        if (localGif || uploadData.gif_download_url) {
+            resultGifImg.src = uploadData.gif_download_url || localGif;
+            btnDownloadGif.href = uploadData.gif_download_url || localGif;
+            btnDownloadGif.download = `KP_Bromo_Animated_${uploadData.photo_id || 'gif'}.gif`;
+            btnDownloadGif.classList.remove('opacity-50', 'pointer-events-none');
+            tabShowGif.classList.remove('hidden');
+        } else {
+            btnDownloadGif.classList.add('opacity-50', 'pointer-events-none');
+            tabShowGif.classList.add('hidden');
+        }
+
+        // Default to Photo Strip Tab
+        showStripTab();
+
+        // Trigger Dispenser Printing Animation
+        resultStripImg.classList.remove('animate-print-slide');
+        void resultStripImg.offsetWidth; // trigger reflow
+        resultStripImg.classList.add('animate-print-slide');
 
         // Render QR Code
         qrCodeContainer.innerHTML = '';
@@ -789,8 +724,8 @@ document.addEventListener('DOMContentLoaded', () => {
             text: qrTargetUrl,
             width: 175,
             height: 175,
-            colorDark: "#0c0f17",
-            colorLight: "#ffffff",
+            colorDark: "#1E1B18",
+            colorLight: "#FFFFFF",
             correctLevel: QRCode.CorrectLevel.M
         });
 
@@ -799,8 +734,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Confetti Celebration
         try {
             confetti({
-                particleCount: 80,
-                spread: 75,
+                particleCount: 85,
+                spread: 80,
                 origin: { y: 0.6 }
             });
         } catch(e) {}
@@ -808,6 +743,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start 45s Auto-Reset Countdown
         startAutoResetTimer(45);
     }
+
+    function showStripTab() {
+        resultStripImg.classList.remove('hidden');
+        resultGifImg.classList.add('hidden');
+        tabShowStrip.className = "py-1.5 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-crimson cursor-pointer";
+        tabShowGif.className = "py-1.5 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600 hover:bg-white transition-all cursor-pointer";
+    }
+
+    function showGifTab() {
+        resultStripImg.classList.add('hidden');
+        resultGifImg.classList.remove('hidden');
+        tabShowGif.className = "py-1.5 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-indigo cursor-pointer";
+        tabShowStrip.className = "py-1.5 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600 hover:bg-white transition-all cursor-pointer";
+    }
+
+    tabShowStrip.addEventListener('click', showStripTab);
+    tabShowGif.addEventListener('click', showGifTab);
 
     function startAutoResetTimer(seconds) {
         clearInterval(autoResetInterval);
@@ -828,7 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeResultModal() {
         clearInterval(autoResetInterval);
         resultModal.classList.add('hidden');
-        resetPoseDots();
+        returnToWelcomeStage();
     }
 
     btnRetake.addEventListener('click', closeResultModal);

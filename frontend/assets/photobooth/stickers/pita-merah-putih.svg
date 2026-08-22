@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50">
+  <path d="M10 10 L150 10 L140 25 L150 40 L10 40 L20 25 Z" fill="#DC2626" stroke="#1E1B18" stroke-width="3"/>
+  <path d="M15 25 L145 25 L138 38 L15 38 Z" fill="#FFFFFF"/>
+  <text x="80" y="22" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="11" fill="#FFFFFF" text-anchor="middle">MERDEKA</text>
+  <text x="80" y="34" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="9" fill="#DC2626" text-anchor="middle">KP BROMO</text>
+</svg>
