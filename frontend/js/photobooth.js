@@ -165,21 +165,70 @@ document.addEventListener('DOMContentLoaded', () => {
         applyMirrorState();
     }
 
-    async function switchCamera() {
-        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-        if (currentFacingMode === 'environment') {
-            isMirrored = false;
-        } else {
-            isMirrored = true;
+    let availableVideoDevices = [];
+    let currentDeviceIndex = 0;
+
+    async function refreshVideoDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
+        } catch (e) {
+            availableVideoDevices = [];
         }
-        applyMirrorState();
-        await startCamera();
+    }
+
+    async function switchCamera() {
+        await refreshVideoDevices();
+        if (availableVideoDevices.length > 1) {
+            currentDeviceIndex = (currentDeviceIndex + 1) % availableVideoDevices.length;
+            const targetDevice = availableVideoDevices[currentDeviceIndex];
+            await startCameraWithDeviceId(targetDevice.deviceId);
+        } else {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            isMirrored = (currentFacingMode === 'user');
+            applyMirrorState();
+            await startCamera();
+        }
     }
 
     if (btnToggleMirrorWelcome) btnToggleMirrorWelcome.addEventListener('click', toggleMirror);
     if (btnToggleMirror) btnToggleMirror.addEventListener('click', toggleMirror);
     if (btnSwitchCamWelcome) btnSwitchCamWelcome.addEventListener('click', switchCamera);
     if (btnSwitchCam) btnSwitchCam.addEventListener('click', switchCamera);
+
+    async function startCameraWithDeviceId(deviceId) {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        try {
+            const constraints = {
+                video: {
+                    deviceId: { exact: deviceId },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            };
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (previewVideo) previewVideo.srcObject = currentStream;
+            if (video) video.srcObject = currentStream;
+
+            const activeTrack = currentStream.getVideoTracks()[0];
+            const label = (activeTrack && activeTrack.label) ? activeTrack.label.toLowerCase() : '';
+            if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
+                isMirrored = false;
+            } else if (label.includes('iphone')) {
+                isMirrored = false;
+            } else {
+                isMirrored = true;
+            }
+            applyMirrorState();
+        } catch (err) {
+            console.warn("Device switch fallback:", err);
+            await startCamera();
+        }
+    }
 
     async function startCamera() {
         if (currentStream) {
@@ -199,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (previewVideo) previewVideo.srcObject = currentStream;
             if (video) video.srcObject = currentStream;
             applyMirrorState();
+            await refreshVideoDevices();
         } catch (err) {
             console.error("Camera access error:", err);
             Swal.fire({
