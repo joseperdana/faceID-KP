@@ -72,11 +72,13 @@ def test_manual_checkin_duplicate_same_day():
         assert "sudah absen hari ini" in data["message"]
 
 def test_recognize_geofence_rejection():
-    """Verify that coordinates outside 200m radius are blocked with 403."""
-    response = client.post(
-        "/api/recognize",
-        data={"lat": -6.200000, "lng": 106.816666}, # Jakarta coordinates
-        files={"file": ("test.jpg", b"fake image bytes", "image/jpeg")}
-    )
-    assert response.status_code == 403
-    assert "Akses ditolak" in response.json()["message"]
+    """Verify that coordinates outside 200m radius are blocked with 403 when ENABLE_GEOFENCE=true."""
+    import os
+    with patch.dict(os.environ, {"ENABLE_GEOFENCE": "true"}):
+        response = client.post(
+            "/api/recognize",
+            data={"lat": -6.200000, "lng": 106.816666}, # Jakarta coordinates
+            files={"file": ("test.jpg", b"fake image bytes", "image/jpeg")}
+        )
+        assert response.status_code == 403
+        assert "Akses ditolak" in response.json()["message"]

@@ -30,17 +30,27 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 async def recognize_face(
     request: Request,
     file: UploadFile = File(...),
-    lat: float = Form(...),   # Mandatory — geofence cannot be bypassed by omitting coordinates
-    lng: float = Form(...),   # Mandatory
+    lat: Optional[float] = Form(None),
+    lng: Optional[float] = Form(None),
 ):
+    import os
+    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
     GEREJA_LAT = -7.979261
     GEREJA_LNG = 112.625760
     MAX_RADIUS_METER = 200
 
-    # Geofence check is now always executed because lat/lng are mandatory
-    distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
-    if distance > MAX_RADIUS_METER:
-        return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+    # Geofence check is strictly enforced in production when ENABLE_GEOFENCE=true
+    if is_geofence_enabled:
+        if lat is None or lng is None:
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib disertakan saat absensi di gereja."})
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+    elif lat is not None and lng is not None:
+        # Informational logging for dev/staging
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
 
 
     start_time = time.time()
