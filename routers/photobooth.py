@@ -108,11 +108,11 @@ async def view_photobooth_photo(photo_id: str):
                 <title>Foto Tidak Ditemukan — KP Bromo</title>
                 <script src="https://cdn.tailwindcss.com"></script>
             </head>
-            <body class="bg-[#FAF7F2] text-[#1E1B18] min-h-screen flex items-center justify-center p-6 text-center">
-                <div class="max-w-md bg-white p-8 rounded-3xl border-2 border-[#1E1B18] shadow-[4px_4px_0px_#1E1B18]">
-                    <h1 class="text-xl font-bold text-red-600 mb-2">Foto Tidak Ditemukan</h1>
+            <body class="bg-[#fff8f1] text-[#211b0b] min-h-screen flex items-center justify-center p-6 text-center">
+                <div class="max-w-md bg-white p-8 rounded-3xl border-[3px] border-[#1d3557] shadow-[4px_4px_0px_#1d3557]">
+                    <h1 class="text-xl font-bold text-[#b7102a] mb-2">Foto Tidak Ditemukan</h1>
                     <p class="text-sm text-slate-600 mb-6">Foto mungkin sudah kedaluwarsa atau tautan salah.</p>
-                    <a href="/photobooth" class="inline-block px-5 py-2.5 bg-red-600 hover:bg-red-700 rounded-2xl text-xs font-bold text-white shadow-[2px_2px_0px_#1E1B18] border-2 border-[#1E1B18]">Buka Photobooth</a>
+                    <a href="/photobooth" class="inline-block px-6 py-2.5 bg-[#b7102a] hover:bg-[#e63946] rounded-full text-xs font-bold text-white shadow-[2px_2px_0px_#1d3557] border-2 border-[#1d3557]">Buka Photobooth</a>
                 </div>
             </body>
             </html>
@@ -129,80 +129,85 @@ async def view_photobooth_photo(photo_id: str):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Strip — KP Bromo Malang</title>
+    <title>Photo Strip Pesta Merdeka — KP Bromo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {{
             theme: {{
                 extend: {{
                     fontFamily: {{
                         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        display: ['"Space Grotesk"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
+                        display: ['"Bricolage Grotesk"', 'sans-serif'],
                     }},
                     colors: {{
-                        paper: {{ 50: '#FFFFFF', 100: '#FAF7F2', 200: '#F3ECE2', 900: '#1E1B18' }},
-                        festive: {{ crimson: '#DC2626', ochre: '#D97706', indigo: '#1E3A8A' }}
+                        merdeka: {{
+                            surface: '#fff8f1',
+                            'surface-container': '#faedd2',
+                            'on-surface': '#211b0b',
+                            navy: '#1d3557',
+                            red: '#b7102a',
+                            gold: '#ffd700',
+                        }}
                     }},
                     boxShadow: {{
-                        'tactile': '4px 4px 0px #1E1B18',
-                        'tactile-sm': '2px 2px 0px #1E1B18',
+                        'pesta': '4px 4px 0px #1d3557',
+                        'pesta-sm': '2px 2px 0px #1d3557',
                     }}
                 }}
             }}
         }}
     </script>
 </head>
-<body class="bg-paper-100 text-paper-900 min-h-screen flex flex-col items-center justify-between p-4 selection:bg-festive-crimson selection:text-white font-sans antialiased">
+<body class="bg-merdeka-surface text-merdeka-on-surface min-h-screen flex flex-col items-center justify-between p-4 selection:bg-merdeka-red selection:text-white font-sans antialiased">
     
     <!-- Top Bar -->
-    <header class="w-full max-w-sm flex items-center justify-between py-3 border-b-2 border-paper-900/10 mb-3">
+    <header class="w-full max-w-sm flex items-center justify-between py-3 border-b-2 border-merdeka-navy/15 mb-3">
         <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-2xl bg-festive-crimson flex items-center justify-center font-display font-black text-xs text-white border-2 border-paper-900 shadow-tactile-sm">
+            <div class="w-9 h-9 rounded-2xl bg-merdeka-red flex items-center justify-center font-display font-extrabold text-xs text-white border-2 border-merdeka-navy shadow-pesta-sm -rotate-2">
                 KP
             </div>
             <div>
-                <h1 class="text-xs font-display font-black tracking-tight text-paper-900 leading-none">KP BROMO PHOTOBOOTH</h1>
-                <p class="text-[10px] text-slate-500 font-mono mt-0.5">Edisi 17 Agustus</p>
+                <h1 class="text-xs font-display font-extrabold tracking-tight text-merdeka-on-surface leading-none">PESTA MERDEKA</h1>
+                <p class="text-[10px] text-slate-500 font-medium mt-0.5">Komisi Pemuda GKI Bromo</p>
             </div>
         </div>
-        <a href="/photobooth" class="text-xs font-mono font-bold text-festive-crimson hover:underline">Booth &rarr;</a>
+        <a href="/photobooth" class="text-xs font-display font-extrabold text-merdeka-red hover:underline">Booth &rarr;</a>
     </header>
 
     <!-- Photo Container & Dual Tabs -->
     <main class="w-full max-w-sm flex flex-col items-center flex-1 justify-center my-1">
         
         <!-- Toggle Tabs if GIF is available -->
-        <div class="{'flex' if has_gif else 'hidden'} justify-center gap-2 mb-2 w-full">
-            <button id="mobile-tab-strip" class="py-1 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-crimson">
+        <div class="{'flex' if has_gif else 'hidden'} justify-center gap-2 mb-2.5 w-full">
+            <button id="mobile-tab-strip" class="py-1 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red">
                 Photo Strip
             </button>
-            <button id="mobile-tab-gif" class="py-1 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600">
+            <button id="mobile-tab-gif" class="py-1 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-navy">
                 Animated GIF
             </button>
         </div>
 
-        <div class="relative bg-white p-3 rounded-3xl border-2 border-paper-900 shadow-tactile max-h-[64vh] flex items-center justify-center">
-            <img id="mobile-img-strip" src="{image_src}" alt="KP Bromo Photo Strip" class="max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-paper-900/10" />
-            <img id="mobile-img-gif" src="{gif_src}" alt="KP Bromo Animated GIF" class="hidden max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-paper-900/10" />
+        <div class="relative bg-white p-3 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta max-h-[64vh] flex items-center justify-center">
+            <img id="mobile-img-strip" src="{image_src}" alt="KP Bromo Photo Strip" class="max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
+            <img id="mobile-img-gif" src="{gif_src}" alt="KP Bromo Animated GIF" class="hidden max-h-[58vh] w-auto rounded-2xl object-contain shadow-sm border border-merdeka-navy/20" />
         </div>
     </main>
 
     <!-- Actions Bottom Bar -->
-    <footer class="w-full max-w-sm flex flex-col gap-2 pt-3 pb-2 border-t-2 border-paper-900/10">
+    <footer class="w-full max-w-sm flex flex-col gap-2 pt-3 pb-2 border-t-2 border-merdeka-navy/15">
         <div class="grid grid-cols-2 gap-2">
-            <a id="btn-mobile-download" href="{image_src}" download="KP_Bromo_Photo_{photo_id}.jpg" class="py-3 px-3 bg-festive-crimson hover:bg-red-700 active:translate-x-0.5 active:translate-y-0.5 text-white rounded-2xl text-xs font-display font-black text-center shadow-tactile border-2 border-paper-900 flex items-center justify-center gap-2 transition-all">
+            <a id="btn-mobile-download" href="{image_src}" download="KP_Bromo_Photo_{photo_id}.jpg" class="py-3 px-3 bg-merdeka-red hover:bg-[#e63946] active:translate-x-0.5 active:translate-y-0.5 text-white rounded-full text-xs font-display font-extrabold text-center shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 <span>Simpan Foto</span>
             </a>
             
-            <button id="btn-share" class="py-3 px-3 bg-white hover:bg-paper-200 border-2 border-paper-900 active:translate-x-0.5 active:translate-y-0.5 text-paper-900 rounded-2xl text-xs font-display font-bold flex items-center justify-center gap-2 transition-all shadow-tactile">
-                <svg class="w-4 h-4 text-festive-ochre" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <button id="btn-share" class="py-3 px-3 bg-white hover:bg-merdeka-surface-container border-2 border-merdeka-navy active:translate-x-0.5 active:translate-y-0.5 text-merdeka-navy rounded-full text-xs font-display font-extrabold flex items-center justify-center gap-2 transition-all shadow-pesta">
+                <svg class="w-4 h-4 text-merdeka-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
                 <span>Bagikan</span>
@@ -225,8 +230,8 @@ async def view_photobooth_photo(photo_id: str):
             tabStrip.addEventListener('click', () => {{
                 imgStrip.classList.remove('hidden');
                 imgGif.classList.add('hidden');
-                tabStrip.className = "py-1 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-crimson";
-                tabGif.className = "py-1 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600";
+                tabStrip.className = "py-1 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red";
+                tabGif.className = "py-1 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-navy";
                 btnDownload.href = "{image_src}";
                 btnDownload.download = "KP_Bromo_Photo_{photo_id}.jpg";
             }});
@@ -234,8 +239,8 @@ async def view_photobooth_photo(photo_id: str):
             tabGif.addEventListener('click', () => {{
                 imgGif.classList.remove('hidden');
                 imgStrip.classList.add('hidden');
-                tabGif.className = "py-1 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-indigo";
-                tabStrip.className = "py-1 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600";
+                tabGif.className = "py-1 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-navy";
+                tabStrip.className = "py-1 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-navy";
                 btnDownload.href = "{gif_src}";
                 btnDownload.download = "KP_Bromo_Animated_{photo_id}.gif";
             }});
@@ -245,7 +250,7 @@ async def view_photobooth_photo(photo_id: str):
             if (navigator.share) {{
                 try {{
                     await navigator.share({{
-                        title: 'Photo Strip KP Bromo',
+                        title: 'Pesta Merdeka Photo Strip KP Bromo',
                         text: 'Keseruan Photobooth 17an di Komisi Pemuda GKI Bromo Malang!',
                         url: window.location.href
                     }});

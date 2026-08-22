@@ -30,7 +30,7 @@ def test_photobooth_upload_success():
     photo_id = data["photo_id"]
     get_res = client.get(f"/p/{photo_id}")
     assert get_res.status_code == 200
-    assert "Photo Strip — KP Bromo Malang" in get_res.text
+    assert "Photo Strip Pesta Merdeka" in get_res.text
     assert photo_id in get_res.text
 
 def test_photobooth_view_not_found():

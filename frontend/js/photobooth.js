@@ -1,4 +1,4 @@
-// --- Nusantara Festive Light Photo Strip & Animated GIF Engine ---
+// --- Pesta Merdeka Photo Strip & Animated GIF Engine ---
 document.addEventListener('DOMContentLoaded', () => {
     // Stages & Layouts
     const welcomeStage = document.getElementById('welcome-stage');
@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playPrinterSound() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        // Synthesize mechanical paper dispenser whir
         const bufferSize = audioCtx.sampleRate * 0.6;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -115,14 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Timer Selector Buttons
     timer3sBtn.addEventListener('click', () => {
         timerDuration = 3;
-        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-paper-900 text-white border-2 border-paper-900 shadow-tactile-sm transition-all";
-        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-white text-slate-600 border-2 border-paper-900 hover:bg-paper-100 transition-all";
+        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all";
+        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-white text-merdeka-navy border-2 border-merdeka-navy hover:bg-merdeka-surface-container transition-all";
     });
 
     timer5sBtn.addEventListener('click', () => {
         timerDuration = 5;
-        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-paper-900 text-white border-2 border-paper-900 shadow-tactile-sm transition-all";
-        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-extrabold rounded-xl bg-white text-slate-600 border-2 border-paper-900 hover:bg-paper-100 transition-all";
+        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all";
+        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-white text-merdeka-navy border-2 border-merdeka-navy hover:bg-merdeka-surface-container transition-all";
     });
 
     // Camera Controls
@@ -164,9 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Akses Kamera Diperlukan',
                 text: 'Harap izinkan akses kamera pada peramban Anda untuk memulai Photobooth.',
                 icon: 'error',
-                background: '#FAF7F2',
-                color: '#1E1B18',
-                confirmButtonColor: '#DC2626'
+                background: '#fff8f1',
+                color: '#211b0b',
+                confirmButtonColor: '#b7102a'
             });
         }
     }
@@ -177,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
         cameraStage.classList.remove('hidden');
         renderPoseDots();
         await startCamera();
-        // Small delay to let camera warm up, then launch multi-pose burst
         setTimeout(runMultiPoseCaptureSequence, 800);
     });
 
@@ -200,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < targetPoses; i++) {
             const dot = document.createElement('span');
             dot.id = `dot-pose-${i}`;
-            dot.className = "w-7 h-2 rounded-full bg-paper-300 border border-paper-900/30 transition-all";
+            dot.className = "w-7 h-2.5 rounded-full bg-merdeka-surface-dim border border-merdeka-navy/30 transition-all";
             poseDotsContainer.appendChild(dot);
         }
     }
@@ -209,9 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const dot = document.getElementById(`dot-pose-${index}`);
         if (!dot) return;
         if (state === 'active') {
-            dot.className = "w-9 h-2 rounded-full bg-festive-crimson shadow-tactile-sm transition-all border border-paper-900";
+            dot.className = "w-9 h-2.5 rounded-full bg-merdeka-red shadow-pesta-sm transition-all border-2 border-merdeka-navy";
         } else if (state === 'done') {
-            dot.className = "w-7 h-2 rounded-full bg-festive-sage shadow-tactile-sm transition-all border border-paper-900";
+            dot.className = "w-7 h-2.5 rounded-full bg-merdeka-gold-container shadow-pesta-sm transition-all border-2 border-merdeka-navy";
         }
     }
 
@@ -353,12 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = color;
         ctx.fill();
         ctx.lineWidth = 3.5;
-        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeStyle = '#1d3557';
         ctx.stroke();
         ctx.restore();
     }
 
-    // --- 4. High-Res Canvas Compositor for 4 Layouts ---
+    // --- 4. High-Res Canvas Compositor for Pesta Merdeka System ---
     function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
         const customCaption = (customCaptionInput.value || '').trim();
@@ -381,16 +379,16 @@ document.addEventListener('DOMContentLoaded', () => {
         stripCanvas.height = STRIP_H;
         const ctx = stripCanvas.getContext('2d');
 
-        // Render Background (Warm Paper)
-        ctx.fillStyle = '#FFFDF7';
+        // Render Background (Pesta Merdeka Warm Paper)
+        ctx.fillStyle = '#fff8f1';
         ctx.fillRect(0, 0, STRIP_W, STRIP_H);
 
-        // Chunky Terracotta & Crimson Outer Border
-        ctx.fillStyle = '#DC2626';
-        ctx.fillRect(0, 0, STRIP_W, 34);
-        ctx.fillRect(0, STRIP_H - 34, STRIP_W, 34);
-        ctx.fillRect(0, 0, 34, STRIP_H);
-        ctx.fillRect(STRIP_W - 34, 0, 34, STRIP_H);
+        // Chunky Red & Navy Outer Border
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, STRIP_W, 36);
+        ctx.fillRect(0, STRIP_H - 36, STRIP_W, 36);
+        ctx.fillRect(0, 0, 36, STRIP_H);
+        ctx.fillRect(STRIP_W - 36, 0, 36, STRIP_H);
 
         if (selectedLayout === '3-strip' || selectedLayout === '4-strip') {
             renderVerticalStripLayout(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
@@ -404,29 +402,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderVerticalStripLayout(ctx, W, H, poses, caption, dateStr) {
-        // Top Header Badge
+        // Top Header Badge in Bricolage Grotesque
         ctx.save();
-        ctx.fillStyle = '#1E1B18';
+        ctx.fillStyle = '#1d3557';
         ctx.beginPath();
         ctx.roundRect(76, 76, W - 140, 150, 24);
         ctx.fill();
 
-        ctx.fillStyle = '#DC2626';
+        ctx.fillStyle = '#b7102a';
         ctx.beginPath();
         ctx.roundRect(70, 70, W - 140, 150, 24);
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeStyle = '#1d3557';
         ctx.stroke();
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 42px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 46px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('DIRGAHAYU INDONESIA', W / 2, 135);
 
-        ctx.fillStyle = '#FEF08A';
-        ctx.font = '800 22px "JetBrains Mono", monospace';
-        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', W / 2, 180);
+        ctx.fillStyle = '#fcd400';
+        ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText('PESTA MERDEKA • KP GKI BROMO', W / 2, 180);
         ctx.restore();
 
         const count = poses.length;
@@ -439,13 +437,13 @@ document.addEventListener('DOMContentLoaded', () => {
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
-            // Drop shadow
-            ctx.fillStyle = '#1E1B18';
+            // Hard Navy Drop Shadow
+            ctx.fillStyle = '#1d3557';
             ctx.beginPath();
             ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
             ctx.fill();
 
-            // Photo
+            // Photo Card Frame
             ctx.save();
             ctx.beginPath();
             ctx.roundRect(photoX, posY, photoW, photoH, 20);
@@ -454,72 +452,70 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
 
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#1E1B18';
+            ctx.strokeStyle = '#1d3557';
             ctx.strokeRect(photoX, posY, photoW, photoH);
 
             // Numbered Tab
             ctx.save();
-            ctx.fillStyle = '#1E1B18';
+            ctx.fillStyle = '#1d3557';
             ctx.beginPath();
             ctx.roundRect(photoX + 24, posY + 24, 64, 40, 10);
             ctx.fill();
 
-            ctx.fillStyle = '#DC2626';
+            ctx.fillStyle = '#b7102a';
             ctx.beginPath();
             ctx.roundRect(photoX + 20, posY + 20, 64, 40, 10);
             ctx.fill();
             ctx.lineWidth = 3;
-            ctx.strokeStyle = '#1E1B18';
+            ctx.strokeStyle = '#1d3557';
             ctx.stroke();
 
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = '900 22px "Space Grotesk", sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '800 22px "Bricolage Grotesque", sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(`0${idx + 1}`, photoX + 52, posY + 48);
             ctx.restore();
 
             // Decorative Corner Stars
-            if (idx === 0) drawStar(ctx, photoX + photoW - 32, posY + 32, 5, 24, 11, '#F59E0B');
-            if (idx === count - 1) drawStar(ctx, photoX + photoW - 32, posY + photoH - 32, 5, 24, 11, '#C2410C');
+            if (idx === 0) drawStar(ctx, photoX + photoW - 32, posY + 32, 5, 24, 11, '#ffd700');
+            if (idx === count - 1) drawStar(ctx, photoX + photoW - 32, posY + photoH - 32, 5, 24, 11, '#fcd400');
         });
 
         // Bottom Footer
         const footerY = startY + count * (photoH + gapY) + 30;
         
-        ctx.fillStyle = '#1E1B18';
-        ctx.font = '900 38px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#211b0b';
+        ctx.font = '800 40px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 55);
 
-        ctx.fillStyle = '#C2410C';
-        ctx.font = '700 22px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
         ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 105);
 
-        ctx.fillStyle = '#DC2626';
-        ctx.font = '900 26px "Space Grotesk", sans-serif';
-        ctx.fillText('YOUTH ON FIRE FOR CHRIST', W / 2, footerY + 155);
+        ctx.fillStyle = '#705d00';
+        ctx.font = '800 26px "Bricolage Grotesque", sans-serif';
+        ctx.fillText('MERDEKA DALAM KEBERSAMAAN', W / 2, footerY + 155);
     }
 
     function renderBentoGridLayout(ctx, W, H, poses, caption, dateStr) {
-        // Header
-        ctx.fillStyle = '#DC2626';
+        ctx.fillStyle = '#b7102a';
         ctx.beginPath();
         ctx.roundRect(80, 80, W - 160, 160, 24);
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeStyle = '#1d3557';
         ctx.stroke();
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 56px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 58px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 160);
 
-        ctx.fillStyle = '#FEF08A';
-        ctx.font = '800 28px "JetBrains Mono", monospace';
-        ctx.fillText('EDISI 17 AGUSTUS • KP BROMO MALANG', W / 2, 210);
+        ctx.fillStyle = '#fcd400';
+        ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText('PESTA MERDEKA • KP GKI BROMO MALANG', W / 2, 210);
 
-        // 2x2 Bento Photo Layout
         const photoW = 860;
         const photoH = 645;
         const gap = 60;
@@ -532,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pX = startX + col * (photoW + gap);
             const pY = startY + row * (photoH + gap);
 
-            ctx.fillStyle = '#1E1B18';
+            ctx.fillStyle = '#1d3557';
             ctx.beginPath();
             ctx.roundRect(pX + 8, pY + 8, photoW, photoH, 20);
             ctx.fill();
@@ -545,48 +541,45 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
 
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#1E1B18';
+            ctx.strokeStyle = '#1d3557';
             ctx.strokeRect(pX, pY, photoW, photoH);
         });
 
-        // Bottom Banner
         const footerY = H - 240;
-        ctx.fillStyle = '#1E1B18';
-        ctx.font = '900 48px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#211b0b';
+        ctx.font = '800 50px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 60);
 
-        ctx.fillStyle = '#DC2626';
-        ctx.font = '800 30px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
         ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
     }
 
     function renderSingleWideLayout(ctx, W, H, pose, caption, dateStr) {
-        // Top Header
-        ctx.fillStyle = '#DC2626';
+        ctx.fillStyle = '#b7102a';
         ctx.beginPath();
         ctx.roundRect(80, 80, W - 160, 140, 24);
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeStyle = '#1d3557';
         ctx.stroke();
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 46px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 48px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 155);
 
-        ctx.fillStyle = '#FEF08A';
-        ctx.font = '700 24px "JetBrains Mono", monospace';
-        ctx.fillText('EDISI 17 AGUSTUS • KP BROMO', W / 2, 195);
+        ctx.fillStyle = '#fcd400';
+        ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText('PESTA MERDEKA • KP BROMO', W / 2, 195);
 
-        // 1 Large Wide Photo (4:3)
         const photoW = 1400;
         const photoH = 1050;
         const photoX = (W - photoW) / 2;
         const photoY = 270;
 
-        ctx.fillStyle = '#1E1B18';
+        ctx.fillStyle = '#1d3557';
         ctx.beginPath();
         ctx.roundRect(photoX + 10, photoY + 10, photoW, photoH, 24);
         ctx.fill();
@@ -599,18 +592,17 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
 
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#1E1B18';
+        ctx.strokeStyle = '#1d3557';
         ctx.strokeRect(photoX, photoY, photoW, photoH);
 
-        // Polaroid Footnote
         const footerY = photoY + photoH + 70;
-        ctx.fillStyle = '#1E1B18';
-        ctx.font = '900 52px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#211b0b';
+        ctx.font = '800 54px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 50);
 
-        ctx.fillStyle = '#C2410C';
-        ctx.font = '700 30px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
         ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 120);
     }
 
@@ -622,12 +614,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Convert canvases to lightweight image data URLs
             const frameImages = poses.map(c => c.toDataURL('image/jpeg', 0.85));
 
             gifshot.createGIF({
                 images: frameImages,
-                interval: 0.45, // 450ms per frame
+                interval: 0.45,
                 gifWidth: 480,
                 gifHeight: 360,
                 numWorkers: 2,
@@ -645,24 +636,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Processing & Output Delivery ---
     async function processAndDeliverOutputs() {
         Swal.fire({
-            title: 'Mencetak Foto & Animasi GIF...',
+            title: 'Mencetak Foto Pesta Merdeka...',
             text: 'Merangkai strip foto beresolusi tinggi...',
             allowOutsideClick: false,
-            background: '#FAF7F2',
-            color: '#1E1B18',
+            background: '#fff8f1',
+            color: '#211b0b',
             didOpen: () => { Swal.showLoading(); }
         });
 
-        // 1. Render Composite Strip
         const stripCanvas = renderCompositeStripCanvas();
         const base64Strip = stripCanvas.toDataURL('image/jpeg', 0.92);
-
-        // 2. Generate Animated GIF
         const base64Gif = await generateAnimatedGif(capturedPoses);
-
         const customCaption = (customCaptionInput.value || '').trim();
 
-        // 3. Upload to Backend
         try {
             const response = await fetch('/api/photobooth/upload', {
                 method: 'POST',
@@ -708,15 +694,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tabShowGif.classList.add('hidden');
         }
 
-        // Default to Photo Strip Tab
         showStripTab();
 
-        // Trigger Dispenser Printing Animation
         resultStripImg.classList.remove('animate-print-slide');
-        void resultStripImg.offsetWidth; // trigger reflow
+        void resultStripImg.offsetWidth;
         resultStripImg.classList.add('animate-print-slide');
 
-        // Render QR Code
         qrCodeContainer.innerHTML = '';
         const qrTargetUrl = uploadData.qr_url || window.location.href;
         
@@ -724,14 +707,13 @@ document.addEventListener('DOMContentLoaded', () => {
             text: qrTargetUrl,
             width: 175,
             height: 175,
-            colorDark: "#1E1B18",
-            colorLight: "#FFFFFF",
+            colorDark: "#1d3557",
+            colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
         });
 
         resultModal.classList.remove('hidden');
 
-        // Confetti Celebration
         try {
             confetti({
                 particleCount: 85,
@@ -740,22 +722,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch(e) {}
 
-        // Start 45s Auto-Reset Countdown
         startAutoResetTimer(45);
     }
 
     function showStripTab() {
         resultStripImg.classList.remove('hidden');
         resultGifImg.classList.add('hidden');
-        tabShowStrip.className = "py-1.5 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-crimson cursor-pointer";
-        tabShowGif.className = "py-1.5 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600 hover:bg-white transition-all cursor-pointer";
+        tabShowStrip.className = "py-1.5 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
+        tabShowGif.className = "py-1.5 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     function showGifTab() {
         resultStripImg.classList.add('hidden');
         resultGifImg.classList.remove('hidden');
-        tabShowGif.className = "py-1.5 px-4 bg-white border-2 border-paper-900 rounded-xl text-xs font-display font-black shadow-tactile-sm text-festive-indigo cursor-pointer";
-        tabShowStrip.className = "py-1.5 px-4 bg-paper-200 border-2 border-paper-900 rounded-xl text-xs font-display font-bold text-slate-600 hover:bg-white transition-all cursor-pointer";
+        tabShowGif.className = "py-1.5 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
+        tabShowStrip.className = "py-1.5 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     tabShowStrip.addEventListener('click', showStripTab);
