@@ -1,4 +1,4 @@
-// --- Photo Strip Engine & State Management ---
+// --- Superpower Photo Strip Engine & Tactile Compositor ---
 document.addEventListener('DOMContentLoaded', () => {
     const video = document.getElementById('video-stream');
     const btnStartSession = document.getElementById('btn-start-session');
@@ -39,11 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedFilter = 'natural';
     let timerDuration = 3;
     let isSessionRunning = false;
-    let capturedPoses = []; // Array of 3 image bitmaps/canvases
+    let capturedPoses = []; // Holds 3 frame canvases
     let autoResetInterval = null;
     let qrCodeInstance = null;
 
-    // --- 1. Web Audio API Sound Synthesizer (Zero External Assets) ---
+    // --- 1. Web Audio API Physical Shutter Synthesizer ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     function playBeep(freq = 880, duration = 0.1) {
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const gain = audioCtx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
@@ -62,24 +62,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playShutterSound() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        // Synthesize camera click + mechanical whir
-        const bufferSize = audioCtx.sampleRate * 0.08;
+        // Mechanical shutter click: Noise burst + twin resonant clicks
+        const bufferSize = audioCtx.sampleRate * 0.09;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
         }
         const noise = audioCtx.createBufferSource();
         noise.buffer = buffer;
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.value = 1200;
+        filter.frequency.value = 1400;
         noise.connect(filter);
         filter.connect(audioCtx.destination);
         noise.start();
     }
 
-    // --- 2. Camera Setup ---
+    // --- 2. Camera Setup & Streaming ---
     async function startCamera() {
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Akses Kamera Ditolak',
                 text: 'Harap izinkan akses kamera pada browser Anda untuk menggunakan Photobooth.',
                 icon: 'error',
-                background: '#0b0d13',
+                background: '#0c0f17',
                 color: '#f8fafc',
                 confirmButtonColor: '#2563eb'
             });
@@ -131,14 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Timer Selector
     timer3sBtn.addEventListener('click', () => {
         timerDuration = 3;
-        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-bold rounded-lg bg-azure-600 text-white border border-azure-500 transition-all";
-        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-bold rounded-lg bg-obsidian-800 text-slate-400 border border-white/[0.08] hover:text-white transition-all";
+        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-pop-blue text-white border-2 border-black shadow-neo-sm transition-all";
+        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-canvas-800 text-slate-400 border-2 border-white/10 hover:text-white transition-all";
     });
 
     timer5sBtn.addEventListener('click', () => {
         timerDuration = 5;
-        timer5sBtn.className = "px-3 py-1 text-xs font-mono font-bold rounded-lg bg-azure-600 text-white border border-azure-500 transition-all";
-        timer3sBtn.className = "px-3 py-1 text-xs font-mono font-bold rounded-lg bg-obsidian-800 text-slate-400 border border-white/[0.08] hover:text-white transition-all";
+        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-pop-blue text-white border-2 border-black shadow-neo-sm transition-all";
+        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-xl bg-canvas-800 text-slate-400 border-2 border-white/10 hover:text-white transition-all";
     });
 
     // Frame Selection Handlers
@@ -166,11 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyVideoCssFilter() {
         if (selectedFilter === 'warm') {
-            video.style.filter = 'sepia(0.25) saturate(1.2) contrast(1.05)';
+            video.style.filter = 'sepia(0.28) saturate(1.25) contrast(1.08)';
         } else if (selectedFilter === 'mono') {
-            video.style.filter = 'grayscale(1) contrast(1.25) brightness(0.95)';
+            video.style.filter = 'grayscale(1) contrast(1.3) brightness(0.95)';
         } else if (selectedFilter === 'soft') {
-            video.style.filter = 'brightness(1.08) contrast(0.95) saturate(1.1)';
+            video.style.filter = 'brightness(1.1) contrast(0.95) saturate(1.15)';
         } else {
             video.style.filter = 'none';
         }
@@ -186,13 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStartSession.disabled = true;
         btnStartSession.classList.add('opacity-50', 'cursor-not-allowed');
 
-        // Reset Indicators
         resetPoseDots();
 
         const posePrompts = [
-            { text: "Pose 1 dari 3: Gaya Keren / Senyum Manis!", next: "Siapkan Gaya 2!" },
-            { text: "Pose 2 dari 3: Gaya Lucu / Bebas!", next: "Pose Terakhir! Paling Heboh!" },
-            { text: "Pose 3 dari 3: Pose Paling Heboh!", next: "Selesai! Merangkai Foto Strip..." }
+            { text: "Pose 1 dari 3: Gaya Keren / Senyum Manis!", sub: "Pose 1 dari 3: Senyum Manis!", next: "Siapkan Gaya 2!" },
+            { text: "Pose 2 dari 3: Gaya Lucu / Bebas!", sub: "Pose 2 dari 3: Gaya Lucu Bebas!", next: "Pose Terakhir! Paling Heboh!" },
+            { text: "Pose 3 dari 3: Pose Paling Heboh!", sub: "Pose 3 dari 3: Pose Paling Heboh!", next: "Selesai! Merangkai Foto..." }
         ];
 
         for (let i = 0; i < 3; i++) {
@@ -200,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             highlightPoseDot(i, 'active');
 
             // 1. Run Countdown
-            await runCountdown(timerDuration, i + 1);
+            await runCountdown(timerDuration, i + 1, posePrompts[i].sub);
 
             // 2. Flash & Capture Frame
             triggerFlash();
@@ -209,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             capturedPoses.push(poseCanvas);
             highlightPoseDot(i, 'done');
 
-            // 3. Jeda Ganti Gaya (Inter-pose break)
+            // 3. Inter-pose Break
             if (i < 2) {
                 interposeTitle.innerText = posePrompts[i].next;
                 interposeOverlay.classList.remove('hidden');
@@ -218,22 +217,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        poseIndicatorText.innerText = "Merangkai Photo Strip...";
+        poseIndicatorText.innerText = "Merangkai Photo Strip HD...";
         await new Promise(r => setTimeout(r, 400));
 
-        // 4. Compose Vertical Photo Strip
+        // 4. Compose Canvas & Upload
         await generateAndUploadPhotoStrip();
 
         isSessionRunning = false;
         btnStartSession.disabled = false;
         btnStartSession.classList.remove('opacity-50', 'cursor-not-allowed');
-        poseIndicatorText.innerText = "Siap Foto Strip (3 Pose)";
+        poseIndicatorText.innerText = "Siap Sesi Foto (3 Pose)";
     }
 
-    function runCountdown(seconds, poseNum) {
+    function runCountdown(seconds, poseNum, subtext) {
         return new Promise(resolve => {
             countdownOverlay.classList.remove('hidden');
-            countdownSubtext.innerText = `Pose ${poseNum} dari 3`;
+            countdownSubtext.innerText = subtext;
             let remaining = seconds;
             countdownNumber.innerText = remaining;
             playBeep(660, 0.1);
@@ -246,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     clearInterval(timer);
                     countdownOverlay.classList.add('hidden');
-                    playBeep(1100, 0.2);
+                    playBeep(1200, 0.25);
                     resolve();
                 }
             }, 1000);
@@ -267,24 +266,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const vW = video.videoWidth || 1280;
         const vH = video.videoHeight || 960;
         
-        // Desired standard portrait ratio for each slot: 4:3 (e.g. 960x720)
+        // Exact 4:3 Ratio for Crisp Studio Portrait Slots
         const targetW = 960;
         const targetH = 720;
         frameCanvas.width = targetW;
         frameCanvas.height = targetH;
         const ctx = frameCanvas.getContext('2d');
 
-        // Smart Center-Crop: Calculate source crop box
         let srcX = 0, srcY = 0, srcW = vW, srcH = vH;
         const videoRatio = vW / vH;
         const targetRatio = targetW / targetH; // 1.333
 
         if (videoRatio > targetRatio) {
-            // Video is wider than 4:3, crop sides
             srcW = vH * targetRatio;
             srcX = (vW - srcW) / 2;
         } else {
-            // Video is taller, crop top/bottom
             srcH = vW / targetRatio;
             srcY = (vH - srcH) / 2;
         }
@@ -295,11 +291,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.scale(-1, 1);
         }
 
-        // Draw cropped camera frame
         ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
         ctx.restore();
 
-        // Apply Color Filter to individual snapshot
+        // Apply Color Filter
         applyFilterToCanvas(ctx, targetW, targetH, selectedFilter);
 
         return frameCanvas;
@@ -311,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const d = imgData.data;
             for (let i = 0; i < d.length; i += 4) {
                 const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                const highContrast = (gray - 128) * 1.25 + 128;
+                const highContrast = (gray - 128) * 1.28 + 128;
                 d[i] = highContrast;
                 d[i + 1] = highContrast;
                 d[i + 2] = highContrast;
@@ -319,12 +314,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.putImageData(imgData, 0, 0);
         } else if (filterName === 'warm') {
             ctx.save();
-            ctx.fillStyle = 'rgba(217, 119, 6, 0.12)';
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
             ctx.fillRect(0, 0, w, h);
             ctx.restore();
         } else if (filterName === 'soft') {
             ctx.save();
-            ctx.fillStyle = 'rgba(255, 241, 242, 0.08)';
+            ctx.fillStyle = 'rgba(254, 242, 242, 0.08)';
             ctx.fillRect(0, 0, w, h);
             ctx.restore();
         }
@@ -332,20 +327,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetPoseDots() {
         [dotPose1, dotPose2, dotPose3].forEach(dot => {
-            dot.className = "w-6 h-2 rounded-full bg-obsidian-800 border border-white/10 transition-all";
+            dot.className = "w-8 h-2.5 rounded-full bg-canvas-800 border-2 border-white/10 transition-all";
         });
     }
 
     function highlightPoseDot(index, state) {
         const dots = [dotPose1, dotPose2, dotPose3];
         if (state === 'active') {
-            dots[index].className = "w-8 h-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50 transition-all animate-pulse";
+            dots[index].className = "w-10 h-2.5 rounded-full bg-pop-yellow shadow-neo-sm transition-all animate-pulse border-2 border-black";
         } else if (state === 'done') {
-            dots[index].className = "w-6 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/30 transition-all";
+            dots[index].className = "w-8 h-2.5 rounded-full bg-emerald-400 shadow-neo-sm transition-all border-2 border-black";
         }
     }
 
-    // --- 4. Vertical Photo Strip Canvas Compositor ---
+    // Helper: Draw 5-Point Sticker Star
+    function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, color) {
+        let rot = Math.PI / 2 * 3;
+        let x = cx;
+        let y = cy;
+        let step = Math.PI / spikes;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // --- 4. High-Res Canvas Compositor (1000 x 3000 px, 300 DPI) ---
     async function generateAndUploadPhotoStrip() {
         const stripCanvas = document.createElement('canvas');
         const STRIP_W = 1000;
@@ -357,27 +383,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const customCaption = (customCaptionInput.value || '').trim();
         const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 
-        // Draw Selected Frame Theme
+        // Render Chosen Theme
         if (selectedFrame === 'merah-putih') {
-            renderMerahPutihCuteTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
-        } else if (selectedFrame === 'batik-kawaii') {
-            renderBatikKawaiiTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
-        } else if (selectedFrame === 'retro-kodak') {
-            renderRetroKodakTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderMerahPutihFestiveTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        } else if (selectedFrame === 'y2k-pastel') {
+            renderY2KPastelTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        } else if (selectedFrame === 'batik-nusantara') {
+            renderBatikNusantaraTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else {
-            renderObsidianCyberTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderRetroKodakTheme(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         }
 
-        // Convert Strip to Base64 JPEG
         const base64Image = stripCanvas.toDataURL('image/jpeg', 0.92);
 
-        // Upload to Backend
         try {
             Swal.fire({
                 title: 'Menyiapkan QR Code...',
                 text: 'Mengunggah hasil strip foto...',
                 allowOutsideClick: false,
-                background: '#0b0d13',
+                background: '#0c0f17',
                 color: '#f8fafc',
                 didOpen: () => { Swal.showLoading(); }
             });
@@ -402,10 +426,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             Swal.fire({
-                title: 'Gagal Menyimpan',
-                text: 'Terjadi kendala saat mengunggah foto. Anda tetap bisa mengunduhnya langsung.',
+                title: 'Gagal Menyimpan Otomatis',
+                text: 'Terjadi kendala jaringan saat upload. Anda tetap bisa mengunduh foto langsung.',
                 icon: 'warning',
-                background: '#0b0d13',
+                background: '#0c0f17',
                 color: '#f8fafc',
                 confirmButtonColor: '#2563eb'
             });
@@ -413,108 +437,216 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- THEME 1: Merah Putih Cute Fest (Playful 17an) ---
-    function renderMerahPutihCuteTheme(ctx, W, H, poses, caption, dateStr) {
-        // Cream Warm Background
-        ctx.fillStyle = '#fffdfa';
+    // --- THEME 1: Merah Putih Festive 17an (Playful Neo-Brutalism) ---
+    function renderMerahPutihFestiveTheme(ctx, W, H, poses, caption, dateStr) {
+        // Warm Cream Paper Background
+        ctx.fillStyle = '#fffdf8';
         ctx.fillRect(0, 0, W, H);
 
-        // Vibrant Red Outer Wavy Border Accent
+        // Chunky Red Outer Border
         ctx.fillStyle = '#dc2626';
-        ctx.fillRect(0, 0, W, 30);
-        ctx.fillRect(0, H - 30, W, 30);
-        ctx.fillRect(0, 0, 30, H);
-        ctx.fillRect(W - 30, 0, 30, H);
+        ctx.fillRect(0, 0, W, 36);
+        ctx.fillRect(0, H - 36, W, 36);
+        ctx.fillRect(0, 0, 36, H);
+        ctx.fillRect(W - 36, 0, 36, H);
 
-        // Top Header Banner
+        // Top Red Header Banner with Neo-Shadow
+        ctx.save();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.roundRect(76, 76, W - 140, 160, 24);
+        ctx.fill();
+
         ctx.fillStyle = '#dc2626';
         ctx.beginPath();
         ctx.roundRect(70, 70, W - 140, 160, 24);
         ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.stroke();
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 46px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '900 44px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('DIRGAHAYU REPUBLIK INDONESIA', W / 2, 135);
+        ctx.fillText('DIRGAHAYU INDONESIA', W / 2, 135);
 
-        ctx.fillStyle = '#fecaca';
-        ctx.font = '700 24px "JetBrains Mono", monospace';
-        ctx.fillText('EDISI 17 AGUSTUS • KP BROMO MALANG', W / 2, 185);
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '800 24px "JetBrains Mono", monospace';
+        ctx.fillText('17 AGUSTUS • KOMISI PEMUDA GKI BROMO', W / 2, 185);
+        ctx.restore();
 
-        // 3 Photo Cutouts Layout
+        // 3 Photo Cutouts Layout with Solid Drop Shadows
         const photoW = 840;
         const photoH = 630;
         const photoX = (W - photoW) / 2;
         const startY = 280;
-        const gapY = 50;
+        const gapY = 55;
 
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
-            // Photo Shadow Card
-            ctx.fillStyle = '#fee2e2';
+            // Solid Black Neo-Shadow
+            ctx.fillStyle = '#000000';
             ctx.beginPath();
-            ctx.roundRect(photoX - 8, posY - 8, photoW + 16, photoH + 16, 24);
+            ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
             ctx.fill();
 
-            // Draw Photo
+            // Photo Card Frame
             ctx.save();
             ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 18);
+            ctx.roundRect(photoX, posY, photoW, photoH, 20);
             ctx.clip();
             ctx.drawImage(pose, photoX, posY, photoW, photoH);
             ctx.restore();
 
-            // Red Photo Badge Number
+            // Solid Outer Border
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeRect(photoX, posY, photoW, photoH);
+
+            // Numbered Badge
+            ctx.save();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.roundRect(photoX + 28, posY + 28, 70, 44, 12);
+            ctx.fill();
+
             ctx.fillStyle = '#dc2626';
             ctx.beginPath();
             ctx.roundRect(photoX + 24, posY + 24, 70, 44, 12);
             ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000000';
+            ctx.stroke();
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = '800 22px "JetBrains Mono", monospace';
+            ctx.font = '900 24px "Space Grotesk", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`0${idx + 1}`, photoX + 59, posY + 54);
+            ctx.fillText(`0${idx + 1}`, photoX + 59, posY + 55);
+            ctx.restore();
+
+            // Decorative Sticker Star on Alternate Corners
+            if (idx === 0) drawStar(ctx, photoX + photoW - 35, posY + 35, 5, 26, 12, '#fbbf24');
+            if (idx === 2) drawStar(ctx, photoX + photoW - 35, posY + photoH - 35, 5, 26, 12, '#38bdf8');
         });
 
         // Bottom Footer Banner
-        const footerY = startY + 3 * (photoH + gapY) + 40;
+        const footerY = startY + 3 * (photoH + gapY) + 30;
         
-        ctx.fillStyle = '#1e293b';
-        ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '900 38px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 60);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 65);
 
         ctx.fillStyle = '#64748b';
-        ctx.font = '600 24px "JetBrains Mono", monospace';
+        ctx.font = '700 22px "JetBrains Mono", monospace';
         ctx.fillText(`Saturday Fellowship • ${dateStr}`, W / 2, footerY + 115);
 
         ctx.fillStyle = '#dc2626';
-        ctx.font = '900 28px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('YOUTH ON FIRE FOR CHRIST', W / 2, footerY + 175);
+        ctx.font = '900 28px "Space Grotesk", sans-serif';
+        ctx.fillText('YOUTH ON FIRE FOR CHRIST', W / 2, footerY + 165);
     }
 
-    // --- THEME 2: Batik Pop Kawaii (Nusantara Heritage) ---
-    function renderBatikKawaiiTheme(ctx, W, H, poses, caption, dateStr) {
-        // Warm Latte Background
+    // --- THEME 2: Y2K Photomatix Seoul (Pastel & Stars Aesthetic) ---
+    function renderY2KPastelTheme(ctx, W, H, poses, caption, dateStr) {
+        // Pastel Lilac to Baby Blue Gradient
+        const grad = ctx.createLinearGradient(0, 0, W, H);
+        grad.addColorStop(0, '#f5f3ff');
+        grad.addColorStop(0.5, '#ede9fe');
+        grad.addColorStop(1, '#e0f2fe');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Header Sticker Plate
+        ctx.save();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.roundRect(76, 76, W - 140, 150, 24);
+        ctx.fill();
+
+        ctx.fillStyle = '#8b5cf6';
+        ctx.beginPath();
+        ctx.roundRect(70, 70, W - 140, 150, 24);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 46px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Y2K PHOTO STUDIO', W / 2, 135);
+
+        ctx.fillStyle = '#fde047';
+        ctx.font = '800 22px "JetBrains Mono", monospace';
+        ctx.fillText('SEOUL AESTHETIC • KP BROMO', W / 2, 180);
+        ctx.restore();
+
+        // 3 Photo Cutouts with Soft Lilac Cards
+        const photoW = 840;
+        const photoH = 630;
+        const photoX = (W - photoW) / 2;
+        const startY = 270;
+        const gapY = 55;
+
+        poses.forEach((pose, idx) => {
+            const posY = startY + idx * (photoH + gapY);
+
+            // Lilac Neo-Shadow
+            ctx.fillStyle = '#c4b5fd';
+            ctx.beginPath();
+            ctx.roundRect(photoX + 8, posY + 8, photoW, photoH, 20);
+            ctx.fill();
+
+            // Photo
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(photoX, posY, photoW, photoH, 20);
+            ctx.clip();
+            ctx.drawImage(pose, photoX, posY, photoW, photoH);
+            ctx.restore();
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeRect(photoX, posY, photoW, photoH);
+
+            // Doodle Star Stickers
+            drawStar(ctx, photoX + 40, posY + 40, 5, 22, 10, '#fde047');
+            drawStar(ctx, photoX + photoW - 40, posY + 40, 5, 18, 8, '#f472b6');
+        });
+
+        // Bottom Footer with Barcode & Minimalist Tag
+        const footerY = startY + 3 * (photoH + gapY) + 30;
+
+        ctx.fillStyle = '#1e1b4b';
+        ctx.font = '900 36px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(caption || 'KP BROMO MEMORIES', W / 2, footerY + 60);
+
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '700 22px "JetBrains Mono", monospace';
+        ctx.fillText(`||| | |||| || | |||  ${dateStr}  ||| ||| |`, W / 2, footerY + 110);
+    }
+
+    // --- THEME 3: Nusantara Modern Batik ---
+    function renderBatikNusantaraTheme(ctx, W, H, poses, caption, dateStr) {
+        // Latte Kraft Background
         ctx.fillStyle = '#fefce8';
         ctx.fillRect(0, 0, W, H);
 
         // Ornate Terracotta Border
-        const bW = 35;
-        ctx.strokeStyle = '#b45309';
-        ctx.lineWidth = bW;
-        ctx.strokeRect(bW / 2, bW / 2, W - bW, H - bW);
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 30;
+        ctx.strokeRect(15, 15, W - 30, H - 30);
 
-        // Inner Gold Hairline
-        ctx.strokeStyle = '#f59e0b';
+        ctx.strokeStyle = '#d97706';
         ctx.lineWidth = 4;
-        ctx.strokeRect(55, 55, W - 110, H - 110);
+        ctx.strokeRect(45, 45, W - 90, H - 90);
 
         // Header Plate
-        ctx.fillStyle = '#78350f';
+        ctx.fillStyle = '#7c2d12';
         ctx.beginPath();
-        ctx.roundRect(80, 80, W - 160, 150, 24);
+        ctx.roundRect(80, 80, W - 160, 150, 20);
         ctx.fill();
 
         ctx.fillStyle = '#fef08a';
@@ -522,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'center';
         ctx.fillText('NUSANTARA HERITAGE', W / 2, 145);
 
-        ctx.fillStyle = '#fde68a';
+        ctx.fillStyle = '#fed7aa';
         ctx.font = '700 22px "JetBrains Mono", monospace';
         ctx.fillText('KOMISI PEMUDA GKI BROMO', W / 2, 190);
 
@@ -536,26 +668,28 @@ document.addEventListener('DOMContentLoaded', () => {
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
-            // Gold Outer Frame
             ctx.fillStyle = '#fef3c7';
             ctx.beginPath();
-            ctx.roundRect(photoX - 10, posY - 10, photoW + 20, photoH + 20, 20);
+            ctx.roundRect(photoX - 8, posY - 8, photoW + 16, photoH + 16, 20);
             ctx.fill();
 
-            // Photo
             ctx.save();
             ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 14);
+            ctx.roundRect(photoX, posY, photoW, photoH, 16);
             ctx.clip();
             ctx.drawImage(pose, photoX, posY, photoW, photoH);
             ctx.restore();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#b45309';
+            ctx.strokeRect(photoX, posY, photoW, photoH);
         });
 
         // Bottom Plate
         const footerY = startY + 3 * (photoH + gapY) + 30;
-        ctx.fillStyle = '#78350f';
+        ctx.fillStyle = '#7c2d12';
         ctx.beginPath();
-        ctx.roundRect(80, footerY, W - 160, 210, 24);
+        ctx.roundRect(80, footerY, W - 160, 210, 20);
         ctx.fill();
 
         ctx.fillStyle = '#fef08a';
@@ -563,116 +697,82 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'center';
         ctx.fillText(caption || 'SATURDAY FELLOWSHIP', W / 2, footerY + 80);
 
-        ctx.fillStyle = '#fde68a';
+        ctx.fillStyle = '#fed7aa';
         ctx.font = '600 24px "JetBrains Mono", monospace';
         ctx.fillText(dateStr, W / 2, footerY + 140);
     }
 
-    // --- THEME 3: Retro Kodachrome 1945 ---
+    // --- THEME 4: Retro Kodachrome 1945 (Film Analog Perforations) ---
     function renderRetroKodakTheme(ctx, W, H, poses, caption, dateStr) {
-        // Kodak Film Cream
-        ctx.fillStyle = '#f1f5f9';
+        // Dark Slate Analog Film Border
+        ctx.fillStyle = '#18181b';
         ctx.fillRect(0, 0, W, H);
 
-        // Top Header Typewriter Text
-        ctx.fillStyle = '#0f172a';
+        // Film Sprocket Holes along left and right margins
+        ctx.fillStyle = '#ffffff';
+        const numHoles = 32;
+        const holeH = 40;
+        const holeW = 26;
+        const holeGap = (H - 100) / numHoles;
+
+        for (let i = 0; i < numHoles; i++) {
+            const hY = 50 + i * holeGap;
+            // Left Sprocket
+            ctx.beginPath();
+            ctx.roundRect(24, hY, holeW, holeH, 6);
+            ctx.fill();
+
+            // Right Sprocket
+            ctx.beginPath();
+            ctx.roundRect(W - 24 - holeW, hY, holeW, holeH, 6);
+            ctx.fill();
+        }
+
+        // Header Typewriter Text
+        ctx.fillStyle = '#fbbf24';
         ctx.font = '800 32px "JetBrains Mono", monospace';
         ctx.textAlign = 'left';
-        ctx.fillText('SAFETY FILM 1945', 80, 110);
+        ctx.fillText('SAFETY FILM 1945', 90, 110);
 
         ctx.textAlign = 'right';
-        ctx.fillText('ISO 400 • KP45', W - 80, 110);
+        ctx.fillText('ISO 400 • KP45', W - 90, 110);
 
-        // 3 Photo Cutouts with subtle borders
-        const photoW = 840;
-        const photoH = 630;
+        // 3 Photo Cutouts
+        const photoW = 780;
+        const photoH = 585;
         const photoX = (W - photoW) / 2;
         const startY = 160;
-        const gapY = 60;
+        const gapY = 70;
 
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
-
-            ctx.fillStyle = '#e2e8f0';
-            ctx.fillRect(photoX - 6, posY - 6, photoW + 12, photoH + 12);
 
             ctx.save();
             ctx.drawImage(pose, photoX, posY, photoW, photoH);
             ctx.restore();
 
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#52525b';
+            ctx.strokeRect(photoX, posY, photoW, photoH);
+
             // Film frame marker
-            ctx.fillStyle = '#64748b';
+            ctx.fillStyle = '#a1a1aa';
             ctx.font = '700 20px "JetBrains Mono", monospace';
             ctx.textAlign = 'left';
-            ctx.fillText(`FRAME ${idx + 1}A`, photoX, posY + photoH + 28);
+            ctx.fillText(`FRAME ${idx + 1}A  ••••`, photoX, posY + photoH + 30);
         });
 
         // Bottom Typewriter Notes
         const footerY = startY + 3 * (photoH + gapY) + 50;
         
-        ctx.fillStyle = '#0f172a';
-        ctx.font = '900 40px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 38px "Space Grotesk", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(caption || 'GKI BROMO YOUTH FELLOWSHIP', W / 2, footerY + 50);
 
-        ctx.fillStyle = '#475569';
+        ctx.fillStyle = '#fbbf24';
         ctx.font = '700 24px "JetBrains Mono", monospace';
         ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 110);
-    }
-
-    // --- THEME 4: Obsidian Cyber Minimalist ---
-    function renderObsidianCyberTheme(ctx, W, H, poses, caption, dateStr) {
-        // Deep Obsidian Background
-        ctx.fillStyle = '#06070a';
-        ctx.fillRect(0, 0, W, H);
-
-        // Subtle Neon Cyan Border
-        ctx.strokeStyle = '#2563eb';
-        ctx.lineWidth = 6;
-        ctx.strokeRect(40, 40, W - 80, H - 80);
-
-        // Top Monogram Header
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = '900 36px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('KP BROMO PHOTO STRIP', W / 2, 130);
-
-        ctx.fillStyle = '#64748b';
-        ctx.font = '600 22px "JetBrains Mono", monospace';
-        ctx.fillText('INTELLIGENCE PHOTOBOOTH TERMINAL', W / 2, 175);
-
-        // 3 Photo Cutouts with Cyan Hairline
-        const photoW = 840;
-        const photoH = 630;
-        const photoX = (W - photoW) / 2;
-        const startY = 230;
-        const gapY = 60;
-
-        poses.forEach((pose, idx) => {
-            const posY = startY + idx * (photoH + gapY);
-
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(photoX - 4, posY - 4, photoW + 8, photoH + 8);
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(photoX, posY, photoW, photoH, 12);
-            ctx.clip();
-            ctx.drawImage(pose, photoX, posY, photoW, photoH);
-            ctx.restore();
-        });
-
-        // Bottom Footer
-        const footerY = startY + 3 * (photoH + gapY) + 50;
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, footerY + 60);
-
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = '600 24px "JetBrains Mono", monospace';
-        ctx.fillText(`SATURDAY FELLOWSHIP • ${dateStr}`, W / 2, footerY + 120);
     }
 
     // --- 5. Result Modal & QR Code Delivery Presentation ---
@@ -687,9 +787,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         qrCodeInstance = new QRCode(qrCodeContainer, {
             text: qrTargetUrl,
-            width: 170,
-            height: 170,
-            colorDark: "#06070a",
+            width: 175,
+            height: 175,
+            colorDark: "#0c0f17",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
         });
@@ -699,8 +799,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Confetti Celebration
         try {
             confetti({
-                particleCount: 75,
-                spread: 70,
+                particleCount: 80,
+                spread: 75,
                 origin: { y: 0.6 }
             });
         } catch(e) {}

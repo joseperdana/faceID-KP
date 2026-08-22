@@ -49,25 +49,26 @@ def test_photobooth_page_interactions(page: Page):
     
     # Check 4 Frame selections
     frame_merah_putih = page.locator('[data-frame="merah-putih"]')
-    frame_batik = page.locator('[data-frame="batik-kawaii"]')
+    frame_y2k = page.locator('[data-frame="y2k-pastel"]')
+    frame_batik = page.locator('[data-frame="batik-nusantara"]')
     frame_retro = page.locator('[data-frame="retro-kodak"]')
-    frame_cyber = page.locator('[data-frame="obsidian-cyber"]')
     
     expect(frame_merah_putih).to_have_class(re.compile(r"frame-active"))
+    
+    # Click Y2K frame
+    frame_y2k.click()
+    expect(frame_y2k).to_have_class(re.compile(r"frame-active"))
+    expect(frame_merah_putih).not_to_have_class(re.compile(r"frame-active"))
     
     # Click Batik frame
     frame_batik.click()
     expect(frame_batik).to_have_class(re.compile(r"frame-active"))
-    expect(frame_merah_putih).not_to_have_class(re.compile(r"frame-active"))
-    
+    expect(frame_y2k).not_to_have_class(re.compile(r"frame-active"))
+
     # Click Retro frame
     frame_retro.click()
     expect(frame_retro).to_have_class(re.compile(r"frame-active"))
     expect(frame_batik).not_to_have_class(re.compile(r"frame-active"))
-
-    # Click Cyber frame
-    frame_cyber.click()
-    expect(frame_cyber).to_have_class(re.compile(r"frame-active"))
     
     # Check Color Tone Filters
     filter_warm = page.locator('[data-filter="warm"]')
@@ -80,7 +81,7 @@ def test_photobooth_page_interactions(page: Page):
     # Check Timer toggle
     timer_5s = page.locator("#timer-5s")
     timer_5s.click()
-    expect(timer_5s).to_have_class(re.compile(r"bg-azure-600"))
+    expect(timer_5s).to_have_class(re.compile(r"bg-pop-blue"))
     
     # Check Custom Caption input
     caption_input = page.locator("#custom-caption-input")

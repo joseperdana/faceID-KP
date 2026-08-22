@@ -1,70 +1,80 @@
-# 📸 Implementation Plan: KP45 Gen-Z Photo Strip Photobooth & Instant QR Transfer
+# 📸 Superpower Plan: KP45 Gen-Z Photo Strip Booth & Neo-Brutalist Tactile UI
 
-## 🎯 Executive Summary & Objectives
-Transform the existing single-shot photobooth into a high-engagement, **Gen-Z vertical Photo Strip experience** (3-4 sequential poses with automated countdown) styled with **playful 17 Agustusan & Indonesian youth themes**. It operates as a **standalone kiosk** with **instant QR Code delivery**, allowing youth attendees to scan the kiosk screen with their phones and instantly download their photo strip to their mobile camera roll.
-
----
-
-## 🔍 Critical Analysis & Architecture Risks (Engineering Scrutiny)
-1. **Localhost vs Mobile QR Resolution Risk:**
-   * *The Trap:* Generating a QR code pointing to `http://localhost:8000/p/xyz` means smartphones scanning the screen will fail to connect.
-   * *Resolution:* The backend dynamically resolves the host's local network IP (`http://<LAN_IP>:8000/p/{id}`) or allows configuring a base URL via `.env` (`PHOTOBOOTH_BASE_URL`), with graceful fallback.
-2. **Camera Aspect Ratio Distortion:**
-   * *The Trap:* Different devices (MacBook FaceTime HD 16:9, iPad 4:3, USB Webcams) will stretch or squish portraits in the strip frames if not properly cropped.
-   * *Resolution:* Implement intelligent center-crop bounding algorithms (`drawImage` source cropping) to enforce perfect, undistorted 4:3 ratio photo slots.
-3. **Session Timing & Kiosk Queue Congestion:**
-   * *The Trap:* If users spend too long tweaking stickers or re-shooting at the kiosk, long queues will form before fellowship begins.
-   * *Resolution:* Fast 3-pose burst flow (3s countdown -> flash -> 2.5s pose change -> repeat), automated strip assembly, instant QR presentation, and 45s auto-reset countdown.
+## 🎯 Executive Summary & Design Vision
+Mengintegrasikan seluruh superpower skill ([`ui-ux-pro-max`](file:///Users/josetaneo/.agents/skills/ui-ux-pro-max/SKILL.md), [`design-system`](file:///Users/josetaneo/.agents/skills/design-system/SKILL.md), [`ui-styling`](file:///Users/josetaneo/.agents/skills/ui-styling/SKILL.md), dan [`anti-ai-slop-indonesian-writing`](file:///Users/josetaneo/.agents/skills/anti-ai-slop-indonesian-writing/SKILL.md)) untuk merombak total Photobooth KP Bromo dari antarmuka digital standar menjadi **pengalaman Self-Photo Studio / Y2K Photomatix yang sangat tactile, ceria, autentik khas pemuda, dan berenergi tinggi untuk festival 17 Agustusan**.
 
 ---
 
-## 🛠️ User Review Required
+## 🎨 Token Architecture & Design System Specification
 
-> [!IMPORTANT]
-> **Key Architectural Decisions to Confirm:**
-> 1. **Default Pose Count:** 3 sequential vertical photos per strip (standard 2x6 photobooth strip).
-> 2. **Storage Strategy:** Photos saved locally in `static/uploads/photobooth/` and accessible via instant mobile download link `/p/{id}`.
-> 3. **QR Code Engine:** Standalone client-side SVG QR code generator (zero external network dependency).
+### 1. Color Palette (Neo-Brutalist & Tactile Youth)
+* **Canvas Dark Canvas:** `#0A0D14` (Deep Charcoal Blue)
+* **Card Surface:** `#121624` with `border-2 border-white/15`
+* **Solid Tactile Drop Shadows:** `shadow-[4px_4px_0px_#000000]` / `shadow-[6px_6px_0px_#2563EB]`
+* **Vibrant Accent Colors:**
+  * 🔴 **Crimson Pop:** `#EF4444` / `#DC2626` (Merah Kemerdekaan)
+  * 🟡 **Neon Sunflower:** `#FBBF24` / `#F59E0B` (Aksen Stiker Ceria)
+  * 🔵 **Electric Azure:** `#3B82F6` / `#2563EB` (Aksi Utama & Kiosk Glow)
+  * 🟣 **Pastel Lilac:** `#C4B5FD` / `#8B5CF6` (Y2K Photomatix Accent)
+  * 🟢 **Mint Lime:** `#10B981` (Status Aktif)
+  * 📄 **Photo Paper Base:** `#FFFDF8` (Warm Cream White)
+
+### 2. Micro-Interactions & Tactile Button Physics
+* **Button Normal:** `translate-y-0 shadow-[4px_4px_0px_#000000]`
+* **Button Hover:** `-translate-y-0.5 shadow-[6px_6px_0px_#000000]`
+* **Button Press (Active):** `translate-y-1 translate-x-1 shadow-[1px_1px_0px_#000000]`
+* **Bouncy Shutter Feedback:** Audio sintesis multi-frekuensi (Web Audio API) + Animasi Shutter Aperture.
 
 ---
 
-## 📐 Technical Specifications & UI Flow
+## 🖼️ 4 Bespoke Canvas Strip Compositor Themes (300 DPI High-Res)
 
-### 1. Multi-Shot Sequence (Capture Loop)
+1. 🇮🇩 **Merah Putih Festive 17an (Playful Independence):**
+   * Background: Warm Cream (`#FFFDF8`) dengan border bergelombang (*scalloped*) merah merona.
+   * Ornamen: Lencana stiker "17 AGUSTUS", pita kemerdekaan, bintang stiker kuning neon, stempel "DIRGAHAYU REPUBLIK INDONESIA", dan footer Komisi Pemuda GKI Bromo.
+   * Frame Foto: 3 slot foto rounded tebal dengan bayangan fisik solid.
+
+2. 🇰🇷 **Y2K Photomatix Seoul (Cute Pastel Aesthetic):**
+   * Background: Gradien pastel lilac ke baby blue (`#F5F3FF` &rarr; `#EFF6FF`).
+   * Ornamen: Stiker doodle bintang, bunga retro, teks stempel vertikal ala stiker photobooth Korea, barcode minimalis, dan timestamp monospaced.
+
+3. ⚜️ **Nusantara Heritage Batik (Modern Terracotta & Gold):**
+   * Background: Tekstur kertas kraft/latte hangat dengan ornamen batik geometris modern pada sudut-sudut kartu.
+   * Ornamen: Border emas klasik, cap stempel vintage, dan tipografi serif berwibawa.
+
+4. 🎞️ **Retro Kodachrome 1945 (Analog Film Strip):**
+   * Background: Film strip hitam/slate gelap dengan lubang perforasi film di sisi kiri dan kanan (*film sprockets*).
+   * Ornamen: Tipografi mesin ketik monospaced (`SAFETY FILM 1945`, `FRAME 01A`, `ISO 400`), time-code, dan efek grain analog.
+
+---
+
+## 🛠️ TDD & Architecture Plan
+
 ```mermaid
 flowchart TD
-    A["User clicks 'Mulai Sesi Foto'"] --> B["Pose 1: Countdown 3s + Shutter + Flash"]
-    B --> C["2.5s Jeda Pose ('Siapkan Gaya 2!')"]
-    C --> D["Pose 2: Countdown 3s + Shutter + Flash"]
-    D --> E["2.5s Jeda Pose ('Gaya Terakhir!')"]
-    E --> F["Pose 3: Countdown 3s + Shutter + Flash"]
-    F --> G["Canvas Strip Compositor (Apply Frame & Date)"]
-    G --> H["Upload to /api/photobooth/upload"]
-    H --> I["Display Live Strip + Large QR Code on Screen"]
-    I --> J["Youth Scans QR with Phone -> Saves to Gallery"]
+    subgraph Frontend_Kiosk ["Photobooth Kiosk Experience"]
+        A["1. Viewfinder 4:3 with Aspect-Ratio Crop"] --> B["2. 3-Pose Sequence with Web Audio & Flash"]
+        B --> C["3. High-Res Canvas Compositor (1000x3000px)"]
+        C --> D["4. Instant SVG QR Code Presentation (45s Auto-Reset)"]
+    end
+    subgraph Backend_Delivery ["FastAPI Backend & LAN Resolver"]
+        C --> E["POST /api/photobooth/upload"]
+        E --> F["Save JPEG in static/uploads/photobooth/"]
+        E --> G["Resolve LAN IP (http://192.168.x.x:8000/p/{id})"]
+    end
+    subgraph Mobile_Gallery ["Jemaat Mobile Experience"]
+        D --> H["Scan QR with Camera Phone"]
+        H --> I["GET /p/{id} Mobile Landing Page"]
+        I --> J["1-Tap Save to Camera Roll / Web Share IG"]
+    end
 ```
 
-### 2. Indonesian & 17 Agustusan Playful Frames
-1. **Merah Putih Cute Fest (17an Pop):**
-   * Vibrant red & white borders with wavy playful lines, cute Indonesian independence badges, "17 AGUSTUS • DIRGAHAYU", and "KP BROMO".
-2. **Batik Pop Nusantara (Kawaii Heritage):**
-   * Modern pastel gold & terracotta batik motifs, cute stamp icons, and traditional geometric ornaments.
-3. **Retro Kodachrome 1945:**
-   * Vintage film grain border, nostalgic typewriter typography, and retro date stamp.
-4. **Obsidian Cyber Youth (Classic Deep):**
-   * Sleek dark obsidian frame with cyan/azure neon accents for modern church events.
-
-### 3. Backend Endpoints (`routers/photobooth.py`)
-* `POST /api/photobooth/upload`: Receives base64/JPEG photo strip, generates short unique UUID, saves image, returns mobile download URL & QR payload.
-* `GET /p/{photo_id}`: Clean, high-conversion mobile download page optimized for iOS Safari & Android Chrome with a 1-tap "Download Foto Strip" button.
-* `GET /api/photobooth/recent`: Admin feed to inspect recent photobooth sessions.
-
----
-
-## 📋 Verification & Testing Protocol
-* **Unit & API Tests:** Test upload endpoint payload validation, image integrity, and mobile redirect.
-* **E2E Playwright Tests:**
-  * Multi-pose capture sequence test.
-  * Canvas strip generation verification.
-  * QR Code modal visibility and download page rendering.
-* **100% Zero-Emoji Verification:** Automated scan on all new `.html` and `.js` files.
+### 📋 TDD Execution Checklist:
+- [ ] **Test 1 (API Unit Test):** Validasi upload base64 JPEG, pembuatan UUID, direktori upload, dan respon JSON.
+- [ ] **Test 2 (Mobile View Test):** Validasi `GET /p/{id}` dengan status 200, tombol simpan foto, dan penanganan 404 jika berkas tidak ditemukan.
+- [ ] **Test 3 (Playwright E2E UI Test):**
+  - Uji pergantian 4 tema bingkai foto (*Merah Putih, Y2K Pastel, Batik Nusantara, Retro Film*).
+  - Uji filter warna (*Natural, Warm Vintage, B&W Contrast, Soft Pastel*).
+  - Uji interaksi tombol tactile (hover & active states).
+  - Uji alur capture 3 pose, countdown, flash, dan kemunculan modal QR Code.
+  - Assert 0 browser console errors.
