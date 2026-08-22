@@ -1,19 +1,22 @@
-# 📝 Photobooth Landing Preview, Center Countdown, & Retake Tasks
+# 📝 Kiosk Face Recognition & Manual Attendance Reliability (Sandbox Fix)
 
-- [x] **1. Landing Page UI & Camera Preview (`frontend/photobooth.html`)**
-  - [x] Embed live camera preview on Welcome Stage
-  - [x] Move Time Interval (3s / 5s) selector to Welcome Stage
-  - [x] Move Mirror Toggle to Welcome Stage preview
-  - [x] Add Center Countdown element (`#center-countdown`) with zero blackout backdrop
-  - [x] Add Review & Retake action bar (`#pose-review-overlay`) with 3x retake quota
+- [x] **1. Root Cause Resolution in Database Service (`services/db_service.py`)**
+  - [x] Update `DBService.insert_log` to safely handle schema without crashing on missing `method` column (PGRST204 fix).
+  - [x] Optimize `DBService.match_faces` default threshold from 0.50 to 0.42 for robust face recall across lighting/angle variations.
+  - [x] Enhance `DBService.search_active_users` to query both `full_name` and `phone_number` with an expanded limit (25) and whitespace sanitization.
 
-- [x] **2. Engine & Lifecycle Logic (`frontend/js/photobooth.js`)**
-  - [x] Initialize camera immediately on landing page
-  - [x] Implement robust 3s / 5s countdown timer without overlapping intervals
-  - [x] Implement per-pose retake loop with 3x quota decrement and re-capture
-  - [x] Maintain seamless printing animation and modal hierarchy
+- [x] **2. Kiosk Frontend Detection & Responsiveness Tuning (`frontend/js/index.js`)**
+  - [x] Tune `REQUIRED_STABLE_FRAMES` from 45 down to 15 (~0.5s) so users don't have to freeze for 3s.
+  - [x] Tune `MOVEMENT_THRESHOLD` from 0.03 to 0.045 to prevent micro-movements (breathing, blinks) from resetting progress.
+  - [x] Adjust MediaPipe `minDetectionConfidence` from 0.6 to 0.45 for reliable detection in warm/dim ambient church lighting.
+  - [x] Broaden safe zone bounds (X: 0.20–0.80, Y: 0.15–0.85).
 
-- [x] **3. Testing & Verification**
-  - [x] Update Playwright E2E tests (`tests/test_e2e_playwright.py`) for 3s/5s timers, retake flow, and landing camera preview
-  - [x] Verify 100% test passing across Pytest & Playwright (14/14 passed)
+- [x] **3. Backend Error Handling & Audit Integrity (`routers/kiosk.py`)**
+  - [x] Ensure `manual_checkin` and `recognize` gracefully return meaningful error payloads if DB errors occur.
+  - [x] Protect timestamp parsing in last_seen calculations against edge cases.
 
+- [x] **4. Comprehensive TDD & Sandbox Verification (`tests/`)**
+  - [x] Add unit tests for DB resilience with/without `method` column.
+  - [x] Add tests for multi-field user search (`phone_number` and `full_name`).
+  - [x] Run full Pytest test suite (`pytest tests/ -v` -> 16/16 passed).
+  - [x] Run live sandbox integration test against real Supabase instance.
