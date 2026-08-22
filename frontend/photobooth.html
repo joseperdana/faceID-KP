@@ -112,7 +112,13 @@
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             <span class="text-xs font-display font-extrabold text-merdeka-navy uppercase tracking-wider">Preview Kamera</span>
                         </div>
-                        <span class="text-[11px] font-mono font-semibold text-merdeka-on-surface-variant">Live HD</span>
+                        
+                        <!-- Camera Device Selector Dropdown -->
+                        <div class="flex items-center gap-1.5">
+                            <select id="camera-device-select" class="bg-merdeka-surface-container hover:bg-white text-merdeka-navy border-2 border-merdeka-navy rounded-xl px-2.5 py-1 text-xs font-display font-extrabold shadow-pesta-sm focus:outline-none focus:border-merdeka-red transition-all cursor-pointer max-w-[210px] truncate" title="Pilih Sumber Kamera (Mac, iPhone, dll)">
+                                <option value="">Memuat Kamera...</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Live Viewfinder Box -->

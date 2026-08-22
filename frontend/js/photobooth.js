@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnNextPose = document.getElementById('btn-next-pose');
 
     // Camera & Mirror Controls
+    const cameraDeviceSelect = document.getElementById('camera-device-select');
     const btnToggleMirrorWelcome = document.getElementById('btn-toggle-mirror-welcome');
     const btnSwitchCamWelcome = document.getElementById('btn-switch-cam-welcome');
     const btnToggleMirror = document.getElementById('btn-toggle-mirror');
@@ -172,9 +173,49 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
             availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
+
+            if (cameraDeviceSelect) {
+                cameraDeviceSelect.innerHTML = '';
+                if (availableVideoDevices.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.text = 'Kamera Default';
+                    cameraDeviceSelect.appendChild(opt);
+                } else {
+                    availableVideoDevices.forEach((dev, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = dev.deviceId;
+                        let label = dev.label || `Kamera ${idx + 1}`;
+                        if (label.toLowerCase().includes('iphone')) {
+                            label = `📱 ${label}`;
+                        } else if (label.toLowerCase().includes('facetime') || label.toLowerCase().includes('built-in')) {
+                            label = `💻 ${label}`;
+                        } else {
+                            label = `📷 ${label}`;
+                        }
+                        opt.text = label;
+                        if (currentStream && currentStream.getVideoTracks()[0]) {
+                            const currentTrack = currentStream.getVideoTracks()[0];
+                            if (currentTrack.getSettings().deviceId === dev.deviceId) {
+                                opt.selected = true;
+                            }
+                        }
+                        cameraDeviceSelect.appendChild(opt);
+                    });
+                }
+            }
         } catch (e) {
             availableVideoDevices = [];
         }
+    }
+
+    if (cameraDeviceSelect) {
+        cameraDeviceSelect.addEventListener('change', async (e) => {
+            const selectedDeviceId = e.target.value;
+            if (selectedDeviceId) {
+                await startCameraWithDeviceId(selectedDeviceId);
+            }
+        });
     }
 
     async function switchCamera() {
@@ -183,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentDeviceIndex = (currentDeviceIndex + 1) % availableVideoDevices.length;
             const targetDevice = availableVideoDevices[currentDeviceIndex];
             await startCameraWithDeviceId(targetDevice.deviceId);
+            if (cameraDeviceSelect) cameraDeviceSelect.value = targetDevice.deviceId;
         } else {
             currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
             isMirrored = (currentFacingMode === 'user');
