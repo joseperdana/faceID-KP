@@ -481,10 +481,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return frameCanvas;
     }
 
-    // Pre-load user frame asset
-    const kp45AssetImage = new Image();
-    kp45AssetImage.src = '/static/assets/photobooth/KP45..png';
-
     function drawImageCover(ctx, img, dx, dy, dw, dh) {
         const imgW = img.width || img.videoWidth || 960;
         const imgH = img.height || img.videoHeight || 720;
@@ -504,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
     }
 
-    // --- 4. Editorial High-End Canvas Compositor ---
+    // --- 4. Editorial High-End Canvas Compositor (Stitch KP45 Design) ---
     function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
         const customCaption = (customCaptionInput.value || '').trim();
@@ -529,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ctx = stripCanvas.getContext('2d');
 
         if (selectedLayout === '3-strip') {
-            renderVertical3StripWithAsset(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+            renderVertical3StripStitch(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else if (selectedLayout === '4-strip') {
             renderVertical4Strip(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else if (selectedLayout === '2x2-grid') {
@@ -541,38 +537,106 @@ document.addEventListener('DOMContentLoaded', () => {
         return stripCanvas;
     }
 
-    function renderVertical3StripWithAsset(ctx, W, H, poses, caption, dateStr) {
-        // Draw user's frame asset as primary backdrop
-        if (kp45AssetImage.complete && kp45AssetImage.naturalWidth > 0) {
-            ctx.drawImage(kp45AssetImage, 0, 0, W, H);
-        } else {
-            ctx.fillStyle = '#b7102a';
-            ctx.fillRect(0, 0, W, H);
-        }
+    function renderVertical3StripStitch(ctx, W, H, poses, caption, dateStr) {
+        // 1. Pure Crisp White Canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
 
-        // Exact 3 Photo Slot coordinates inside KP45..png
-        const slots = [
-            { x: 174, y: 82, w: 732, h: 558 },
-            { x: 174, y: 640, w: 732, h: 557 },
-            { x: 174, y: 1197, w: 732, h: 558 }
-        ];
+        const sideBarW = 110;
+        const centerAreaW = W - (sideBarW * 2); // 1080 - 220 = 860
+        const photoMarginX = 24;
+        const photoW = centerAreaW - (photoMarginX * 2); // 860 - 48 = 812
+        const photoH = Math.round(photoW * 0.75); // 812 * 0.75 = 609 (True 4:3 Aspect Ratio)
+        const gapY = 16;
+        const startY = 24;
 
+        // 2. Draw 3 Photos with 4:3 object-fit cover
         poses.forEach((pose, idx) => {
-            if (idx < slots.length) {
-                const s = slots[idx];
-                drawImageCover(ctx, pose, s.x, s.y, s.w, s.h);
+            if (idx < 3) {
+                const posY = startY + idx * (photoH + gapY);
+                const posX = sideBarW + photoMarginX;
+                drawImageCover(ctx, pose, posX, posY, photoW, photoH);
             }
         });
 
-        // Bottom white footer text (Matching Stitch design)
+        // 3. Bottom White Footer Area (Matching Stitch)
+        const footerY = startY + 3 * (photoH + gapY) + 6;
         ctx.fillStyle = '#b7102a';
-        ctx.font = '800 32px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
+        ctx.font = '800 36px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, 1818);
+        ctx.fillText(caption || 'Geng Pemuda Bromo 2026', W / 2, footerY + 28);
 
-        ctx.fillStyle = '#5b403f';
-        ctx.font = '600 18px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W / 2, 1860);
+        ctx.fillStyle = '#211b0b';
+        ctx.font = '700 18px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 58);
+
+        // 4. Left Crimson Red Column with Rotated Typography
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, sideBarW, H);
+
+        // Left Column: Top Subtitle
+        ctx.save();
+        ctx.translate(sideBarW / 2, 340);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
+
+        // Left Column: Center Logo
+        ctx.save();
+        ctx.translate(sideBarW / 2, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 64px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        // Left Column: Bottom Subtitle
+        ctx.save();
+        ctx.translate(sideBarW / 2, H - 340);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
+
+        // 5. Right Crimson Red Column with Rotated Typography
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(W - sideBarW, 0, sideBarW, H);
+
+        // Right Column: Top Subtitle
+        ctx.save();
+        ctx.translate(W - (sideBarW / 2), 340);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
+
+        // Right Column: Center Logo
+        ctx.save();
+        ctx.translate(W - (sideBarW / 2), H / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 64px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        // Right Column: Bottom Subtitle
+        ctx.save();
+        ctx.translate(W - (sideBarW / 2), H - 340);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
     }
 
     function renderVertical4Strip(ctx, W, H, poses, caption, dateStr) {
