@@ -9,13 +9,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelSession = document.getElementById('btn-cancel-session');
 
     // Camera & Viewfinder Elements
+    const previewVideo = document.getElementById('preview-video');
     const video = document.getElementById('video-stream');
     const poseIndicatorText = document.getElementById('pose-indicator-text');
-    const floatingCountdown = document.getElementById('floating-countdown');
+    const centerCountdown = document.getElementById('center-countdown');
     const countdownNumber = document.getElementById('countdown-number');
     const cameraFlash = document.getElementById('camera-flash');
     const poseDotsContainer = document.getElementById('pose-dots-container');
 
+    // Retake Elements
+    const retakeQuotaBadge = document.getElementById('retake-quota-badge');
+    const retakeCountText = document.getElementById('retake-count-text');
+    const poseReviewOverlay = document.getElementById('pose-review-overlay');
+    const poseReviewThumb = document.getElementById('pose-review-thumb');
+    const poseReviewTitle = document.getElementById('pose-review-title');
+    const poseReviewTimerText = document.getElementById('pose-review-timer-text');
+    const btnRetakePose = document.getElementById('btn-retake-pose');
+    const retakeQuotaBtnText = document.getElementById('retake-quota-btn-text');
+    const btnNextPose = document.getElementById('btn-next-pose');
+
+    // Camera & Mirror Controls
+    const btnToggleMirrorWelcome = document.getElementById('btn-toggle-mirror-welcome');
+    const btnSwitchCamWelcome = document.getElementById('btn-switch-cam-welcome');
     const btnToggleMirror = document.getElementById('btn-toggle-mirror');
     const btnSwitchCam = document.getElementById('btn-switch-cam');
     const timer3sBtn = document.getElementById('timer-3s');
@@ -41,8 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedLayout = '3-strip';
     let targetPoses = 3;
     let timerDuration = 3;
+    let remainingRetakes = 3;
     let isSessionRunning = false;
     let capturedPoses = []; // Array of snapshot canvases
+    let countdownInterval = null;
+    let reviewInterval = null;
+    let reviewResolver = null;
     let autoResetInterval = null;
     let qrCodeInstance = null;
 
@@ -109,40 +128,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Timer Selector Buttons
-    timer3sBtn.addEventListener('click', () => {
-        timerDuration = 3;
-        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all";
-        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-white text-merdeka-navy border-2 border-merdeka-navy hover:bg-merdeka-surface-container transition-all";
-    });
+    // Timer Selector Buttons (on Welcome Stage)
+    if (timer3sBtn) {
+        timer3sBtn.addEventListener('click', () => {
+            timerDuration = 3;
+            timer3sBtn.className = "flex-1 py-2 px-3 text-xs font-display font-extrabold rounded-2xl bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all cursor-pointer flex items-center justify-center gap-1.5";
+            timer5sBtn.className = "flex-1 py-2 px-3 text-xs font-display font-extrabold rounded-2xl bg-merdeka-surface-container text-merdeka-navy border-2 border-merdeka-navy hover:bg-white transition-all cursor-pointer flex items-center justify-center gap-1.5";
+        });
+    }
 
-    timer5sBtn.addEventListener('click', () => {
-        timerDuration = 5;
-        timer5sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all";
-        timer3sBtn.className = "px-3.5 py-1 text-xs font-mono font-extrabold rounded-full bg-white text-merdeka-navy border-2 border-merdeka-navy hover:bg-merdeka-surface-container transition-all";
-    });
+    if (timer5sBtn) {
+        timer5sBtn.addEventListener('click', () => {
+            timerDuration = 5;
+            timer5sBtn.className = "flex-1 py-2 px-3 text-xs font-display font-extrabold rounded-2xl bg-merdeka-navy text-white border-2 border-merdeka-navy shadow-pesta-sm transition-all cursor-pointer flex items-center justify-center gap-1.5";
+            timer3sBtn.className = "flex-1 py-2 px-3 text-xs font-display font-extrabold rounded-2xl bg-merdeka-surface-container text-merdeka-navy border-2 border-merdeka-navy hover:bg-white transition-all cursor-pointer flex items-center justify-center gap-1.5";
+        });
+    }
 
-    // Camera Controls
-    btnToggleMirror.addEventListener('click', () => {
+    // Camera Controls (Mirror & Switch)
+    function applyMirrorState() {
+        if (previewVideo) previewVideo.classList.toggle('-scale-x-100', isMirrored);
+        if (video) video.classList.toggle('-scale-x-100', isMirrored);
+    }
+
+    function toggleMirror() {
         isMirrored = !isMirrored;
-        video.classList.toggle('-scale-x-100', isMirrored);
-    });
+        applyMirrorState();
+    }
 
-    btnSwitchCam.addEventListener('click', () => {
+    async function switchCamera() {
         currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
         if (currentFacingMode === 'environment') {
             isMirrored = false;
-            video.classList.remove('-scale-x-100');
         } else {
             isMirrored = true;
-            video.classList.add('-scale-x-100');
         }
-        startCamera();
-    });
+        applyMirrorState();
+        await startCamera();
+    }
+
+    if (btnToggleMirrorWelcome) btnToggleMirrorWelcome.addEventListener('click', toggleMirror);
+    if (btnToggleMirror) btnToggleMirror.addEventListener('click', toggleMirror);
+    if (btnSwitchCamWelcome) btnSwitchCamWelcome.addEventListener('click', switchCamera);
+    if (btnSwitchCam) btnSwitchCam.addEventListener('click', switchCamera);
 
     async function startCamera() {
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
         }
         try {
             const constraints = {
@@ -154,7 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 audio: false
             };
             currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = currentStream;
+            if (previewVideo) previewVideo.srcObject = currentStream;
+            if (video) video.srcObject = currentStream;
+            applyMirrorState();
         } catch (err) {
             console.error("Camera access error:", err);
             Swal.fire({
@@ -173,21 +208,27 @@ document.addEventListener('DOMContentLoaded', () => {
         welcomeStage.classList.add('hidden');
         cameraStage.classList.remove('hidden');
         renderPoseDots();
-        await startCamera();
-        setTimeout(runMultiPoseCaptureSequence, 800);
+        if (!currentStream || !currentStream.active) {
+            await startCamera();
+        }
+        setTimeout(runMultiPoseCaptureSequence, 600);
     });
 
     btnCancelSession.addEventListener('click', returnToWelcomeStage);
 
     function returnToWelcomeStage() {
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-            currentStream = null;
-        }
         isSessionRunning = false;
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+        if (reviewInterval) { clearInterval(reviewInterval); reviewInterval = null; }
+        if (reviewResolver) { reviewResolver('cancel'); reviewResolver = null; }
+
+        if (centerCountdown) centerCountdown.classList.add('hidden');
+        if (poseReviewOverlay) poseReviewOverlay.classList.add('hidden');
+
         cameraStage.classList.add('hidden');
         welcomeStage.classList.remove('hidden');
-        floatingCountdown.classList.add('hidden');
+        remainingRetakes = 3;
+        updateRetakeQuotaUI();
     }
 
     function renderPoseDots() {
@@ -210,31 +251,133 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateRetakeQuotaUI() {
+        if (retakeCountText) retakeCountText.innerText = `${remainingRetakes}x`;
+        if (retakeQuotaBtnText) retakeQuotaBtnText.innerText = `${remainingRetakes}x`;
+        if (btnRetakePose) {
+            btnRetakePose.disabled = (remainingRetakes <= 0);
+            if (remainingRetakes <= 0) {
+                btnRetakePose.classList.add('opacity-40', 'cursor-not-allowed');
+            } else {
+                btnRetakePose.classList.remove('opacity-40', 'cursor-not-allowed');
+            }
+        }
+    }
+
+    function showPoseReview(poseIndex, frameCanvas) {
+        return new Promise(resolve => {
+            if (reviewInterval) clearInterval(reviewInterval);
+            reviewResolver = resolve;
+
+            if (poseReviewThumb) {
+                poseReviewThumb.src = frameCanvas.toDataURL('image/jpeg', 0.85);
+            }
+            if (poseReviewTitle) {
+                poseReviewTitle.innerText = `Pose ${poseIndex + 1} Tersimpan`;
+            }
+            updateRetakeQuotaUI();
+
+            if (poseReviewOverlay) {
+                poseReviewOverlay.classList.remove('hidden');
+            }
+
+            let reviewRemainingMs = 3500;
+            if (poseReviewTimerText) {
+                poseReviewTimerText.innerText = `Lanjut otomatis (${(reviewRemainingMs / 1000).toFixed(1)}s)`;
+            }
+
+            reviewInterval = setInterval(() => {
+                reviewRemainingMs -= 100;
+                if (poseReviewTimerText) {
+                    poseReviewTimerText.innerText = `Lanjut otomatis (${Math.max(0, reviewRemainingMs / 1000).toFixed(1)}s)`;
+                }
+
+                if (reviewRemainingMs <= 0) {
+                    clearInterval(reviewInterval);
+                    reviewInterval = null;
+                    if (poseReviewOverlay) poseReviewOverlay.classList.add('hidden');
+                    reviewResolver = null;
+                    resolve('proceed');
+                }
+            }, 100);
+        });
+    }
+
+    if (btnRetakePose) {
+        btnRetakePose.addEventListener('click', () => {
+            if (remainingRetakes > 0 && reviewResolver) {
+                if (reviewInterval) clearInterval(reviewInterval);
+                reviewInterval = null;
+                if (poseReviewOverlay) poseReviewOverlay.classList.add('hidden');
+                const resolver = reviewResolver;
+                reviewResolver = null;
+                resolver('retake');
+            }
+        });
+    }
+
+    if (btnNextPose) {
+        btnNextPose.addEventListener('click', () => {
+            if (reviewResolver) {
+                if (reviewInterval) clearInterval(reviewInterval);
+                reviewInterval = null;
+                if (poseReviewOverlay) poseReviewOverlay.classList.add('hidden');
+                const resolver = reviewResolver;
+                reviewResolver = null;
+                resolver('proceed');
+            }
+        });
+    }
+
     async function runMultiPoseCaptureSequence() {
         if (isSessionRunning) return;
         isSessionRunning = true;
         capturedPoses = [];
+        remainingRetakes = 3;
+        updateRetakeQuotaUI();
 
         for (let i = 0; i < targetPoses; i++) {
-            poseIndicatorText.innerText = `Pose ${i + 1} dari ${targetPoses}`;
-            updatePoseDot(i, 'active');
+            let currentPoseIndex = i;
+            let poseAccepted = false;
 
-            // 1. Floating Non-Intrusive Countdown (VIEWFINDER 100% CLEAR)
-            await runFloatingCountdown(timerDuration);
+            while (!poseAccepted && isSessionRunning) {
+                poseIndicatorText.innerText = `Pose ${currentPoseIndex + 1} dari ${targetPoses}`;
+                updatePoseDot(currentPoseIndex, 'active');
 
-            // 2. Flash & Mechanical Shutter
-            triggerFlash();
-            playShutterSound();
-            const poseCanvas = captureSingleFrame();
-            capturedPoses.push(poseCanvas);
-            updatePoseDot(i, 'done');
+                // 1. Center Floating Non-Intrusive Countdown (VIEWFINDER 100% CLEAR)
+                const countdownSuccess = await runCenterCountdown(timerDuration);
+                if (!countdownSuccess || !isSessionRunning) return;
 
-            // 3. Short 1.2s Breather (No Intrusive Text Modal)
-            if (i < targetPoses - 1) {
-                poseIndicatorText.innerText = `Pose ${i + 2} dari ${targetPoses}`;
-                await new Promise(r => setTimeout(r, 1200));
+                // 2. Flash & Mechanical Shutter
+                triggerFlash();
+                playShutterSound();
+                const poseCanvas = captureSingleFrame();
+                capturedPoses.push(poseCanvas);
+                updatePoseDot(currentPoseIndex, 'done');
+
+                // 3. Per-Pose Review Overlay (3.5s review with retake quota)
+                const reviewAction = await showPoseReview(currentPoseIndex, poseCanvas);
+
+                if (reviewAction === 'retake') {
+                    remainingRetakes--;
+                    updateRetakeQuotaUI();
+                    capturedPoses.pop(); // Discard the retaken pose
+                    poseAccepted = false;
+                    updatePoseDot(currentPoseIndex, 'active');
+                    await new Promise(r => setTimeout(r, 400));
+                } else if (reviewAction === 'proceed') {
+                    poseAccepted = true;
+                    if (i < targetPoses - 1) {
+                        await new Promise(r => setTimeout(r, 600));
+                    }
+                } else {
+                    // Session canceled
+                    return;
+                }
             }
         }
+
+        if (!isSessionRunning) return;
 
         poseIndicatorText.innerText = "Merangkai Foto...";
         await new Promise(r => setTimeout(r, 400));
@@ -245,23 +388,44 @@ document.addEventListener('DOMContentLoaded', () => {
         isSessionRunning = false;
     }
 
-    function runFloatingCountdown(seconds) {
+    function runCenterCountdown(seconds) {
         return new Promise(resolve => {
-            floatingCountdown.classList.remove('hidden');
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (!centerCountdown || !countdownNumber) {
+                resolve(true);
+                return;
+            }
+
+            centerCountdown.classList.remove('hidden');
             let remaining = seconds;
             countdownNumber.innerText = remaining;
             playBeep(660, 0.1);
 
-            const timer = setInterval(() => {
+            countdownInterval = setInterval(() => {
                 remaining--;
+                if (!isSessionRunning) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    centerCountdown.classList.add('hidden');
+                    resolve(false);
+                    return;
+                }
+
                 if (remaining > 0) {
                     countdownNumber.innerText = remaining;
+                    const badge = countdownNumber.parentElement;
+                    if (badge) {
+                        badge.classList.remove('animate-bounce');
+                        void badge.offsetWidth;
+                        badge.classList.add('animate-bounce');
+                    }
                     playBeep(660, 0.1);
                 } else {
-                    clearInterval(timer);
-                    floatingCountdown.classList.add('hidden');
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    centerCountdown.classList.add('hidden');
                     playBeep(1200, 0.2);
-                    resolve();
+                    resolve(true);
                 }
             }, 1000);
         });
@@ -275,6 +439,9 @@ document.addEventListener('DOMContentLoaded', () => {
             cameraFlash.classList.add('hidden');
         }, 350);
     }
+
+    // Initialize Camera immediately on Landing Page
+    startCamera();
 
     function captureSingleFrame() {
         const frameCanvas = document.createElement('canvas');

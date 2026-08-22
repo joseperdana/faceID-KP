@@ -40,12 +40,36 @@ def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContex
     expect(modal).to_have_class(re.compile(r"hidden"))
 
 def test_photobooth_page_interactions(page: Page):
-    """Test Nusantara Festive Light Photobooth UI controls, 4 Layouts, and Stage transitions."""
+    """Test Nusantara Festive Light Photobooth UI controls, Landing Preview, 4 Layouts, 3s/5s Timers, and Stage transitions."""
     page.goto(f"{BASE_URL}/photobooth")
     
     # Check Page Header
     expect(page).to_have_title(re.compile(r"KP45|Photobooth"))
     expect(page.locator("text=KP45 PHOTOBOOTH")).to_be_visible()
+
+    # Check Landing Page Camera Preview & Controls
+    expect(page.locator("#preview-video")).to_be_visible()
+    expect(page.locator("text=Preview Kamera")).to_be_visible()
+    btn_mirror_welcome = page.locator("#btn-toggle-mirror-welcome")
+    expect(btn_mirror_welcome).to_be_visible()
+    btn_switch_welcome = page.locator("#btn-switch-cam-welcome")
+    expect(btn_switch_welcome).to_be_visible()
+
+    # Check Timer Selector on Welcome Stage (3s / 5s)
+    timer_3s = page.locator("#timer-3s")
+    timer_5s = page.locator("#timer-5s")
+    expect(timer_3s).to_be_visible()
+    expect(timer_5s).to_be_visible()
+    expect(timer_3s).to_have_class(re.compile(r"bg-merdeka-navy"))
+
+    # Switch to 5s timer
+    timer_5s.click()
+    expect(timer_5s).to_have_class(re.compile(r"bg-merdeka-navy"))
+    expect(timer_3s).not_to_have_class(re.compile(r"bg-merdeka-navy"))
+
+    # Switch back to 3s timer
+    timer_3s.click()
+    expect(timer_3s).to_have_class(re.compile(r"bg-merdeka-navy"))
     
     # Check 4 Layout Card selections on Welcome Stage
     layout_3strip = page.locator('[data-layout="3-strip"]')
@@ -88,12 +112,47 @@ def test_photobooth_page_interactions(page: Page):
     camera_stage = page.locator("#camera-stage")
     expect(welcome_stage).to_have_class(re.compile(r"hidden"))
     expect(camera_stage).not_to_have_class(re.compile(r"hidden"))
+
+    # Check Viewfinder and Retake Quota Badge
+    expect(page.locator("#video-stream")).to_be_visible()
+    expect(page.locator("#retake-quota-badge")).to_be_visible()
+    expect(page.locator("#retake-count-text")).to_contain_text("3x")
+    expect(page.locator("#btn-retake-pose")).to_be_attached()
+    expect(page.locator("#btn-next-pose")).to_be_attached()
     
     # Check Cancel button returns to Welcome stage
     btn_cancel = page.locator("#btn-cancel-session")
     btn_cancel.click()
     expect(welcome_stage).not_to_have_class(re.compile(r"hidden"))
     expect(camera_stage).to_have_class(re.compile(r"hidden"))
+
+def test_photobooth_retake_flow_and_timer_interval(page: Page):
+    """Test timer intervals, mirror toggle on preview, and retake quota state."""
+    page.goto(f"{BASE_URL}/photobooth")
+
+    # Verify initial mirror state
+    preview_vid = page.locator("#preview-video")
+    expect(preview_vid).to_have_class(re.compile(r"-scale-x-100"))
+
+    # Toggle mirror on welcome stage
+    btn_mirror = page.locator("#btn-toggle-mirror-welcome")
+    btn_mirror.click()
+    expect(preview_vid).not_to_have_class(re.compile(r"-scale-x-100"))
+
+    # Select 5s timer
+    btn_5s = page.locator("#timer-5s")
+    btn_5s.click()
+    expect(btn_5s).to_have_class(re.compile(r"bg-merdeka-navy"))
+
+    # Start session
+    page.locator("#btn-start-session").click()
+    expect(page.locator("#camera-stage")).to_be_visible()
+    expect(page.locator("#retake-count-text")).to_have_text("3x")
+    expect(page.locator("#center-countdown")).to_be_attached()
+
+    # Cancel session
+    page.locator("#btn-cancel-session").click()
+    expect(page.locator("#welcome-stage")).to_be_visible()
 
 def test_login_page_form(page: Page):
     """Test Admin login page."""

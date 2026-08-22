@@ -1,61 +1,47 @@
-# 📸 Final Execution Plan: Nusantara Festive Light Photobooth Kiosk (KP Bromo)
+# 📸 Implementation Plan: Landing Page Camera Preview, Center Countdown, Interval Fix & Retake Engine
 
-Dokumen persyaratan lengkap telah dibuat di [`tasks/PHOTOBOOTH_PRD.md`](file:///Users/josetaneo/Private_Coding/faceID-KP/tasks/PHOTOBOOTH_PRD.md).
-
----
-
-## 🎨 1. Nusantara Festive Light Design System
-
-### A. Palet Warna & Tekstur
-* **Background Utama:** Warm Textured Paper `#FAF7F2` (Ivory Alami).
-* **Warna Teks Utama:** Charcoal Ink `#1E1B18` (Kontras Tinggi WCAG AAA).
-* **Aksen Keberagaman Budaya:**
-  * 🔴 **Merah Kemerdekaan:** `#DC2626`
-  * 🟤 **Terracotta Tenun:** `#C2410C`
-  * 🟡 **Ochre Gold Nusantara:** `#D97706`
-  * 🔵 **Royal Indigo Bahari:** `#1E3A8A`
-* **Elemen Tactile:** Border `2.5px solid #1E1B18`, Solid Drop Shadow `shadow-[4px_4px_0px_#1E1B18]`, dan stiker miring bertekstur.
-
----
-
-## 🔄 2. Layar & Alur Interaksi (User Experience)
-
-### Step 1: Layar Awal & Pemilihan Layout (Welcome Screen)
-* Tampilan cerah, hangat, dan minimalis.
-* Pengguna memilih salah satu dari 4 format layout foto:
-  1. **3-Strip Vertikal** (3 Pose — Paling Populer)
-  2. **4-Strip Vertikal** (4 Pose — Klasik Studio)
-  3. **2x2 Bento Grid** (4 Pose — Kotak Mini)
-  4. **Single Wide Polaroid** (1 Pose Lebar — Grup Jemaat)
-* Klik **"Mulai Sesi Foto"** langsung mengaktifkan kamera.
-
-### Step 2: Live Viewfinder Bening (Zero Blackout)
-* **Kamera 100% Terang & Jernih:** Tidak ada overlay hitam yang menutupi kamera saat hitung mundur.
-* Hitung mundur (3s / 5s) tampil sebagai **badge mengambang (*floating pill*)** di atas kamera dengan angka tebal dan suara beep sintetis.
-* Flash putih seketika (350ms) + efek suara shutter mekanik saat foto dijepret.
-* Jeda 2.5s ganti gaya antar pose.
-
-### Step 3: Dual Output & Animasi Mesin Cetak (*Printer Slide-Out*)
-* **Dual Output:**
-  * **Static Photo Strip HD (300 DPI):** Format cetak lengkap dengan frame nusantara & stempel 17 Agustus.
-  * **Animated Stop-Motion GIF:** Animasi looping berulang dari foto-foto yang baru diambil (menggunakan `gifshot.js` client-side).
-* **Animasi Mesin Cetak:** Strip foto meluncur keluar dari slot printer di layar atas dengan bayangan kertas fisik dan efek suara kertas tercetak.
-
-### Step 4: Instant QR Code & Mobile Landing Page
-* Layar menampilkan kartu QR Code besar untuk di-scan kamera ponsel.
-* Halaman mobile `/p/{id}` memungkinkan jemaat mengunduh file Photo Strip (PNG) **dan** Animated GIF langsung ke galeri ponsel dengan 1-tap.
-* Countdown auto-reset 45 detik untuk menjaga alur antrean booth.
+## 📌 Requirements Summary
+1. **Center Overlay Countdown:** Reposition countdown from top-right to exact center of viewfinder with large, high-contrast typography (`text-9xl md:text-[12rem] text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.85)]`) while keeping camera preview 100% visible (zero blackout/dark overlay).
+2. **Landing Page Revamp (Welcome Stage):**
+   - Live Camera Preview right on the landing page so users can check hair/lighting before starting.
+   - Time interval selector (3s vs 5s) moved to landing page.
+   - Mirror mode toggle moved to landing page.
+   - Layout selector (3-strip, 4-strip, 2x2, single) + Custom Message input + "Mulai Foto" button.
+3. **Timer Interval Fix & Comprehensive E2E Testing:**
+   - Fix timer interval state and countdown lifecycle ensuring 3s and 5s both trigger accurate, monotonic 1000ms ticks.
+   - Add automated Playwright tests for both 3s and 5s countdown configurations.
+4. **Per-Pose Retake Engine (3x Quota per Session):**
+   - After each shot, present a 3.5s review pill with thumbnail:
+     - Button: `Retake Pose Ini (Sisa: X)`
+     - Button: `Lanjut` (or auto-proceed after 3.5s)
+   - If retaken: decrement quota, discard current pose, and re-trigger countdown for the same pose index.
 
 ---
 
-## 📁 3. Starter Pack Aset 17an (`frontend/assets/photobooth/`)
-* `stickers/` : `lencana-dirgahayu.svg`, `pita-merah-putih.svg`, `bintang-nusantara.svg`, `stempel-17an.svg`.
-* `frames/` : `batik-kawung-corner.svg`, `tenun-motif-border.svg`.
-* Pengguna dapat menambahkan berkas PNG transparan custom ke folder ini kapan saja.
+## 🛠️ Architecture & Component Breakdown
+
+### A. Landing Page (`frontend/photobooth.html` & `frontend/js/photobooth.js`)
+* **Welcome Stage Grid:**
+  - Left column (Hero): Live Webcam Viewfinder with mirror toggle and live aspect ratio guide.
+  - Right column: Layout Cards (3-Strip, 4-Strip, 2x2 Bento, Single), Time Interval selector (3s / 5s), Custom Message input, and "Mulai Foto" primary button.
+* **Camera Capture Stage:**
+  - Transition when "Mulai Foto" is clicked.
+  - Giant center countdown number (`#center-countdown`).
+  - Review / Retake Bar (`#retake-bar`) displayed after each shot with countdown progress ring.
+
+### B. State Management in `photobooth.js`
+* `timerDuration` (3 or 5, set on landing page).
+* `isMirrored` (toggled on landing page).
+* `remainingRetakes` (starts at 3).
+* Pose review promise resolution (`retake` vs `proceed`).
 
 ---
 
-## 🧪 4. TDD & Quality Gate
-* Unit tests API upload static & GIF buffer di `tests/test_photobooth_api.py`.
-* Playwright E2E test untuk transisi Welcome Screen &rarr; Layout Selection &rarr; Camera Viewfinder &rarr; Printing Animation &rarr; QR Modal di `tests/test_e2e_playwright.py`.
-* Verifikasi 100% bebas dari unicode emoji mentah.
+## 🧪 Testing & Verification
+* Playwright E2E:
+  - Test landing page camera preview initialization.
+  - Test switching time interval (3s & 5s) on landing page.
+  - Test mirror toggle.
+  - Test center countdown visibility.
+  - Test retake button interaction and quota decrement.
+* Pytest API suite (13/13 passing).
