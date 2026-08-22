@@ -1058,71 +1058,62 @@ document.addEventListener('DOMContentLoaded', () => {
             didOpen: () => { Swal.showLoading(); }
         });
 
+        let base64Strip = '';
+        let base64Gif = '';
+        const customCaption = getCustomCaption();
+
+        // 1. Render Strip Canvas
         try {
-            const customCaption = getCustomCaption();
-            let base64Strip = '';
-            try {
-                const stripCanvas = renderCompositeStripCanvas();
-                base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
-            } catch (canvasErr) {
-                console.error("Error creating composite strip canvas:", canvasErr);
-                if (capturedPoses.length > 0) {
-                    base64Strip = capturedPoses[0].toDataURL('image/jpeg', 0.95);
-                }
+            const stripCanvas = renderCompositeStripCanvas();
+            base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
+        } catch (canvasErr) {
+            console.error("Error creating composite strip canvas:", canvasErr);
+            if (capturedPoses.length > 0) {
+                base64Strip = capturedPoses[0].toDataURL('image/jpeg', 0.95);
             }
+        }
 
-            let base64Gif = '';
-            try {
-                base64Gif = await generateAnimatedGif(capturedPoses);
-            } catch (gifErr) {
-                console.warn("GIF generation skipped due to error:", gifErr);
-            }
+        // 2. Generate GIF with timeout protection
+        try {
+            base64Gif = await generateAnimatedGif(capturedPoses);
+        } catch (gifErr) {
+            console.warn("GIF generation skipped:", gifErr);
+        }
 
-            try {
-                const response = await fetch('/api/photobooth/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image: base64Strip,
-                        gif_image: base64Gif || '',
-                        frame: selectedLayout,
-                        caption: customCaption
-                    })
-                });
-
-                const data = await response.json();
-                Swal.close();
-
-                if (data && data.status === 'success') {
-                    showResultModal(data, base64Strip, base64Gif);
-                } else {
-                    showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
-                }
-            } catch (uploadErr) {
-                console.warn("Upload API failed, displaying local result modal:", uploadErr);
-                Swal.close();
-                showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
-            }
-        } catch (fatalErr) {
-            console.error("Fatal error during photo processing:", fatalErr);
-            Swal.close();
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Memproses Foto',
-                text: 'Terjadi kendala saat merangkai foto. Silakan coba kembali.',
-                confirmButtonText: 'Kembali',
-                confirmButtonColor: '#b7102a'
-            }).then(() => {
-                returnToWelcomeStage();
+        // 3. Upload to backend (safe with local fallback)
+        let uploadData = null;
+        try {
+            const response = await fetch('/api/photobooth/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: base64Strip,
+                    gif_image: base64Gif || '',
+                    frame: selectedLayout,
+                    caption: customCaption
+                })
             });
-        } finally {
-            try { Swal.close(); } catch(e) {}
+            if (response.ok) {
+                uploadData = await response.json();
+            }
+        } catch (uploadErr) {
+            console.warn("Upload API network failed, using local offline fallback:", uploadErr);
+        }
+
+        // 4. Always close loading popup
+        try { Swal.close(); } catch(e) {}
+
+        // 5. Present result modal (Guaranteed to show)
+        if (uploadData && uploadData.status === 'success') {
+            showResultModal(uploadData, base64Strip, base64Gif);
+        } else {
+            showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, base64Gif);
         }
     }
 
     // --- 7. Result Modal Presentation & Skeuomorphic Printing Animation ---
     function showResultModal(uploadData, localStrip, localGif) {
-        playPrinterSound();
+        try { playPrinterSound(); } catch(e) {}
 
         const customCaption = getCustomCaption();
         const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
@@ -1135,56 +1126,70 @@ document.addEventListener('DOMContentLoaded', () => {
             stitchPhotostripWrapper.classList.remove('hidden');
             if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.add('hidden');
             
-            stripPreviewPhoto1.src = capturedPoses[0].toDataURL('image/jpeg', 0.95);
-            stripPreviewPhoto2.src = capturedPoses[1].toDataURL('image/jpeg', 0.95);
-            stripPreviewPhoto3.src = capturedPoses[2].toDataURL('image/jpeg', 0.95);
-            stripPreviewMessage.innerText = customCaption; // Blank if empty
-            stripPreviewDate.innerText = `${todayStr} • MALANG`;
+            if (stripPreviewPhoto1 && capturedPoses[0]) stripPreviewPhoto1.src = capturedPoses[0].toDataURL('image/jpeg', 0.95);
+            if (stripPreviewPhoto2 && capturedPoses[1]) stripPreviewPhoto2.src = capturedPoses[1].toDataURL('image/jpeg', 0.95);
+            if (stripPreviewPhoto3 && capturedPoses[2]) stripPreviewPhoto3.src = capturedPoses[2].toDataURL('image/jpeg', 0.95);
+            if (stripPreviewMessage) stripPreviewMessage.innerText = customCaption; // Blank if empty
+            if (stripPreviewDate) stripPreviewDate.innerText = `${todayStr} • MALANG`;
         } else {
             if (stitchPhotostripWrapper) stitchPhotostripWrapper.classList.add('hidden');
             if (canvasPhotostripWrapper) {
                 canvasPhotostripWrapper.classList.remove('hidden');
-                resultStripImg.src = localStrip;
+                if (resultStripImg) resultStripImg.src = localStrip;
             }
         }
 
-        btnDownloadStrip.href = uploadData.download_url || localStrip;
-        btnDownloadStrip.download = `KP45_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
+        if (btnDownloadStrip) {
+            btnDownloadStrip.href = (uploadData && uploadData.download_url) || localStrip || '#';
+            btnDownloadStrip.download = `KP45_PhotoStrip_${(uploadData && uploadData.photo_id) || 'strip'}.jpg`;
+        }
 
-        if (localGif || uploadData.gif_download_url) {
-            resultGifImg.src = uploadData.gif_download_url || localGif;
-            btnDownloadGif.href = uploadData.gif_download_url || localGif;
-            btnDownloadGif.download = `KP45_Animated_${uploadData.photo_id || 'gif'}.gif`;
+        const gifUrl = (uploadData && uploadData.gif_download_url) || localGif;
+        if (gifUrl && resultGifImg && btnDownloadGif && tabShowGif) {
+            resultGifImg.src = gifUrl;
+            btnDownloadGif.href = gifUrl;
+            btnDownloadGif.download = `KP45_Animated_${(uploadData && uploadData.photo_id) || 'gif'}.gif`;
             btnDownloadGif.classList.remove('opacity-50', 'pointer-events-none');
             tabShowGif.classList.remove('hidden');
-        } else {
+        } else if (btnDownloadGif && tabShowGif) {
             btnDownloadGif.classList.add('opacity-50', 'pointer-events-none');
             tabShowGif.classList.add('hidden');
         }
 
         showStripTab();
 
-        qrCodeContainer.innerHTML = '';
-        const qrTargetUrl = uploadData.qr_url || window.location.href;
-        
-        // Compact 135x135 QR Code
-        qrCodeInstance = new QRCode(qrCodeContainer, {
-            text: qrTargetUrl,
-            width: 135,
-            height: 135,
-            colorDark: "#1d3557",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.M
-        });
+        if (qrCodeContainer) {
+            qrCodeContainer.innerHTML = '';
+            const qrTargetUrl = (uploadData && uploadData.qr_url) || window.location.href;
+            
+            try {
+                if (typeof QRCode !== 'undefined') {
+                    qrCodeInstance = new QRCode(qrCodeContainer, {
+                        text: qrTargetUrl,
+                        width: 135,
+                        height: 135,
+                        colorDark: "#1d3557",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            } catch (qrErr) {
+                console.warn("QR code generation warning:", qrErr);
+            }
+        }
 
-        resultModal.classList.remove('hidden');
+        if (resultModal) {
+            resultModal.classList.remove('hidden');
+        }
 
         try {
-            confetti({
-                particleCount: 85,
-                spread: 80,
-                origin: { y: 0.6 }
-            });
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 85,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
         } catch(e) {}
 
         startAutoResetTimer(45);
@@ -1200,8 +1205,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (gifPreviewWrapper) gifPreviewWrapper.classList.add('hidden');
 
-        tabShowStrip.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
-        tabShowGif.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
+        if (tabShowStrip) tabShowStrip.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
+        if (tabShowGif) tabShowGif.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     function showGifTab() {
@@ -1209,12 +1214,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.add('hidden');
         if (gifPreviewWrapper) gifPreviewWrapper.classList.remove('hidden');
 
-        tabShowGif.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
-        tabShowStrip.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
+        if (tabShowGif) tabShowGif.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
+        if (tabShowStrip) tabShowStrip.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
-    tabShowStrip.addEventListener('click', showStripTab);
-    tabShowGif.addEventListener('click', showGifTab);
+    if (tabShowStrip) tabShowStrip.addEventListener('click', showStripTab);
+    if (tabShowGif) tabShowGif.addEventListener('click', showGifTab);
 
     // Live Custom Message Event Listener
     if (modalCustomCaption) {
@@ -1230,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Re-render the composite canvas for download
             const updatedCanvas = renderCompositeStripCanvas();
             const updatedDataUrl = updatedCanvas.toDataURL('image/jpeg', 0.95);
-            btnDownloadStrip.href = updatedDataUrl;
+            if (btnDownloadStrip) btnDownloadStrip.href = updatedDataUrl;
 
             // 3. If non-3-strip layout, update the preview image as well
             if (selectedLayout !== '3-strip' && resultStripImg) {
@@ -1242,12 +1247,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function startAutoResetTimer(seconds) {
         clearInterval(autoResetInterval);
         let remaining = seconds;
-        autoResetTimerEl.innerText = `${remaining}s`;
+        if (autoResetTimerEl) autoResetTimerEl.innerText = `${remaining}s`;
 
         autoResetInterval = setInterval(() => {
             remaining--;
             if (remaining >= 0) {
-                autoResetTimerEl.innerText = `${remaining}s`;
+                if (autoResetTimerEl) autoResetTimerEl.innerText = `${remaining}s`;
             } else {
                 clearInterval(autoResetInterval);
                 closeResultModal();
@@ -1257,10 +1262,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeResultModal() {
         clearInterval(autoResetInterval);
-        resultModal.classList.add('hidden');
+        if (resultModal) resultModal.classList.add('hidden');
         returnToWelcomeStage();
     }
 
-    btnRetake.addEventListener('click', closeResultModal);
-    btnCloseModal.addEventListener('click', closeResultModal);
+    if (btnRetake) btnRetake.addEventListener('click', closeResultModal);
+    if (btnCloseModal) btnCloseModal.addEventListener('click', closeResultModal);
 });
