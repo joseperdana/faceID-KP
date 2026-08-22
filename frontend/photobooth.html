@@ -439,21 +439,58 @@
                         </button>
                     </div>
 
-                    <!-- Output Preview Box with Stitch Photo Strip Styling (Exact tight fit, 8px hard drop shadow, subtle -1deg tilt, decorative star) -->
-                    <div class="relative w-full max-w-[320px] flex justify-center bg-white border-[3px] border-[#410007] shadow-[8px_8px_0px_0px_#410007] rotate-[-1deg] transition-all hover:rotate-0 overflow-hidden">
+                    <!-- Output 1: EXACT STITCH PHOTOSTRIP DOM COMPONENT -->
+                    <div id="stitch-photostrip-wrapper" class="relative w-full max-w-sm photo-strip-shadow rotate-[-1deg] flex overflow-hidden bg-white animate-print-slide">
                         
-                        <!-- Decorative Star from Stitch -->
-                        <div class="absolute -top-3.5 -left-3.5 z-30 transform -rotate-12 bg-merdeka-gold text-merdeka-red border-2 border-[#410007] rounded-full p-1.5 shadow-[2px_2px_0px_0px_#410007] flex items-center justify-center pointer-events-none">
-                            <svg class="w-4 h-4 fill-merdeka-red" viewBox="0 0 24 24">
-                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                            </svg>
+                        <!-- Left Sidebar (Stitch Style) -->
+                        <div class="w-12 bg-[#b7102a] flex flex-col items-center justify-between py-4 text-white select-none">
+                            <div class="rotate-[-90deg] whitespace-nowrap font-bold text-[10px] uppercase tracking-widest opacity-80">Komisi Pemuda GKI Bromo Malang</div>
+                            <div class="rotate-[-90deg] font-display text-2xl font-black my-8">KP45</div>
+                            <div class="rotate-[-90deg] whitespace-nowrap font-bold text-[10px] uppercase tracking-widest opacity-80">Komisi Pemuda GKI Bromo Malang</div>
                         </div>
 
-                        <!-- Static Photo Strip Image (Hero Size) -->
-                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="w-full h-auto block max-h-[62vh] object-contain animate-print-slide" />
-                        
-                        <!-- Animated GIF Image -->
-                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden w-full h-auto block max-h-[62vh] object-contain" />
+                        <!-- Center Content (Photos) -->
+                        <div class="flex-1 p-2 space-y-2 bg-white">
+                            <!-- Photo 1 -->
+                            <div class="aspect-[4/3] relative overflow-hidden bg-slate-100">
+                                <img id="strip-preview-photo-1" class="w-full h-full object-cover" src="" alt="Pose 1" />
+                            </div>
+                            <!-- Photo 2 -->
+                            <div class="aspect-[4/3] relative overflow-hidden bg-slate-100">
+                                <img id="strip-preview-photo-2" class="w-full h-full object-cover" src="" alt="Pose 2" />
+                            </div>
+                            <!-- Photo 3 -->
+                            <div class="aspect-[4/3] relative overflow-hidden bg-slate-100">
+                                <img id="strip-preview-photo-3" class="w-full h-full object-cover" src="" alt="Pose 3" />
+                            </div>
+                            <!-- Bottom Text -->
+                            <div class="py-2 text-center">
+                                <p id="strip-preview-message" class="font-display text-[16px] md:text-[18px] leading-tight font-extrabold text-[#b7102a] tracking-tight">Geng Pemuda Bromo 2026</p>
+                                <p id="strip-preview-date" class="font-mono font-bold text-[10px] text-slate-800">22 Agustus 2026 • MALANG</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Sidebar (Stitch Style) -->
+                        <div class="w-12 bg-[#b7102a] flex flex-col items-center justify-between py-4 text-white select-none">
+                            <div class="rotate-[90deg] whitespace-nowrap font-bold text-[10px] uppercase tracking-widest opacity-80">Komisi Pemuda GKI Bromo Malang</div>
+                            <div class="rotate-[90deg] font-display text-2xl font-black my-8">KP45</div>
+                            <div class="rotate-[90deg] whitespace-nowrap font-bold text-[10px] uppercase tracking-widest opacity-80">Komisi Pemuda GKI Bromo Malang</div>
+                        </div>
+
+                        <!-- Decorative Stars (Stitch Style) -->
+                        <div class="absolute -top-4 -left-4 z-20 transform -rotate-12 pointer-events-none">
+                            <span class="material-symbols-outlined text-4xl text-[#b7102a]" style="font-variation-settings: 'FILL' 1;">star</span>
+                        </div>
+                    </div>
+
+                    <!-- Output 2: Static / Fallback Canvas Image for Other Layouts -->
+                    <div id="canvas-photostrip-wrapper" class="hidden relative w-full max-w-sm photo-strip-shadow rotate-[-1deg] bg-white overflow-hidden animate-print-slide">
+                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="w-full h-auto block max-h-[62vh] object-contain" />
+                    </div>
+
+                    <!-- Output 3: Animated GIF Preview Box -->
+                    <div id="gif-preview-wrapper" class="hidden relative w-full max-w-sm photo-strip-shadow rotate-[-1deg] bg-white overflow-hidden p-2">
+                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="w-full h-auto block max-h-[62vh] object-contain rounded-lg" />
                     </div>
 
                     <p class="text-xs font-display font-bold text-merdeka-red text-center mt-3">

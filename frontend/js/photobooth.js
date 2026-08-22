@@ -38,6 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Result Modal & Dispenser Elements
     const resultModal = document.getElementById('result-modal');
+    const stitchPhotostripWrapper = document.getElementById('stitch-photostrip-wrapper');
+    const stripPreviewPhoto1 = document.getElementById('strip-preview-photo-1');
+    const stripPreviewPhoto2 = document.getElementById('strip-preview-photo-2');
+    const stripPreviewPhoto3 = document.getElementById('strip-preview-photo-3');
+    const stripPreviewMessage = document.getElementById('strip-preview-message');
+    const stripPreviewDate = document.getElementById('strip-preview-date');
+    const canvasPhotostripWrapper = document.getElementById('canvas-photostrip-wrapper');
+    const gifPreviewWrapper = document.getElementById('gif-preview-wrapper');
     const resultStripImg = document.getElementById('result-strip-img');
     const resultGifImg = document.getElementById('result-gif-img');
     const tabShowStrip = document.getElementById('tab-show-strip');
@@ -905,7 +913,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function showResultModal(uploadData, localStrip, localGif) {
         playPrinterSound();
 
-        resultStripImg.src = localStrip;
+        const customCaption = (customCaptionInput.value || '').trim();
+        const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
+
+        if (selectedLayout === '3-strip' && capturedPoses.length >= 3 && stitchPhotostripWrapper) {
+            stitchPhotostripWrapper.classList.remove('hidden');
+            if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.add('hidden');
+            
+            stripPreviewPhoto1.src = capturedPoses[0].toDataURL('image/jpeg', 0.95);
+            stripPreviewPhoto2.src = capturedPoses[1].toDataURL('image/jpeg', 0.95);
+            stripPreviewPhoto3.src = capturedPoses[2].toDataURL('image/jpeg', 0.95);
+            stripPreviewMessage.innerText = customCaption || 'Geng Pemuda Bromo 2026';
+            stripPreviewDate.innerText = `${todayStr} • MALANG`;
+        } else {
+            if (stitchPhotostripWrapper) stitchPhotostripWrapper.classList.add('hidden');
+            if (canvasPhotostripWrapper) {
+                canvasPhotostripWrapper.classList.remove('hidden');
+                resultStripImg.src = localStrip;
+            }
+        }
+
         btnDownloadStrip.href = uploadData.download_url || localStrip;
         btnDownloadStrip.download = `KP45_PhotoStrip_${uploadData.photo_id || 'strip'}.jpg`;
 
@@ -921,10 +948,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         showStripTab();
-
-        resultStripImg.classList.remove('animate-print-slide');
-        void resultStripImg.offsetWidth;
-        resultStripImg.classList.add('animate-print-slide');
 
         qrCodeContainer.innerHTML = '';
         const qrTargetUrl = uploadData.qr_url || window.location.href;
@@ -953,15 +976,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showStripTab() {
-        resultStripImg.classList.remove('hidden');
-        resultGifImg.classList.add('hidden');
+        if (selectedLayout === '3-strip' && stitchPhotostripWrapper) {
+            stitchPhotostripWrapper.classList.remove('hidden');
+            if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.add('hidden');
+        } else {
+            if (stitchPhotostripWrapper) stitchPhotostripWrapper.classList.add('hidden');
+            if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.remove('hidden');
+        }
+        if (gifPreviewWrapper) gifPreviewWrapper.classList.add('hidden');
+
         tabShowStrip.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
         tabShowGif.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     function showGifTab() {
-        resultStripImg.classList.add('hidden');
-        resultGifImg.classList.remove('hidden');
+        if (stitchPhotostripWrapper) stitchPhotostripWrapper.classList.add('hidden');
+        if (canvasPhotostripWrapper) canvasPhotostripWrapper.classList.add('hidden');
+        if (gifPreviewWrapper) gifPreviewWrapper.classList.remove('hidden');
+
         tabShowGif.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
         tabShowStrip.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
