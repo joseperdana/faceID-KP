@@ -481,35 +481,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return frameCanvas;
     }
 
-    // --- 4. Editorial High-End Canvas Compositor (Red Backdrop Inspired by se.du) ---
+    // Pre-load user frame asset
+    const kp45AssetImage = new Image();
+    kp45AssetImage.src = '/static/assets/photobooth/KP45..png';
+
+    function drawImageCover(ctx, img, dx, dy, dw, dh) {
+        const imgW = img.width || img.videoWidth || 960;
+        const imgH = img.height || img.videoHeight || 720;
+        const imgRatio = imgW / imgH;
+        const targetRatio = dw / dh;
+
+        let sx = 0, sy = 0, sw = imgW, sh = imgH;
+
+        if (imgRatio > targetRatio) {
+            sw = imgH * targetRatio;
+            sx = (imgW - sw) / 2;
+        } else {
+            sh = imgW / targetRatio;
+            sy = (imgH - sh) / 2;
+        }
+
+        ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+
+    // --- 4. Editorial High-End Canvas Compositor ---
     function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
         const customCaption = (customCaptionInput.value || '').trim();
         const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
 
-        let STRIP_W = 1000;
-        let STRIP_H = 3000;
+        let STRIP_W = 1080;
+        let STRIP_H = 1920;
 
         if (selectedLayout === '4-strip') {
-            STRIP_H = 3400;
+            STRIP_W = 1080;
+            STRIP_H = 2480;
         } else if (selectedLayout === '2x2-grid') {
-            STRIP_W = 2000;
-            STRIP_H = 2100;
-        } else if (selectedLayout === 'single-wide') {
             STRIP_W = 1600;
-            STRIP_H = 1900;
+            STRIP_H = 1800;
+        } else if (selectedLayout === 'single-wide') {
+            STRIP_W = 1200;
+            STRIP_H = 1500;
         }
 
         stripCanvas.width = STRIP_W;
         stripCanvas.height = STRIP_H;
         const ctx = stripCanvas.getContext('2d');
 
-        // Bold Crimson Editorial Red Backdrop
-        ctx.fillStyle = '#b7102a';
-        ctx.fillRect(0, 0, STRIP_W, STRIP_H);
-
-        if (selectedLayout === '3-strip' || selectedLayout === '4-strip') {
-            renderVerticalEditorialStrip(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        if (selectedLayout === '3-strip') {
+            renderVertical3StripWithAsset(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
+        } else if (selectedLayout === '4-strip') {
+            renderVertical4Strip(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else if (selectedLayout === '2x2-grid') {
             renderBentoEditorialGrid(ctx, STRIP_W, STRIP_H, capturedPoses, customCaption, todayStr);
         } else {
@@ -519,108 +541,167 @@ document.addEventListener('DOMContentLoaded', () => {
         return stripCanvas;
     }
 
-    function renderVerticalEditorialStrip(ctx, W, H, poses, caption, dateStr) {
-        const count = poses.length;
-        const marginX = 60;
-        const photoW = W - (marginX * 2);
-        const photoH = count === 3 ? 660 : 570;
-        const gapY = 40;
+    function renderVertical3StripWithAsset(ctx, W, H, poses, caption, dateStr) {
+        // Draw user's frame asset as primary backdrop
+        if (kp45AssetImage.complete && kp45AssetImage.naturalWidth > 0) {
+            ctx.drawImage(kp45AssetImage, 0, 0, W, H);
+        } else {
+            ctx.fillStyle = '#b7102a';
+            ctx.fillRect(0, 0, W, H);
+        }
+
+        // Exact 3 Photo Slot coordinates inside KP45..png
+        const slots = [
+            { x: 174, y: 82, w: 732, h: 558 },
+            { x: 174, y: 640, w: 732, h: 557 },
+            { x: 174, y: 1197, w: 732, h: 558 }
+        ];
+
+        poses.forEach((pose, idx) => {
+            if (idx < slots.length) {
+                const s = slots[idx];
+                drawImageCover(ctx, pose, s.x, s.y, s.w, s.h);
+            }
+        });
+
+        // Bottom white footer text
+        ctx.fillStyle = '#1d3557';
+        ctx.font = '800 30px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, 1822);
+
+        ctx.fillStyle = '#5b403f';
+        ctx.font = '700 18px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, W / 2, 1864);
+    }
+
+    function renderVertical4Strip(ctx, W, H, poses, caption, dateStr) {
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, W, H);
+
+        const marginX = 174;
+        const photoW = 732;
+        const photoH = 549; // True 4:3 Aspect Ratio (732 * 0.75 = 549)
+        const gapY = 16;
         const startY = 80;
 
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
-
-            ctx.save();
-            ctx.drawImage(pose, marginX, posY, photoW, photoH);
-            ctx.restore();
+            drawImageCover(ctx, pose, marginX, posY, photoW, photoH);
         });
 
-        const footerY = startY + count * (photoH + gapY) + 30;
-        const brandBoxW = photoW;
-        const brandBoxH = H - footerY - 80;
-
+        // Side branding bars (Vertical text matching KP45 style)
+        ctx.save();
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(marginX, footerY, brandBoxW, brandBoxH);
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.translate(90, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('KP45 • PEMUDA BROMO', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.translate(W - 90, H / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText('KP45 • GKI BROMO', 0, 0);
+        ctx.restore();
+
+        // Footer box
+        const footerY = startY + 4 * (photoH + gapY) + 15;
+        const footerH = H - footerY - 40;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(marginX, footerY, photoW, footerH);
 
         ctx.fillStyle = '#b7102a';
-        ctx.font = '900 76px "Bricolage Grotesque", sans-serif';
+        ctx.font = '900 52px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('kp.45', marginX + 40, footerY + 95);
+        ctx.fillText('kp.45', marginX + 30, footerY + 68);
 
         ctx.fillStyle = '#1d3557';
-        ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '800 24px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', marginX + brandBoxW - 40, footerY + 65);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', marginX + photoW - 30, footerY + 46);
 
         ctx.fillStyle = '#5b403f';
-        ctx.font = '600 20px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, marginX + brandBoxW - 40, footerY + 105);
+        ctx.font = '600 16px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, marginX + photoW - 30, footerY + 76);
     }
 
     function renderBentoEditorialGrid(ctx, W, H, poses, caption, dateStr) {
-        const gap = 50;
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, W, H);
+
         const margin = 70;
-        const photoW = (W - (margin * 2) - gap) / 2;
-        const photoH = photoW * 0.75;
-        const startY = 80;
+        const gapX = 40;
+        const gapY = 30;
+        const photoW = Math.round((W - (margin * 2) - gapX) / 2); // 710px
+        const photoH = Math.round(photoW * 0.75); // 532px (True 4:3!)
+        const startY = 70;
 
         poses.forEach((pose, idx) => {
             const col = idx % 2;
             const row = Math.floor(idx / 2);
-            const pX = margin + col * (photoW + gap);
-            const pY = startY + row * (photoH + gap);
+            const pX = margin + col * (photoW + gapX);
+            const pY = startY + row * (photoH + gapY);
 
-            ctx.drawImage(pose, pX, pY, photoW, photoH);
+            drawImageCover(ctx, pose, pX, pY, photoW, photoH);
         });
 
-        const footerY = startY + 2 * (photoH + gap) + 20;
-        const brandBoxH = H - footerY - 70;
+        const footerY = startY + 2 * photoH + gapY + 30;
+        const footerH = H - footerY - 50;
+        const footerW = W - (margin * 2);
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(margin, footerY, W - (margin * 2), brandBoxH);
+        ctx.fillRect(margin, footerY, footerW, footerH);
 
         ctx.fillStyle = '#b7102a';
-        ctx.font = '900 84px "Bricolage Grotesque", sans-serif';
+        ctx.font = '900 88px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('kp.45', margin + 50, footerY + 110);
+        ctx.fillText('kp.45', margin + 40, footerY + 115);
 
         ctx.fillStyle = '#1d3557';
-        ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '800 34px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W - margin - 50, footerY + 75);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + footerW - 40, footerY + 75);
 
         ctx.fillStyle = '#5b403f';
-        ctx.font = '600 24px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W - margin - 50, footerY + 120);
+        ctx.font = '700 22px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, margin + footerW - 40, footerY + 120);
     }
 
     function renderSingleWideEditorial(ctx, W, H, pose, caption, dateStr) {
-        const margin = 80;
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, W, H);
+
+        const margin = 70;
         const photoW = W - (margin * 2);
-        const photoH = photoW * 0.75;
-        const photoY = 80;
+        const photoH = Math.round(photoW * 0.75); // 795px (True 4:3!)
+        const photoY = 70;
 
-        ctx.drawImage(pose, margin, photoY, photoW, photoH);
+        drawImageCover(ctx, pose, margin, photoY, photoW, photoH);
 
-        const footerY = photoY + photoH + 50;
-        const brandBoxH = H - footerY - 80;
+        const footerY = photoY + photoH + 40;
+        const footerH = H - footerY - 50;
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(margin, footerY, photoW, brandBoxH);
+        ctx.fillRect(margin, footerY, photoW, footerH);
 
         ctx.fillStyle = '#b7102a';
         ctx.font = '900 96px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('kp.45', margin + 60, footerY + 130);
+        ctx.fillText('kp.45', margin + 50, footerY + 130);
 
         ctx.fillStyle = '#1d3557';
-        ctx.font = '800 42px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '800 40px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + photoW - 60, footerY + 85);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + photoW - 50, footerY + 80);
 
         ctx.fillStyle = '#5b403f';
-        ctx.font = '600 26px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, margin + photoW - 60, footerY + 140);
+        ctx.font = '700 24px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, margin + photoW - 50, footerY + 135);
     }
 
     // --- 5. Animated Looping Framed GIF Generator ---
@@ -642,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const photoH = Math.round(photoW * 0.75); // 4:3 Aspect Ratio (544 * 0.75 = 408)
         const photoY = 28;
 
-        ctx.drawImage(poseCanvas, margin, photoY, photoW, photoH);
+        drawImageCover(ctx, poseCanvas, margin, photoY, photoW, photoH);
 
         // Inverted White Branding Footer Box
         const footerY = photoY + photoH + 18;
