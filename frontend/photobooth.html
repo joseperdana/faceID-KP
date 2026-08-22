@@ -439,8 +439,8 @@
                         </button>
                     </div>
 
-                    <!-- Output Preview Box with Stitch Photo Strip Styling (8px hard drop shadow, subtle -1deg tilt, decorative star) -->
-                    <div class="relative w-full max-w-[340px] flex justify-center bg-white p-2 rounded-2xl border-[3px] border-[#410007] shadow-[8px_8px_0px_0px_#410007] rotate-[-1deg] transition-all hover:rotate-0 min-h-[440px] md:min-h-[500px]">
+                    <!-- Output Preview Box with Stitch Photo Strip Styling (Exact tight fit, 8px hard drop shadow, subtle -1deg tilt, decorative star) -->
+                    <div class="relative w-full max-w-[320px] flex justify-center bg-white border-[3px] border-[#410007] shadow-[8px_8px_0px_0px_#410007] rotate-[-1deg] transition-all hover:rotate-0 overflow-hidden">
                         
                         <!-- Decorative Star from Stitch -->
                         <div class="absolute -top-3.5 -left-3.5 z-30 transform -rotate-12 bg-merdeka-gold text-merdeka-red border-2 border-[#410007] rounded-full p-1.5 shadow-[2px_2px_0px_0px_#410007] flex items-center justify-center pointer-events-none">
@@ -450,10 +450,10 @@
                         </div>
 
                         <!-- Static Photo Strip Image (Hero Size) -->
-                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[55vh] md:max-h-[60vh] w-auto rounded-lg object-contain animate-print-slide" />
+                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="w-full h-auto block max-h-[62vh] object-contain animate-print-slide" />
                         
                         <!-- Animated GIF Image -->
-                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[55vh] md:max-h-[60vh] w-auto rounded-lg object-contain" />
+                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden w-full h-auto block max-h-[62vh] object-contain" />
                     </div>
 
                     <p class="text-xs font-display font-bold text-merdeka-red text-center mt-3">

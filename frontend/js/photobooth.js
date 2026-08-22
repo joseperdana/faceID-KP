@@ -542,11 +542,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        const sideBarW = 110;
-        const centerAreaW = W - (sideBarW * 2); // 1080 - 220 = 860
-        const photoMarginX = 24;
-        const photoW = centerAreaW - (photoMarginX * 2); // 860 - 48 = 812
-        const photoH = Math.round(photoW * 0.75); // 812 * 0.75 = 609 (True 4:3 Aspect Ratio)
+        const sideBarW = 125;
+        const centerAreaW = W - (sideBarW * 2); // 1080 - 250 = 830
+        const photoMarginX = 35;
+        const photoW = centerAreaW - (photoMarginX * 2); // 830 - 70 = 760
+        const photoH = Math.round(photoW * 0.75); // 760 * 0.75 = 570 (Exact 4:3 Aspect Ratio)
         const gapY = 16;
         const startY = 24;
 
@@ -559,16 +559,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 3. Bottom White Footer Area (Matching Stitch)
-        const footerY = startY + 3 * (photoH + gapY) + 6;
+        // 3. Bottom White Footer Area (Matching Stitch - Generous 138px breathing room)
+        const footerY = startY + 3 * (photoH + gapY);
         ctx.fillStyle = '#b7102a';
         ctx.font = '800 36px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Geng Pemuda Bromo 2026', W / 2, footerY + 28);
+        ctx.fillText(caption || 'Geng Pemuda Bromo 2026', W / 2, footerY + 45);
 
         ctx.fillStyle = '#211b0b';
         ctx.font = '700 18px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 58);
+        ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 85);
 
         // 4. Left Crimson Red Column with Rotated Typography
         ctx.fillStyle = '#b7102a';
@@ -579,8 +579,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(sideBarW / 2, 340);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
 
@@ -589,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(sideBarW / 2, H / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 64px "Bricolage Grotesque", sans-serif';
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('KP45', 0, 0);
         ctx.restore();
@@ -599,8 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(sideBarW / 2, H - 340);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
 
@@ -613,8 +615,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(W - (sideBarW / 2), 340);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
 
@@ -623,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(W - (sideBarW / 2), H / 2);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 64px "Bricolage Grotesque", sans-serif';
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('KP45', 0, 0);
         ctx.restore();
@@ -633,8 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(W - (sideBarW / 2), H - 340);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
     }
