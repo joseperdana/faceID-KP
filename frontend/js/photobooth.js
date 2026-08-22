@@ -564,15 +564,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Bottom white footer text
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 30px "Plus Jakarta Sans", sans-serif';
+        // Bottom white footer text (Matching Stitch design)
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '800 32px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, 1822);
+        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', W / 2, 1818);
 
         ctx.fillStyle = '#5b403f';
-        ctx.font = '700 18px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W / 2, 1864);
+        ctx.font = '600 18px "JetBrains Mono", monospace';
+        ctx.fillText(`${dateStr} • MALANG`, W / 2, 1860);
     }
 
     function renderVertical4Strip(ctx, W, H, poses, caption, dateStr) {

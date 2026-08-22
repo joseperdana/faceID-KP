@@ -381,9 +381,9 @@
     <!-- Hidden Canvas for Composite Rendering -->
     <canvas id="snapshot-canvas" class="hidden"></canvas>
 
-    <!-- STAGE 3: Skeuomorphic Printer Slide-Out & Result Showcase Modal (Preview is HERO, QR is Secondary) -->
+    <!-- STAGE 3: Skeuomorphic Printer Slide-Out & Result Showcase Modal (Stitch Pesta Merdeka Design) -->
     <div id="result-modal" class="hidden fixed inset-0 z-50 bg-merdeka-navy/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-        <div class="bg-merdeka-surface border-[3px] border-merdeka-navy max-w-5xl w-full rounded-3xl p-5 md:p-8 shadow-pesta-lg flex flex-col max-h-[96vh] overflow-y-auto custom-scrollbar">
+        <div class="bg-merdeka-surface border-[3px] border-merdeka-navy max-w-6xl w-full rounded-3xl p-5 md:p-8 shadow-pesta-lg flex flex-col max-h-[96vh] overflow-y-auto custom-scrollbar">
             
             <!-- Modal Header with Auto-Reset Timer -->
             <div class="w-full flex justify-between items-center mb-5 pb-3.5 border-b-2 border-merdeka-navy/15">
@@ -401,70 +401,83 @@
                 </div>
             </div>
 
-            <!-- Two-Column Showcase: Preview as HERO (7 Cols) + Compact Actions & QR (5 Cols) -->
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-7 items-start">
+            <!-- 3-Column Showcase: Left QR (3 cols) + Center Hero Strip (6 cols) + Right Action Buttons (3 cols) -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6 items-center">
                 
-                <!-- Left: HERO Photo Strip & GIF Preview (Major Focus) -->
-                <div class="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center">
+                <!-- Left Side: QR Code for Download (3 cols) -->
+                <div class="md:col-span-3 flex flex-col items-center justify-center order-2 md:order-1 bg-merdeka-surface-container p-4 md:p-5 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta text-center">
+                    <h4 class="font-display font-black text-sm md:text-base text-merdeka-on-surface leading-tight mb-3">
+                        Scan untuk<br>Download ke HP
+                    </h4>
+                    <div class="bg-white p-3 rounded-2xl border-2 border-merdeka-navy shadow-pesta-sm relative flex items-center justify-center">
+                        <div id="qr-code-container">
+                            <!-- QR Code renders here -->
+                        </div>
+                        <div class="absolute inset-0 border-2 border-dashed border-merdeka-red pointer-events-none m-1.5 rounded-xl"></div>
+                    </div>
+                    <span class="inline-block mt-3 px-3 py-0.5 bg-merdeka-red text-white font-display font-black text-[10px] rounded-full border-2 border-merdeka-navy shadow-pesta-sm">
+                        SCAN DI HP
+                    </span>
+                    <p class="text-[11px] text-merdeka-on-surface-variant font-medium mt-2 leading-tight">
+                        Simpan memori seru ini ke galerimu.
+                    </p>
+                </div>
+
+                <!-- Center: HERO Photo Strip & GIF Preview (6 cols) -->
+                <div class="md:col-span-6 flex flex-col items-center justify-center order-1 md:order-2">
                     
                     <!-- Printer Dispenser Slot Visual -->
-                    <div class="w-full max-w-[420px] h-3.5 bg-merdeka-navy rounded-full shadow-inner mb-[-7px] z-20 border-2 border-slate-700"></div>
+                    <div class="w-full max-w-[360px] h-3 bg-merdeka-navy rounded-full shadow-inner mb-[-6px] z-20 border-2 border-slate-700"></div>
 
                     <!-- Dual Output Tabs (Photo Strip vs Animated GIF) -->
-                    <div class="w-full max-w-[420px] flex justify-center gap-2 mb-3 mt-4">
-                        <button id="tab-show-strip" class="py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer">
+                    <div class="w-full max-w-[360px] flex justify-center gap-2 mb-3 mt-3">
+                        <button id="tab-show-strip" class="py-1.5 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer">
                             Photo Strip HD
                         </button>
-                        <button id="tab-show-gif" class="py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer">
+                        <button id="tab-show-gif" class="py-1.5 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer">
                             Animated GIF
                         </button>
                     </div>
 
                     <!-- Output Preview Box with Large Height -->
-                    <div class="relative w-full max-w-[420px] flex justify-center bg-white p-3 md:p-4 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta min-h-[460px] md:min-h-[520px]">
-                        
+                    <div class="relative w-full max-w-[360px] flex justify-center bg-white p-3 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta min-h-[440px] md:min-h-[500px]">
                         <!-- Static Photo Strip Image (Hero Size) -->
-                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[58vh] md:max-h-[64vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm animate-print-slide" />
+                        <img id="result-strip-img" src="" alt="KP45 Photo Strip" class="max-h-[55vh] md:max-h-[60vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm animate-print-slide" />
                         
                         <!-- Animated GIF Image -->
-                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[58vh] md:max-h-[64vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm" />
+                        <img id="result-gif-img" src="" alt="KP45 Animated GIF" class="hidden max-h-[55vh] md:max-h-[60vh] w-auto rounded-2xl object-contain border border-merdeka-navy/20 shadow-sm" />
                     </div>
 
+                    <p class="text-xs font-display font-bold text-merdeka-red text-center mt-3">
+                        Terima kasih sudah berfoto bersama KP Bromo!
+                    </p>
                 </div>
 
-                <!-- Right: Compact Secondary Actions & QR Code (Minor Focus) -->
-                <div class="md:col-span-5 lg:col-span-4 flex flex-col items-center md:items-stretch space-y-3.5">
+                <!-- Right Side: Massive Action Buttons (3 cols) -->
+                <div class="md:col-span-3 flex flex-col items-center md:items-stretch space-y-3 order-3">
                     
-                    <!-- Compact QR Code Card -->
-                    <div class="w-full bg-white p-4 rounded-3xl border-[3px] border-merdeka-navy shadow-pesta flex flex-col items-center text-center">
-                        <div id="qr-code-container" class="bg-white p-2.5 rounded-2xl border-2 border-merdeka-navy shadow-pesta-sm flex items-center justify-center">
-                            <!-- QR Code renders here (compact 135px) -->
-                        </div>
-                        <span class="inline-block mt-2.5 px-3.5 py-1 bg-merdeka-red text-white font-display font-extrabold text-[11px] rounded-full border-2 border-merdeka-navy shadow-pesta-sm">
-                            SCAN DI HP
-                        </span>
-                    </div>
-
-                    <!-- Direct Download Buttons -->
-                    <div class="w-full flex flex-col gap-2">
-                        <a id="btn-download-strip" href="#" download="KP45_PhotoStrip.jpg" class="w-full py-3 px-4 bg-merdeka-red hover:bg-merdeka-red-bright active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
+                    <!-- Direct Download Photo Strip -->
+                    <a id="btn-download-strip" href="#" download="KP45_PhotoStrip.jpg" class="w-full py-3.5 px-4 bg-merdeka-red hover:bg-merdeka-red-bright active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-black text-xs md:text-sm rounded-2xl shadow-pesta border-2 border-merdeka-navy flex flex-col items-center justify-center gap-1 transition-all cursor-pointer text-center">
+                        <div class="flex items-center gap-1.5">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
-                            <span>Unduh Photo Strip</span>
-                        </a>
+                            <span>UNDUH PHOTO STRIP</span>
+                        </div>
+                        <span class="text-[10px] text-white/80 font-mono">Format JPG HD (1080x1920)</span>
+                    </a>
 
-                        <a id="btn-download-gif" href="#" download="KP45_Animated.gif" class="w-full py-3 px-4 bg-merdeka-navy hover:bg-merdeka-navy-dim active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-full shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
-                            <svg class="w-4 h-4 text-merdeka-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>Unduh Animated GIF</span>
-                        </a>
-                    </div>
+                    <!-- Direct Download Animated GIF -->
+                    <a id="btn-download-gif" href="#" download="KP45_Animated.gif" class="w-full py-3 px-4 bg-merdeka-navy hover:bg-merdeka-navy-dim active:translate-x-0.5 active:translate-y-0.5 text-white font-display font-extrabold text-xs rounded-2xl shadow-pesta border-2 border-merdeka-navy flex items-center justify-center gap-2 transition-all cursor-pointer">
+                        <svg class="w-4 h-4 text-merdeka-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Unduh Animated GIF</span>
+                    </a>
 
-                    <!-- Retake Button -->
-                    <button id="btn-retake" class="w-full py-3 px-4 bg-merdeka-surface-container hover:bg-white text-merdeka-on-surface font-display font-extrabold text-xs rounded-full border-2 border-merdeka-navy shadow-pesta transition-all active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer">
+                    <!-- Retake / New Session Button -->
+                    <button id="btn-retake" class="w-full py-3 px-4 bg-white hover:bg-merdeka-surface-container text-merdeka-on-surface font-display font-extrabold text-xs rounded-2xl border-2 border-merdeka-navy shadow-pesta transition-all active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer">
                         <svg class="w-4 h-4 text-merdeka-red" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
