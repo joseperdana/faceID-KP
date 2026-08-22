@@ -509,9 +509,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 4. Editorial High-End Canvas Compositor (Stitch KP45 Design) ---
+    function getCustomCaption() {
+        return (modalCustomCaption ? modalCustomCaption.value : '').trim();
+    }
+
     function renderCompositeStripCanvas() {
         const stripCanvas = document.createElement('canvas');
-        const customCaption = (customCaptionInput.value || '').trim();
+        const customCaption = getCustomCaption();
         const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
 
         let STRIP_W = 1080;
@@ -567,49 +571,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 3. Bottom White Footer Area (Matching Stitch - Generous 138px breathing room)
+        // 3. Bottom White Footer Area (Generous breathing room)
         const footerY = startY + 3 * (photoH + gapY);
-        ctx.fillStyle = '#b7102a';
-        ctx.font = '800 36px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(caption || 'Geng Pemuda Bromo 2026', W / 2, footerY + 45);
+        if (caption && caption.trim().length > 0) {
+            ctx.fillStyle = '#b7102a';
+            ctx.font = '800 36px "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(caption.trim(), W / 2, footerY + 45);
 
-        ctx.fillStyle = '#211b0b';
-        ctx.font = '700 18px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 85);
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 18px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 85);
+        } else {
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 20px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 65);
+        }
 
-        // 4. Left Crimson Red Column with Rotated Typography
+        // 4. Left Crimson Red Column with Rotated Typography (Centered with textBaseline = 'middle')
         ctx.fillStyle = '#b7102a';
         ctx.fillRect(0, 0, sideBarW, H);
 
         // Left Column: Top Subtitle
         ctx.save();
-        ctx.translate(sideBarW / 2, 340);
+        ctx.translate(sideBarW / 2, 280);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
 
-        // Left Column: Center Logo
+        // Left Column: Center Logo (True Mathematical Center)
         ctx.save();
         ctx.translate(sideBarW / 2, H / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText('KP45', 0, 0);
         ctx.restore();
 
         // Left Column: Bottom Subtitle
         ctx.save();
-        ctx.translate(sideBarW / 2, H - 340);
+        ctx.translate(sideBarW / 2, H - 280);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
@@ -620,164 +638,284 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Right Column: Top Subtitle
         ctx.save();
-        ctx.translate(W - (sideBarW / 2), 340);
+        ctx.translate(W - (sideBarW / 2), 280);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
 
-        // Right Column: Center Logo
+        // Right Column: Center Logo (True Mathematical Center)
         ctx.save();
         ctx.translate(W - (sideBarW / 2), H / 2);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText('KP45', 0, 0);
         ctx.restore();
 
         // Right Column: Bottom Subtitle
         ctx.save();
-        ctx.translate(W - (sideBarW / 2), H - 340);
+        ctx.translate(W - (sideBarW / 2), H - 280);
         ctx.rotate(Math.PI / 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.letterSpacing = '2px';
         ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
         ctx.restore();
     }
 
     function renderVertical4Strip(ctx, W, H, poses, caption, dateStr) {
-        ctx.fillStyle = '#b7102a';
+        // Pure White Canvas & Harmonized Merdeka Theme
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        const marginX = 174;
-        const photoW = 732;
-        const photoH = 549; // True 4:3 Aspect Ratio (732 * 0.75 = 549)
+        const sideBarW = 125;
+        const centerAreaW = W - (sideBarW * 2);
+        const photoMarginX = 35;
+        const photoW = centerAreaW - (photoMarginX * 2); // 760
+        const photoH = Math.round(photoW * 0.75); // 570 (True 4:3)
         const gapY = 16;
-        const startY = 80;
+        const startY = 24;
 
         poses.forEach((pose, idx) => {
-            const posY = startY + idx * (photoH + gapY);
-            drawImageCover(ctx, pose, marginX, posY, photoW, photoH);
+            if (idx < 4) {
+                const posY = startY + idx * (photoH + gapY);
+                const posX = sideBarW + photoMarginX;
+                drawImageCover(ctx, pose, posX, posY, photoW, photoH);
+            }
         });
 
-        // Side branding bars (Vertical text matching KP45 style)
-        ctx.save();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.translate(90, H / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText('KP45 • PEMUDA BROMO', 0, 0);
-        ctx.restore();
+        // Bottom Footer
+        const footerY = startY + 4 * (photoH + gapY);
+        if (caption && caption.trim().length > 0) {
+            ctx.fillStyle = '#b7102a';
+            ctx.font = '800 36px "Bricolage Grotesque", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(caption.trim(), W / 2, footerY + 45);
 
-        ctx.save();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.translate(W - 90, H / 2);
-        ctx.rotate(Math.PI / 2);
-        ctx.fillText('KP45 • GKI BROMO', 0, 0);
-        ctx.restore();
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 18px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 85);
+        } else {
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 20px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 65);
+        }
 
-        // Footer box
-        const footerY = startY + 4 * (photoH + gapY) + 15;
-        const footerH = H - footerY - 40;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(marginX, footerY, photoW, footerH);
-
+        // Left Red Sidebar
         ctx.fillStyle = '#b7102a';
-        ctx.font = '900 52px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('kp.45', marginX + 30, footerY + 68);
+        ctx.fillRect(0, 0, sideBarW, H);
 
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 24px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', marginX + photoW - 30, footerY + 46);
+        ctx.save();
+        ctx.translate(sideBarW / 2, 340);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '2px';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
 
-        ctx.fillStyle = '#5b403f';
-        ctx.font = '600 16px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, marginX + photoW - 30, footerY + 76);
+        ctx.save();
+        ctx.translate(sideBarW / 2, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(sideBarW / 2, H - 340);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '2px';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
+
+        // Right Red Sidebar
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(W - sideBarW, 0, sideBarW, H);
+
+        ctx.save();
+        ctx.translate(W - sideBarW / 2, 340);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '2px';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(W - sideBarW / 2, H / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 68px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(W - sideBarW / 2, H - 340);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '2px';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 0, 0);
+        ctx.restore();
     }
 
     function renderBentoEditorialGrid(ctx, W, H, poses, caption, dateStr) {
-        ctx.fillStyle = '#b7102a';
+        // Pure White Canvas & Top Merdeka Red Banner
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        const margin = 70;
-        const gapX = 40;
-        const gapY = 30;
-        const photoW = Math.round((W - (margin * 2) - gapX) / 2); // 710px
-        const photoH = Math.round(photoW * 0.75); // 532px (True 4:3!)
-        const startY = 70;
-
-        poses.forEach((pose, idx) => {
-            const col = idx % 2;
-            const row = Math.floor(idx / 2);
-            const pX = margin + col * (photoW + gapX);
-            const pY = startY + row * (photoH + gapY);
-
-            drawImageCover(ctx, pose, pX, pY, photoW, photoH);
-        });
-
-        const footerY = startY + 2 * photoH + gapY + 30;
-        const footerH = H - footerY - 50;
-        const footerW = W - (margin * 2);
+        // Top Header Banner
+        const bannerH = 130;
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(0, 0, W, bannerH);
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(margin, footerY, footerW, footerH);
-
-        ctx.fillStyle = '#b7102a';
-        ctx.font = '900 88px "Bricolage Grotesque", sans-serif';
+        ctx.font = '800 28px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('kp.45', margin + 40, footerY + 115);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KOMISI PEMUDA GKI BROMO MALANG', 50, bannerH / 2);
 
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 34px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 64px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + footerW - 40, footerY + 75);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', W - 50, bannerH / 2);
 
-        ctx.fillStyle = '#5b403f';
-        ctx.font = '700 22px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, margin + footerW - 40, footerY + 120);
+        // 2x2 Photos in True 4:3 Ratio
+        const marginX = 50;
+        const gapX = 36;
+        const gapY = 24;
+        const photoW = Math.round((W - (marginX * 2) - gapX) / 2); // 732px
+        const photoH = Math.round(photoW * 0.75); // 549px
+        const startY = bannerH + 30;
+
+        poses.forEach((pose, idx) => {
+            if (idx < 4) {
+                const col = idx % 2;
+                const row = Math.floor(idx / 2);
+                const pX = marginX + col * (photoW + gapX);
+                const pY = startY + row * (photoH + gapY);
+                drawImageCover(ctx, pose, pX, pY, photoW, photoH);
+            }
+        });
+
+        // Bottom Footer
+        const footerY = startY + 2 * (photoH + gapY) + 10;
+        if (caption && caption.trim().length > 0) {
+            ctx.fillStyle = '#b7102a';
+            ctx.font = '800 44px "Bricolage Grotesque", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(caption.trim(), W / 2, footerY + 45);
+
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 22px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 95);
+        } else {
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 26px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 65);
+        }
     }
 
     function renderSingleWideEditorial(ctx, W, H, pose, caption, dateStr) {
-        ctx.fillStyle = '#b7102a';
+        // Pure White Canvas & Left/Right Merdeka Red Bars
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        const margin = 70;
-        const photoW = W - (margin * 2);
-        const photoH = Math.round(photoW * 0.75); // 795px (True 4:3!)
-        const photoY = 70;
+        const sideBarW = 90;
+        const centerW = W - (sideBarW * 2);
+        const photoW = centerW - 60; // 960px
+        const photoH = Math.round(photoW * 0.75); // 720px
+        const photoX = sideBarW + 30;
+        const photoY = 60;
 
-        drawImageCover(ctx, pose, margin, photoY, photoW, photoH);
+        if (pose) {
+            drawImageCover(ctx, pose, photoX, photoY, photoW, photoH);
+        }
 
-        const footerY = photoY + photoH + 40;
-        const footerH = H - footerY - 50;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(margin, footerY, photoW, footerH);
-
+        // Left Red Sidebar
         ctx.fillStyle = '#b7102a';
-        ctx.font = '900 96px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('kp.45', margin + 50, footerY + 130);
+        ctx.fillRect(0, 0, sideBarW, H);
 
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 40px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(caption || 'Komisi Pemuda GKI Bromo', margin + photoW - 50, footerY + 80);
+        ctx.save();
+        ctx.translate(sideBarW / 2, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 54px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
 
-        ctx.fillStyle = '#5b403f';
-        ctx.font = '700 24px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, margin + photoW - 50, footerY + 135);
+        // Right Red Sidebar
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(W - sideBarW, 0, sideBarW, H);
+
+        ctx.save();
+        ctx.translate(W - sideBarW / 2, H / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 54px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        // Bottom Footer
+        const footerY = photoY + photoH + 30;
+        if (caption && caption.trim().length > 0) {
+            ctx.fillStyle = '#b7102a';
+            ctx.font = '800 42px "Bricolage Grotesque", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(caption.trim(), W / 2, footerY + 50);
+
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 22px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 100);
+        } else {
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 26px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 70);
+        }
     }
 
     // --- 5. Animated Looping Framed GIF Generator ---
@@ -789,47 +927,76 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = H;
         const ctx = canvas.getContext('2d');
 
-        // Bold Editorial Crimson Red Backdrop
-        ctx.fillStyle = '#b7102a';
+        // Pure Crisp White Base
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        // Photo slot in upper region
-        const margin = 28;
-        const photoW = W - (margin * 2);
-        const photoH = Math.round(photoW * 0.75); // 4:3 Aspect Ratio (544 * 0.75 = 408)
-        const photoY = 28;
+        const sideBarW = 40;
+        const photoMarginX = 14;
+        const photoW = W - (sideBarW * 2) - (photoMarginX * 2); // 492px
+        const photoH = Math.round(photoW * 0.75); // 369px (True 4:3)
+        const photoX = sideBarW + photoMarginX;
+        const photoY = 18;
 
-        drawImageCover(ctx, poseCanvas, margin, photoY, photoW, photoH);
+        drawImageCover(ctx, poseCanvas, photoX, photoY, photoW, photoH);
 
-        // Inverted White Branding Footer Box
-        const footerY = photoY + photoH + 18;
-        const footerH = H - footerY - 24;
-        const footerW = photoW;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(margin, footerY, footerW, footerH);
-
-        // kp.45 Brand Logo (Left)
+        // Left Red Sidebar
         ctx.fillStyle = '#b7102a';
-        ctx.font = '900 48px "Bricolage Grotesque", sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('kp.45', margin + 20, footerY + 54);
+        ctx.fillRect(0, 0, sideBarW, H);
 
-        // Pose Pill Stamp (e.g. "[1/3]")
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 16px "JetBrains Mono", monospace';
-        ctx.fillText(`[${poseIdx + 1}/${totalPoses}]`, margin + 20, footerY + 84);
+        ctx.save();
+        ctx.translate(sideBarW / 2, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 24px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
 
-        // Caption & Date (Right)
-        ctx.fillStyle = '#1d3557';
-        ctx.font = '800 20px "Plus Jakarta Sans", sans-serif';
-        ctx.textAlign = 'right';
-        const displayCaption = caption || 'Komisi Pemuda GKI Bromo';
-        ctx.fillText(displayCaption, margin + footerW - 20, footerY + 44);
+        // Right Red Sidebar
+        ctx.fillStyle = '#b7102a';
+        ctx.fillRect(W - sideBarW, 0, sideBarW, H);
 
-        ctx.fillStyle = '#5b403f';
-        ctx.font = '700 14px "JetBrains Mono", monospace';
-        ctx.fillText(`${dateStr} • MALANG`, margin + footerW - 20, footerY + 76);
+        ctx.save();
+        ctx.translate(W - sideBarW / 2, H / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 24px "Bricolage Grotesque", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('KP45', 0, 0);
+        ctx.restore();
+
+        // Footer Area
+        const footerY = photoY + photoH + 16;
+        
+        // Pose Badge (e.g. "POSE 1/3")
+        ctx.fillStyle = '#b7102a';
+        ctx.font = '800 13px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`POSE ${poseIdx + 1}/${totalPoses}`, W / 2, footerY + 12);
+
+        if (caption && caption.trim().length > 0) {
+            ctx.fillStyle = '#b7102a';
+            ctx.font = '800 22px "Bricolage Grotesque", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(caption.trim(), W / 2, footerY + 44);
+
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 13px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 76);
+        } else {
+            ctx.fillStyle = '#211b0b';
+            ctx.font = '700 14px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${dateStr} • MALANG`, W / 2, footerY + 50);
+        }
 
         return canvas;
     }
@@ -841,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const customCaption = (customCaptionInput.value || '').trim();
+            const customCaption = getCustomCaption();
             const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
 
             // Render each frame inside the editorial KP45 frame
@@ -878,10 +1045,10 @@ document.addEventListener('DOMContentLoaded', () => {
             didOpen: () => { Swal.showLoading(); }
         });
 
+        const customCaption = getCustomCaption();
         const stripCanvas = renderCompositeStripCanvas();
-        const base64Strip = stripCanvas.toDataURL('image/jpeg', 0.92);
+        const base64Strip = stripCanvas.toDataURL('image/jpeg', 0.95);
         const base64Gif = await generateAnimatedGif(capturedPoses);
-        const customCaption = (customCaptionInput.value || '').trim();
 
         try {
             const response = await fetch('/api/photobooth/upload', {
@@ -913,8 +1080,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function showResultModal(uploadData, localStrip, localGif) {
         playPrinterSound();
 
-        const customCaption = (customCaptionInput.value || '').trim();
+        const customCaption = getCustomCaption();
         const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
+
+        if (modalCustomCaption) {
+            modalCustomCaption.value = customCaption;
+        }
 
         if (selectedLayout === '3-strip' && capturedPoses.length >= 3 && stitchPhotostripWrapper) {
             stitchPhotostripWrapper.classList.remove('hidden');
@@ -923,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stripPreviewPhoto1.src = capturedPoses[0].toDataURL('image/jpeg', 0.95);
             stripPreviewPhoto2.src = capturedPoses[1].toDataURL('image/jpeg', 0.95);
             stripPreviewPhoto3.src = capturedPoses[2].toDataURL('image/jpeg', 0.95);
-            stripPreviewMessage.innerText = customCaption || 'Geng Pemuda Bromo 2026';
+            stripPreviewMessage.innerText = customCaption; // Blank if empty
             stripPreviewDate.innerText = `${todayStr} • MALANG`;
         } else {
             if (stitchPhotostripWrapper) stitchPhotostripWrapper.classList.add('hidden');
@@ -1000,6 +1171,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tabShowStrip.addEventListener('click', showStripTab);
     tabShowGif.addEventListener('click', showGifTab);
+
+    // Live Custom Message Event Listener
+    if (modalCustomCaption) {
+        modalCustomCaption.addEventListener('input', () => {
+            const caption = modalCustomCaption.value.trim();
+            const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
+
+            // 1. Live update DOM preview text
+            if (stripPreviewMessage) {
+                stripPreviewMessage.innerText = caption; // Blank if empty
+            }
+
+            // 2. Re-render the composite canvas for download
+            const updatedCanvas = renderCompositeStripCanvas();
+            const updatedDataUrl = updatedCanvas.toDataURL('image/jpeg', 0.95);
+            btnDownloadStrip.href = updatedDataUrl;
+
+            // 3. If non-3-strip layout, update the preview image as well
+            if (selectedLayout !== '3-strip' && resultStripImg) {
+                resultStripImg.src = updatedDataUrl;
+            }
+        });
+    }
 
     function startAutoResetTimer(seconds) {
         clearInterval(autoResetInterval);

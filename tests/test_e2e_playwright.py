@@ -97,10 +97,9 @@ def test_photobooth_page_interactions(page: Page):
     layout_3strip.click()
     expect(layout_3strip).to_have_class(re.compile(r"layout-card-active"))
     
-    # Check Custom Caption input
-    caption_input = page.locator("#custom-caption-input")
-    caption_input.fill("Geng Pemuda Bromo 2026")
-    expect(caption_input).to_have_value("Geng Pemuda Bromo 2026")
+    # Check Custom Caption input in Result Modal
+    caption_input = page.locator("#modal-custom-caption")
+    expect(caption_input).to_be_attached()
     
     # Click Start Session Button -> Transitions to Camera Stage
     btn_start = page.locator("#btn-start-session")
