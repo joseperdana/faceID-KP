@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const poseIndicatorText = document.getElementById('pose-indicator-text');
     const floatingCountdown = document.getElementById('floating-countdown');
     const countdownNumber = document.getElementById('countdown-number');
-    const interposeOverlay = document.getElementById('interpose-overlay');
-    const interposeTitle = document.getElementById('interpose-title');
     const cameraFlash = document.getElementById('camera-flash');
     const poseDotsContainer = document.getElementById('pose-dots-container');
 
@@ -190,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
         cameraStage.classList.add('hidden');
         welcomeStage.classList.remove('hidden');
         floatingCountdown.classList.add('hidden');
-        interposeOverlay.classList.add('hidden');
     }
 
     function renderPoseDots() {
@@ -232,17 +229,15 @@ document.addEventListener('DOMContentLoaded', () => {
             capturedPoses.push(poseCanvas);
             updatePoseDot(i, 'done');
 
-            // 3. Inter-pose Break
+            // 3. Short 1.2s Breather (No Intrusive Text Modal)
             if (i < targetPoses - 1) {
-                interposeTitle.innerText = `Siapkan Pose ${i + 2}`;
-                interposeOverlay.classList.remove('hidden');
-                await new Promise(r => setTimeout(r, 2000));
-                interposeOverlay.classList.add('hidden');
+                poseIndicatorText.innerText = `Pose ${i + 2} dari ${targetPoses}`;
+                await new Promise(r => setTimeout(r, 1200));
             }
         }
 
-        poseIndicatorText.innerText = "Merangkai Foto & Animasi GIF...";
-        await new Promise(r => setTimeout(r, 500));
+        poseIndicatorText.innerText = "Merangkai Foto...";
+        await new Promise(r => setTimeout(r, 400));
 
         // 4. Generate Composite Strip & Animated GIF
         await processAndDeliverOutputs();
@@ -363,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const gapY = 40;
         const startY = 80;
 
-        // Render Photo Slots
         poses.forEach((pose, idx) => {
             const posY = startY + idx * (photoH + gapY);
 
@@ -372,23 +366,18 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         });
 
-        // Bottom Editorial Brand & Details (Inspired by se.du)
         const footerY = startY + count * (photoH + gapY) + 30;
-
-        // White Inverted Brand Card for KP45
         const brandBoxW = photoW;
         const brandBoxH = H - footerY - 80;
 
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(marginX, footerY, brandBoxW, brandBoxH);
 
-        // KP45 Bold Branding in Bricolage Grotesque
         ctx.fillStyle = '#b7102a';
         ctx.font = '900 76px "Bricolage Grotesque", sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText('kp.45', marginX + 40, footerY + 95);
 
-        // Custom Message & Date
         ctx.fillStyle = '#1d3557';
         ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'right';
@@ -415,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.drawImage(pose, pX, pY, photoW, photoH);
         });
 
-        // Footer Inverted Card
         const footerY = startY + 2 * (photoH + gap) + 20;
         const brandBoxH = H - footerY - 70;
 
@@ -563,10 +551,11 @@ document.addEventListener('DOMContentLoaded', () => {
         qrCodeContainer.innerHTML = '';
         const qrTargetUrl = uploadData.qr_url || window.location.href;
         
+        // Compact 135x135 QR Code
         qrCodeInstance = new QRCode(qrCodeContainer, {
             text: qrTargetUrl,
-            width: 175,
-            height: 175,
+            width: 135,
+            height: 135,
             colorDark: "#1d3557",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
@@ -588,15 +577,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function showStripTab() {
         resultStripImg.classList.remove('hidden');
         resultGifImg.classList.add('hidden');
-        tabShowStrip.className = "py-1.5 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
-        tabShowGif.className = "py-1.5 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
+        tabShowStrip.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-red cursor-pointer";
+        tabShowGif.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     function showGifTab() {
         resultStripImg.classList.add('hidden');
         resultGifImg.classList.remove('hidden');
-        tabShowGif.className = "py-1.5 px-4 bg-white border-2 border-merdeka-navy rounded-full text-xs font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
-        tabShowStrip.className = "py-1.5 px-4 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
+        tabShowGif.className = "py-1.5 px-5 bg-white border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-extrabold shadow-pesta-sm text-merdeka-navy cursor-pointer";
+        tabShowStrip.className = "py-1.5 px-5 bg-merdeka-surface-container border-2 border-merdeka-navy rounded-full text-xs md:text-sm font-display font-bold text-merdeka-on-surface-variant hover:bg-white transition-all cursor-pointer";
     }
 
     tabShowStrip.addEventListener('click', showStripTab);
