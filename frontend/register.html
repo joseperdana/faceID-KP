@@ -1,23 +1,65 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrasi Anggota Baru - GKI Bromo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Registrasi Wajah Jemaat - KP Bromo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <style> body { font-family: 'Inter', sans-serif; } </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        obsidian: {
+                            950: '#06070A',
+                            900: '#0B0D13',
+                            850: '#11141E',
+                            800: '#151926',
+                            700: '#22283A'
+                        },
+                        azure: {
+                            500: '#3B82F6',
+                            600: '#2563EB',
+                            700: '#1D4ED8'
+                        },
+                        cyan: {
+                            400: '#38BDF8',
+                            500: '#0EA5E9'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glow-mesh {
+            background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.12) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-4 lg:p-10">
+<body class="bg-obsidian-950 text-slate-100 min-h-screen flex items-center justify-center p-4 lg:p-10 glow-mesh selection:bg-azure-600 selection:text-white">
 
-    <div class="w-full max-w-5xl bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden flex flex-col lg:flex-row min-h-[500px]">
-        
-        <div class="relative w-full lg:w-1/2 bg-black flex items-center justify-center group overflow-hidden">
+    <div class="w-full max-w-5xl bg-obsidian-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/[0.08] overflow-hidden flex flex-col lg:flex-row min-h-[580px] relative">
+        <div class="absolute -top-32 -left-32 w-64 h-64 bg-azure-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Left Column: Camera Viewfinder with Oval Guide -->
+        <div class="relative w-full lg:w-1/2 bg-black flex items-center justify-center group overflow-hidden min-h-[320px] lg:min-h-[580px]">
             <video id="video" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
             <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100"></canvas>
 
+            <!-- Holographic Oval Overlay -->
             <svg class="absolute inset-0 w-full h-full z-10 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
                     <mask id="keyhole-mask" x="0" y="0" width="100%" height="100%">
@@ -25,68 +67,101 @@
                         <ellipse cx="50" cy="50" rx="28" ry="42" fill="black" />
                     </mask>
                 </defs>
-                <rect x="0" y="0" width="100%" height="100%" fill="rgb(2, 6, 23)" fill-opacity="0.9" mask="url(#keyhole-mask)" />
-                <ellipse cx="50" cy="50" rx="28" ry="42" fill="none" stroke="#38bdf8" stroke-width="0.3" stroke-dasharray="1" opacity="0.5" />
+                <rect x="0" y="0" width="100%" height="100%" fill="rgb(6, 7, 10)" fill-opacity="0.85" mask="url(#keyhole-mask)" />
+                <ellipse cx="50" cy="50" rx="28" ry="42" fill="none" stroke="#38BDF8" stroke-width="0.4" stroke-dasharray="1.5 1" opacity="0.8" />
             </svg>
+
+            <!-- Viewfinder corner brackets -->
+            <div class="absolute top-6 left-6 w-5 h-5 border-t-2 border-l-2 border-cyan-400/60 pointer-events-none"></div>
+            <div class="absolute top-6 right-6 w-5 h-5 border-t-2 border-r-2 border-cyan-400/60 pointer-events-none"></div>
+            <div class="absolute bottom-6 left-6 w-5 h-5 border-b-2 border-l-2 border-cyan-400/60 pointer-events-none"></div>
+            <div class="absolute bottom-6 right-6 w-5 h-5 border-b-2 border-r-2 border-cyan-400/60 pointer-events-none"></div>
+
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-obsidian-950/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-[11px] font-mono text-cyan-300">
+                Posisikan wajah di dalam oval
+            </div>
         </div>
 
-        <div class="w-full lg:w-1/2 bg-slate-800 p-8 flex flex-col justify-center border-l border-slate-700">
+        <!-- Right Column: Registration Form -->
+        <div class="w-full lg:w-1/2 bg-obsidian-850/80 backdrop-blur-xl p-6 lg:p-10 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-white/[0.08]">
             
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-                    <span class="bg-sky-600 w-2 h-8 rounded-full"></span>
-                    <span id="form-title">Registrasi Anggota</span>
-                </h2>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <span class="text-sm text-slate-400 font-medium">Update Wajah</span>
+                <div>
+                    <span class="text-[11px] font-mono font-medium tracking-wider uppercase text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+                        FaceID Onboarding
+                    </span>
+                    <h2 class="text-2xl font-extrabold text-white tracking-tight mt-1" id="form-title">
+                        Registrasi Anggota
+                    </h2>
+                </div>
+                
+                <label class="flex items-center gap-2 cursor-pointer bg-obsidian-900/60 px-3 py-1.5 rounded-xl border border-white/10 hover:border-white/20 transition-all">
+                    <span class="text-xs text-slate-300 font-medium font-mono">Update Wajah</span>
                     <input type="checkbox" id="toggle-update" class="sr-only peer">
-                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 relative"></div>
+                    <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-azure-600 relative"></div>
                 </label>
             </div>
 
             <form id="reg-form" class="space-y-4">
                 <div>
-                    <label class="block text-slate-400 text-sm mb-1">Nama Lengkap (Sesuai Data Lama)</label>
-                    <input type="text" id="full_name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="Contoh: Jose Taneo">
+                    <label class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
+                        Nama Lengkap
+                    </label>
+                    <input type="text" id="full_name" required 
+                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all text-sm" 
+                        placeholder="Contoh: Jonathan Setiawan">
                 </div>
 
-                <div id="gender-wrapper" class="my-4 text-left">
-                    <label class="block text-slate-400 text-sm mb-1">Jenis Kelamin:</label>
-                    <div class="flex items-center gap-5">
-                        <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
-                            <input type="radio" name="gender" value="Pria" required class="w-5 h-5 accent-sky-500 cursor-pointer">
-                            Pria
+                <div id="gender-wrapper" class="space-y-1.5">
+                    <label class="block text-slate-300 text-xs font-medium uppercase tracking-wider font-mono">
+                        Jenis Kelamin
+                    </label>
+                    <div class="flex items-center gap-4">
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-obsidian-900 border border-white/10 py-2.5 px-4 rounded-xl hover:border-azure-500/50 transition-all text-sm">
+                            <input type="radio" name="gender" value="Pria" required class="w-4 h-4 accent-azure-600 cursor-pointer">
+                            <span class="text-slate-200 font-medium">Pria</span>
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer text-white font-medium hover:text-sky-400 transition-colors">
-                            <input type="radio" name="gender" value="Wanita" required class="w-5 h-5 accent-sky-500 cursor-pointer">
-                            Wanita
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-obsidian-900 border border-white/10 py-2.5 px-4 rounded-xl hover:border-azure-500/50 transition-all text-sm">
+                            <input type="radio" name="gender" value="Wanita" required class="w-4 h-4 accent-azure-600 cursor-pointer">
+                            <span class="text-slate-200 font-medium">Wanita</span>
                         </label>
                     </div>
                 </div>
 
                 <div id="phone-wrapper">
-                    <label class="block text-slate-400 text-sm mb-1">Nomor WhatsApp</label>
-                    <input type="tel" id="phone_number" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors" placeholder="0812...">
+                    <label class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
+                        Nomor WhatsApp
+                    </label>
+                    <input type="tel" id="phone_number" required 
+                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all font-mono text-sm" 
+                        placeholder="08123456789">
                 </div>
 
-                <div id="face-status" class="py-3 px-4 rounded-xl bg-slate-700/50 text-sm text-slate-300 flex items-center justify-between">
-                    <span>Status Wajah:</span>
-                    <span id="status-text" class="font-bold text-orange-400">Menunggu...</span>
+                <!-- Face Status Indicator -->
+                <div id="face-status" class="py-2.5 px-4 rounded-xl bg-obsidian-900/80 border border-white/10 text-xs flex items-center justify-between font-mono">
+                    <span class="text-slate-400">Deteksi Posisi:</span>
+                    <span id="status-text" class="font-bold text-amber-400">Menunggu kamera...</span>
                 </div>
 
-                <button type="submit" id="btn-submit" disabled class="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg transform active:scale-95 mt-4">
-                    📸 Ambil Foto & Simpan
+                <!-- Submit Button -->
+                <button type="submit" id="btn-submit" disabled 
+                    class="w-full bg-azure-600 hover:bg-azure-500 disabled:bg-obsidian-800 disabled:text-slate-600 disabled:border disabled:border-white/5 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-azure-600/25 active:scale-[0.98] flex items-center justify-center gap-2 text-sm mt-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Ambil 3 Foto & Simpan Data
                 </button>
             </form>
 
-            <div id="result-message" class="mt-4 hidden p-4 rounded-xl text-center text-sm"></div>
+            <div id="result-message" class="mt-4 hidden p-3.5 rounded-xl text-center text-xs font-mono"></div>
             
-            <a href="/" class="mt-6 flex items-center justify-center gap-2 text-slate-500 hover:text-white transition-colors py-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Kembali ke Halaman Awal
-          </a>
+            <a href="/" class="mt-5 flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-300 transition-colors text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Kembali ke Layar Absensi
+            </a>
         </div>
     </div>
 

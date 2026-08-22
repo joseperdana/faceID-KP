@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" width="200" height="80">
+  <rect x="5" y="5" width="190" height="70" rx="16" fill="#DC2626" stroke="#1E1B18" stroke-width="4"/>
+  <rect x="12" y="12" width="176" height="56" rx="10" fill="#B91C1C"/>
+  <text x="100" y="38" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="20" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">DIRGAHAYU RI</text>
+  <text x="100" y="58" font-family="'JetBrains Mono', monospace" font-weight="700" font-size="12" fill="#FEF08A" text-anchor="middle" letter-spacing="2">17 AGUSTUS</text>
+</svg>

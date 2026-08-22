@@ -6,12 +6,11 @@ const resultMsg = document.getElementById('result-message');
 
 let isFaceValid = false;
 
-// 1. Setup Kamera & MediaPipe (Logic Sederhana)
+// 1. Setup Kamera & MediaPipe
 const faceDetection = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
 faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.6 });
 
 faceDetection.onResults((results) => {
-    // Gambar video ke canvas (biar admin liat)
     const canvas = document.getElementById('output_canvas');
     canvas.width = videoElement.videoWidth;
     canvas.height = videoElement.videoHeight;
@@ -19,26 +18,25 @@ faceDetection.onResults((results) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (results.detections.length > 0) {
-        // Cek apakah wajah di tengah (Logic Zona Aman)
         const nose = results.detections[0].landmarks[2];
         const inSafeZone = (nose.x > 0.35 && nose.x < 0.65 && nose.y > 0.25 && nose.y < 0.75);
         
         if (inSafeZone) {
             isFaceValid = true;
-            statusText.innerText = "✅ Oke (Siap Foto)";
+            statusText.innerText = "Posisi Tepat (Siap Foto)";
             statusText.className = "font-bold text-emerald-400";
             btnSubmit.disabled = false;
             btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
         } else {
             isFaceValid = false;
-            statusText.innerText = "⚠️ Geser ke Tengah";
-            statusText.className = "font-bold text-orange-400";
+            statusText.innerText = "Geser ke Tengah Oval";
+            statusText.className = "font-bold text-amber-400";
             btnSubmit.disabled = true;
         }
     } else {
         isFaceValid = false;
-        statusText.innerText = "❌ Wajah Tidak Terbaca";
-        statusText.className = "font-bold text-red-400";
+        statusText.innerText = "Wajah Tidak Terdeteksi";
+        statusText.className = "font-bold text-rose-400";
         btnSubmit.disabled = true;
     }
 });
@@ -53,7 +51,7 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!isFaceValid) return;
 
-    const originalText = btnSubmit.innerText;
+    const originalText = btnSubmit.innerHTML;
     btnSubmit.disabled = true;
     resultMsg.classList.add('hidden');
 
@@ -68,7 +66,6 @@ form.addEventListener('submit', async (e) => {
         formData.append('phone_number', document.getElementById('phone_number').value);
     }
 
-    // Fungsi pembantu untuk mengambil 1 frame menjadi Blob
     const captureFrame = () => {
         return new Promise((resolve) => {
             const captureCanvas = document.createElement('canvas');
@@ -80,34 +77,32 @@ form.addEventListener('submit', async (e) => {
     };
 
     try {
-        // AMBIL 3 FOTO BERTURUT-TURUT DENGAN JEDA 300ms
-        btnSubmit.innerText = "📸 Mengambil foto 1/3...";
+        btnSubmit.innerHTML = `<span>Mengambil foto 1/3...</span>`;
         const blob1 = await captureFrame();
         formData.append('files', blob1, 'frame1.jpg');
         
-        await new Promise(r => setTimeout(r, 300)); // Jeda 300ms
+        await new Promise(r => setTimeout(r, 300));
         
-        btnSubmit.innerText = "📸 Mengambil foto 2/3...";
+        btnSubmit.innerHTML = `<span>Mengambil foto 2/3...</span>`;
         const blob2 = await captureFrame();
         formData.append('files', blob2, 'frame2.jpg');
 
-        await new Promise(r => setTimeout(r, 300)); // Jeda 300ms
+        await new Promise(r => setTimeout(r, 300));
         
-        btnSubmit.innerText = "📸 Mengambil foto 3/3...";
+        btnSubmit.innerHTML = `<span>Mengambil foto 3/3...</span>`;
         const blob3 = await captureFrame();
         formData.append('files', blob3, 'frame3.jpg');
 
-        btnSubmit.innerText = "⏳ Memproses & Menyimpan...";
+        btnSubmit.innerHTML = `<span>Memproses & Menyimpan Data...</span>`;
 
-        // Kirim ke server
         const endpoint = isUpdate ? '/api/update-face' : '/api/register';
         const res = await fetch(endpoint, { method: 'POST', body: formData });
         const data = await res.json();
 
         resultMsg.classList.remove('hidden');
         if(data.status === 'success') {
-            resultMsg.className = "mt-4 p-4 rounded-xl text-center text-sm bg-emerald-900/50 text-emerald-200 border border-emerald-500/50";
-            resultMsg.innerHTML = `✅ <b>Berhasil!</b><br>${data.message}`;
+            resultMsg.className = "mt-4 p-4 rounded-2xl text-center text-xs font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20";
+            resultMsg.innerHTML = `<b>Pendaftaran Berhasil!</b><br>${data.message}`;
             form.reset(); 
             setTimeout(() => resultMsg.classList.add('hidden'), 4000);
         } else {
@@ -115,10 +110,10 @@ form.addEventListener('submit', async (e) => {
         }
     } catch (err) {
         resultMsg.classList.remove('hidden');
-        resultMsg.className = "mt-4 p-4 rounded-xl text-center text-sm bg-red-900/50 text-red-200 border border-red-500/50";
-        resultMsg.innerText = `❌ Error: ${err.message}`;
+        resultMsg.className = "mt-4 p-4 rounded-2xl text-center text-xs font-mono bg-rose-500/10 text-rose-300 border border-rose-500/20";
+        resultMsg.innerText = `Gagal: ${err.message}`;
     } finally {
-        btnSubmit.innerText = originalText;
+        btnSubmit.innerHTML = originalText;
         btnSubmit.disabled = false;
     }
 });
@@ -137,13 +132,24 @@ document.getElementById('toggle-update').addEventListener('change', (e) => {
         document.querySelector('input[name="gender"]').required = false;
         document.getElementById('phone_number').required = false;
         formTitle.innerText = "Update Wajah Jemaat";
-        btnSubmit.innerHTML = "📸 Update Data Wajah";
+        btnSubmit.innerHTML = `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Update Data Wajah
+        `;
     } else {
         genderWrapper.classList.remove('hidden');
         phoneWrapper.classList.remove('hidden');
         document.querySelector('input[name="gender"]').required = true;
         document.getElementById('phone_number').required = true;
         formTitle.innerText = "Registrasi Anggota";
-        btnSubmit.innerHTML = "📸 Ambil Foto & Simpan";
+        btnSubmit.innerHTML = `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Ambil 3 Foto & Simpan Data
+        `;
     }
 });

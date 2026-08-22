@@ -3,3 +3,6 @@ venv/
 __pycache__/
 *.pyc
 *.log
+frontend/uploads/photobooth/*.jpg
+frontend/uploads/photobooth/*.gif
+!frontend/uploads/photobooth/.gitkeep

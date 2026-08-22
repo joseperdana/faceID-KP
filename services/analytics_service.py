@@ -10,12 +10,13 @@ class AnalyticsService:
         total_users = DBService.get_users_with_count()
         logs_today = DBService.get_logs_from_date(today)
         new_users_today = DBService.get_new_users_today(today)
-        feed = DBService.get_recent_logs()
+        feed = DBService.get_recent_logs(15)  # Increased from 5 — 5 rows disappears instantly at events
 
         return {
             "total_users": total_users,
             "present_today": len(logs_today),
             "new_users_today": len(new_users_today),
+            "new_users_list": [{"name": u["full_name"], "phone": u["phone_number"], "created_at": u["created_at"]} for u in new_users_today],
             "recent_logs": feed
         }
 
@@ -79,32 +80,32 @@ class AnalyticsService:
         top_users = sorted(user_attendance_count.items(), key=lambda x: x[1], reverse=True)
         peak_time_data = {k: v for k, v in hour_counts.items() if v > 0}
         
-        all_users = DBService.get_all_users()
-        all_logs_raw = DBService.get_logs_from_date((now - timedelta(days=3000)).isoformat()) 
+        # Fetch all logs all-time using pagination to prevent truncation of recent logs (1000 limit)
+        all_logs_raw = DBService.get_all_logs_from_date_paginated((now - timedelta(days=3000)).isoformat()) 
         
-        last_seen_map = {}
         heatmap_all = {}
         for log in all_logs_raw:
-            uid = log['user_id']
-            if uid not in last_seen_map or log['timestamp'] > last_seen_map[uid]:
-                last_seen_map[uid] = log['timestamp']
-            
             d = log['timestamp'][:10]
             heatmap_all[d] = heatmap_all.get(d, 0) + 1
         
+        # Fetch users with their absolute latest check-in using Postgrest nested limit/order.
+        # This guarantees 100% correct last-seen timestamps regardless of log volume.
+        users_last_seen = DBService.get_users_last_seen()
         at_risk_list = []
-        for user in all_users:
-            uid = user['id']
-            last_seen = last_seen_map.get(uid)
+        for user in users_last_seen:
+            name = user['full_name']
+            phone = user['phone_number']
+            logs = user.get('attendance_logs', [])
             
             is_missing = False
             days_missing = 0
             
-            if not last_seen:
+            if not logs:
                 is_missing = True
                 days_missing = 999 
             else:
-                last_date = datetime.fromisoformat(last_seen[:19]).replace(tzinfo=timezone.utc)
+                last_seen_iso = logs[0]['timestamp']
+                last_date = datetime.fromisoformat(last_seen_iso[:19]).replace(tzinfo=timezone.utc)
                 delta = now - last_date
                 if delta.days > at_risk_days:
                     is_missing = True
@@ -112,8 +113,8 @@ class AnalyticsService:
             
             if is_missing:
                 at_risk_list.append({
-                    "name": user['full_name'],
-                    "phone": user['phone_number'],
+                    "name": name,
+                    "phone": phone,
                     "days_absent": days_missing
                 })
 

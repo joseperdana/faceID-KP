@@ -8,6 +8,7 @@ You are a senior software engineer with expertise in full-stack development, AI/
   1. Conduct a comprehensive audit and implement improvements to the existing codebase focusing on security, design flow, efficiency, and overall user experience.
   2. Build a profile website for Komisi Pemuda GKI Bromo Malang, where this facial attendance system serves as a core feature. It must be production-ready.
 - **Philosophy:** "Zero-bullshit", clean, secure, and scalable code. Focus on an efficient deployment flow from the AI model to the backend and frontend.
+- Read KPContext.md if you need further information about organization context.
 
 ## 🛠️ Tech Stack & Architecture Guidelines
 - **Backend:** FastAPI (Python). 
@@ -72,4 +73,25 @@ To keep the project strictly organized, the AI must follow this workflow:
 2. **Verify Plan:** Wait for explicit user approval before starting implementation.
 3. **Track Progress:** Mark items as completed as the process runs.
 4. **Document Results:** Provide a high-level summary of the changes made, ensuring there are no side effects or new bugs introduced.
-5. **Git Guide:** On every completed task, provide a suggested Git branch name, commit message, and a brief description for the user to commit manually. If the next task is required to have a new branch, please inform the user at the end of current task.
+5. **Automated Git Management:** On every completed task or milestone, automatically execute Git operations directly (create/switch branch, stage changes, commit using Conventional Commits format, and push to origin). Never ask the user to commit or push manually; always report the branch name, commit hash, and GitHub PR link upon completion.
+6. **Direct Testing Links:** Always provide direct, clickable test URLs (localhost & relevant routes) at the end of every completed task so the user can immediately test the results.
+
+---
+
+## 🔄 Multi-Agent Squad & Git Pipeline Protocol
+
+1. **Dev Squad (Coding & TDD):**
+   - Work strictly in `feature/*` branches.
+   - Enforce TDD with 100% test coverage using Pytest and Playwright E2E.
+   - Commit with standard Conventional Commits (`feat(scope):`, `fix(scope):`, `refactor(scope):`).
+2. **QA Gate & Auto-Merge to `dev`:**
+   - QA Agent executes `pytest tests/ -v` (100% passing required).
+   - If green: automatically merge feature branch into `dev` and push to `origin/dev`.
+   - If red: feedback loop immediately triggered to fix issues before merge.
+3. **Automated PR to `staging` (Human Review Gate):**
+   - Automatically sync/PR `dev` to `staging` branch.
+   - Generate full PR description with summary, squad changes, and QA test proofs.
+   - Provide direct clickable GitHub PR link and localhost test URLs.
+4. **GitHub Review Feedback Loop (`gh` CLI):**
+   - User reviews PR and leaves comments on GitHub.
+   - When user prompts in chat (*"Perbaiki review di PR #X"*), AI Squad uses `gh pr view <number> --comments` to fetch all comments, addresses revisions, re-runs QA, and updates the PR.

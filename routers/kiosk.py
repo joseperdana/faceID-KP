@@ -3,11 +3,15 @@ import math
 from datetime import datetime, timezone, timedelta
 import numpy as np
 from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 import starlette.concurrency
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from services.db_service import DBService
 from face_service import face_service
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api", tags=["kiosk"])
 
@@ -22,19 +26,32 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 @router.post("/recognize")
+@limiter.limit("30/minute")  # Abuse protection — 30 scans/min per IP is already generous for a church kiosk
 async def recognize_face(
+    request: Request,
     file: UploadFile = File(...),
     lat: Optional[float] = Form(None),
-    lng: Optional[float] = Form(None)
+    lng: Optional[float] = Form(None),
 ):
+    import os
+    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
     GEREJA_LAT = -7.979261
     GEREJA_LNG = 112.625760
     MAX_RADIUS_METER = 200
 
-    if lat is not None and lng is not None:
+    # Geofence check is strictly enforced in production when ENABLE_GEOFENCE=true
+    if is_geofence_enabled:
+        if lat is None or lng is None:
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib disertakan saat absensi di gereja."})
         distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
         if distance > MAX_RADIUS_METER:
             return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+    elif lat is not None and lng is not None:
+        # Informational logging for dev/staging
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
+
 
     start_time = time.time()
     content = await file.read()
@@ -49,22 +66,28 @@ async def recognize_face(
     if hasattr(query_vector, 'tolist'):
         query_vector = query_vector.tolist()
 
-    matches = DBService.match_faces(query_vector)
-    
+    # All DB calls are wrapped in run_in_threadpool — supabase-py is a synchronous library.
+    # Calling it directly in an async route blocks the entire event loop.
+    # run_in_threadpool offloads each call to a thread, keeping the event loop free.
+    matches = await starlette.concurrency.run_in_threadpool(DBService.match_faces, query_vector)
+
     if not matches:
         return {"status": "unknown", "message": "Wajah tidak dikenali."}
-        
+
     user = matches[0]
     user_id = user['id']
     user_name = user['full_name']
-    
+
     today_start = datetime.now(timezone.utc).date().isoformat()
-    
-    history = DBService.get_user_history(user_id)
+
+    # --- TOCTOU Fix: Use a targeted today-only query instead of fetching full history ---
+    today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
+
+    # Separately fetch full history only for the stats we still need (count + last_seen)
+    history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
     total_attendance = len(history)
-    
-    check_log = [log for log in history if log['timestamp'] >= today_start]
-    
+
+
     last_seen = "Baru Pertama"
     for log in history:
         if log['timestamp'] < today_start:
@@ -72,12 +95,12 @@ async def recognize_face(
             last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
             break
 
-    if len(check_log) > 0:
+    if today_log:
         return {
             "status": "success",
             "message": f"Halo {user_name}, kamu sudah absen hari ini!",
             "data": {
-                "name": user_name, 
+                "name": user_name,
                 "similarity_score": round(user['similarity'], 2),
                 "total_attendance": total_attendance,
                 "last_seen": last_seen
@@ -87,11 +110,31 @@ async def recognize_face(
     log_data = {
         "user_id": user_id,
         "status": "Hadir",
+        "method": "face",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
-    DBService.insert_log(log_data)
-    total_attendance += 1
-    
+    try:
+        await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
+        total_attendance += 1
+    except Exception as e:
+        # Catches DB-level UNIQUE constraint violation (Postgres code 23505 — unique_user_per_day).
+        # This handles the race: if two requests passed the today_log check simultaneously,
+        # the second insert will be rejected here instead of creating a duplicate entry.
+        err_str = str(e)
+        if "23505" in err_str or "unique" in err_str.lower():
+            return {
+                "status": "success",
+                "message": f"Halo {user_name}, kamu sudah absen hari ini!",
+                "data": {
+                    "name": user_name,
+                    "similarity_score": round(user['similarity'], 2),
+                    "total_attendance": total_attendance,
+                    "last_seen": last_seen,
+                    "method": "face"
+                }
+            }
+        raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
+
     process_time = (time.time() - start_time) * 1000
     print(f"⚡ [MLOps] Waktu Pengenalan Wajah: {process_time:.2f} ms")
 
@@ -99,12 +142,100 @@ async def recognize_face(
         "status": "success",
         "message": f"Halo, {user_name}! Selamat datang.",
         "data": {
-            "name": user_name, 
+            "name": user_name,
             "similarity_score": round(user['similarity'], 2),
             "total_attendance": total_attendance,
-            "last_seen": last_seen
+            "last_seen": last_seen,
+            "method": "face"
         }
     }
+
+@router.get("/users/search")
+@limiter.limit("60/minute")
+async def search_users(request: Request, q: str = ""):
+    """Public search endpoint for fast manual fallback autocomplete in Kiosk."""
+    if not q or len(q.strip()) < 1:
+        return {"status": "success", "data": []}
+    try:
+        results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 10)
+        return {"status": "success", "data": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@router.post("/attendance/manual-checkin")
+@limiter.limit("30/minute")
+async def manual_checkin(request: Request, user_id: int = Form(...)):
+    """Fast manual fallback checkin when facial recognition is unavailable."""
+    try:
+        user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
+        if not user_list:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Jemaat tidak ditemukan."})
+        
+        user = user_list[0]
+        user_name = user["full_name"]
+        today_start = datetime.now(timezone.utc).date().isoformat()
+
+        today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
+        history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
+        total_attendance = len(history)
+
+        last_seen = "Baru Pertama"
+        for log in history:
+            if log.get("timestamp", "") < today_start:
+                last_seen_date = datetime.fromisoformat(log["timestamp"][:19]).replace(tzinfo=timezone.utc)
+                last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
+                break
+
+        if today_log:
+            return {
+                "status": "success",
+                "message": f"Halo {user_name}, kamu sudah absen hari ini!",
+                "data": {
+                    "name": user_name,
+                    "total_attendance": total_attendance,
+                    "last_seen": last_seen,
+                    "method": "manual"
+                }
+            }
+
+        log_data = {
+            "user_id": user_id,
+            "status": "Hadir",
+            "method": "manual",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        try:
+            await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
+            total_attendance += 1
+        except Exception as e:
+            err_str = str(e)
+            if "23505" in err_str or "unique" in err_str.lower():
+                return {
+                    "status": "success",
+                    "message": f"Halo {user_name}, kamu sudah absen hari ini!",
+                    "data": {
+                        "name": user_name,
+                        "total_attendance": total_attendance,
+                        "last_seen": last_seen,
+                        "method": "manual"
+                    }
+                }
+            raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
+
+        return {
+            "status": "success",
+            "message": f"Absen manual berhasil! Halo, {user_name}.",
+            "data": {
+                "name": user_name,
+                "total_attendance": total_attendance,
+                "last_seen": last_seen,
+                "method": "manual"
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.post("/register")
 async def register_user(

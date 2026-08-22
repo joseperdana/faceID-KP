@@ -1,26 +1,19 @@
-# Todo List: FaceID-KP Refactoring
+# 📝 Photobooth Landing Preview, Center Countdown, & Retake Tasks
 
-## Phase 1: Security & Architecture Core
-- [x] Create `core/security.py` and implement JWT token generation and verification.
-- [x] Refactor `check_admin_auth` dependency to use the new JWT logic.
-- [x] Create `schemas/` directory and define Pydantic models for API requests/responses.
-- [x] Refactor `main.py` by extracting endpoints into `routers/` (e.g., auth, users, analytics).
+- [x] **1. Landing Page UI & Camera Preview (`frontend/photobooth.html`)**
+  - [x] Embed live camera preview on Welcome Stage
+  - [x] Move Time Interval (3s / 5s) selector to Welcome Stage
+  - [x] Move Mirror Toggle to Welcome Stage preview
+  - [x] Add Center Countdown element (`#center-countdown`) with zero blackout backdrop
+  - [x] Add Review & Retake action bar (`#pose-review-overlay`) with 3x retake quota
 
-## Phase 2: ML Pipeline Optimization
-- [x] Wrap `face_service.get_embedding()` calls with `run_in_threadpool` in endpoints to unblock the async event loop.
-- [x] Implement robust error handling for edge cases in `face_service.py`.
+- [x] **2. Engine & Lifecycle Logic (`frontend/js/photobooth.js`)**
+  - [x] Initialize camera immediately on landing page
+  - [x] Implement robust 3s / 5s countdown timer without overlapping intervals
+  - [x] Implement per-pose retake loop with 3x quota decrement and re-capture
+  - [x] Maintain seamless printing animation and modal hierarchy
 
-## Phase 3: Service Layer Extraction
-- [x] Extract heavy analytics and Pandas logic from endpoints into `services/analytics_service.py`.
-- [x] Extract Supabase queries into a dedicated database repository layer (`services/db_service.py`).
+- [x] **3. Testing & Verification**
+  - [x] Update Playwright E2E tests (`tests/test_e2e_playwright.py`) for 3s/5s timers, retake flow, and landing camera preview
+  - [x] Verify 100% test passing across Pytest & Playwright (14/14 passed)
 
-## Phase 4: Frontend UI/UX Refinement
-- [x] Move inline styles in `register.html` to proper Tailwind classes.
-- [x] Standardize the color palette and typography across all HTML templates.
-- [x] Extract inline JavaScript from HTML files into dedicated `.js` files inside `static/js/`.
-- [x] Migrate Geofencing validation logic from client-side JS to backend API.
-
-## Phase 5: Verification
-- [x] Test the entire face registration and attendance flow.
-- [x] Test Dashboard analytics and Excel export functionality.
-- [x] Review code against the "Demand Elegance" standard before marking as complete.
