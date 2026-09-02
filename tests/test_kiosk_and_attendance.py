@@ -19,6 +19,13 @@ def test_get_photobooth_page():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
 
+def test_get_diagram_pages():
+    """Verify that Archify diagrams are served correctly via HTTP."""
+    for path in ["/diagrams/architecture", "/diagrams/lifecycle", "/diagrams/workflow"]:
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
 def test_search_users_for_manual_checkin():
     """Verify that public search endpoint returns matched users for manual fallback."""
     mock_users = [

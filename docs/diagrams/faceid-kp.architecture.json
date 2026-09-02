@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FaceID-KP System Architecture",
+    "output": "docs/diagrams/faceid-kp.architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "attendance-flow",
+        "label": "Attendance & Recognition Flow",
+        "focus": ["kiosk_ui", "geo_guard", "fastapi_app", "face_worker", "supabase_db"],
+        "note": "Follow the live face recognition path from the kiosk camera to vector search and database log."
+      },
+      {
+        "id": "photobooth-flow",
+        "label": "Photobooth Strip Delivery",
+        "focus": ["photobooth_ui", "fastapi_app", "supabase_storage"],
+        "note": "Track the 4-shot canvas composite upload and cloud storage persistence."
+      },
+      {
+        "id": "admin-security",
+        "label": "Admin Management & Auth",
+        "focus": ["admin_ui", "supabase_auth", "fastapi_app", "supabase_db"],
+        "note": "Inspect JWT-authenticated administration and roster management."
+      }
+    ]
+  },
+  "components": [
+    { "id": "admin_ui", "type": "frontend", "label": "Admin Dashboard", "sublabel": "Management Web", "pos": [40, 140], "size": [130, 60] },
+    { "id": "kiosk_ui", "type": "frontend", "label": "Kiosk Frontend", "sublabel": "MediaPipe HUD", "pos": [40, 300], "size": [130, 60] },
+    { "id": "photobooth_ui", "type": "frontend", "label": "Photobooth Web", "sublabel": "4-Shot Canvas", "pos": [40, 460], "size": [130, 60] },
+    { "id": "supabase_auth", "type": "security", "label": "Supabase Auth", "sublabel": "JWT & Session", "pos": [250, 140], "size": [130, 60], "brand": "supabase" },
+    { "id": "geo_guard", "type": "security", "label": "Geofence Guard", "sublabel": "150m GPS Radius", "pos": [250, 300], "size": [130, 60], "tag": "Anti-Spoof" },
+    { "id": "fastapi_app", "type": "backend", "label": "FastAPI Gateway", "sublabel": "API Core :8000", "pos": [480, 300], "size": [130, 60], "brand": "fastapi" },
+    { "id": "face_worker", "type": "backend", "label": "Face AI Worker", "sublabel": "ArcFace 512-d", "pos": [700, 300], "size": [130, 60], "brand": "python", "tag": "InsightFace" },
+    { "id": "supabase_storage", "type": "cloud", "label": "Supabase Storage", "sublabel": "photobooth/strips", "pos": [700, 460], "size": [130, 60], "brand": "supabase" },
+    { "id": "supabase_db", "type": "database", "label": "PostgreSQL", "sublabel": "pgvector RPC", "pos": [920, 300], "size": [130, 60], "brand": "postgresql" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Client Tier (Fluid Clarity UI)", "wraps": ["admin_ui", "kiosk_ui", "photobooth_ui"] },
+    { "kind": "security-group", "label": "Application & AI Gateway", "wraps": ["geo_guard", "fastapi_app", "face_worker"] },
+    { "kind": "region", "label": "BaaS Cloud Tier (Supabase)", "wraps": ["supabase_auth", "supabase_storage", "supabase_db"] }
+  ],
+  "connections": [
+    { "id": "admin-to-auth", "from": "admin_ui", "to": "supabase_auth", "label": "login", "variant": "security" },
+    { "id": "auth-to-fastapi", "from": "supabase_auth", "to": "fastapi_app", "label": "verify JWT", "variant": "security", "fromSide": "right", "toSide": "top" },
+    { "id": "kiosk-to-geo", "from": "kiosk_ui", "to": "geo_guard", "label": "GPS + frame", "variant": "security" },
+    { "id": "geo-to-fastapi", "from": "geo_guard", "to": "fastapi_app", "label": "verified", "variant": "emphasis" },
+    { "id": "photobooth-to-fastapi", "from": "photobooth_ui", "to": "fastapi_app", "label": "upload strip", "fromSide": "right", "toSide": "bottom" },
+    { "id": "fastapi-to-storage", "from": "fastapi_app", "to": "supabase_storage", "label": "persist PNG", "variant": "dashed", "fromSide": "bottom", "toSide": "left" },
+    { "id": "fastapi-to-face", "from": "fastapi_app", "to": "face_worker", "label": "extract vector" },
+    { "id": "face-to-db", "from": "face_worker", "to": "supabase_db", "label": "RPC match", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Client & Edge Capture",
+      "items": [
+        "Kiosk client runs MediaPipe face stabilization before frame transmission",
+        "Geofencing middleware validates client device proximity within 150m church radius"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "AI & Processing Tier",
+      "items": [
+        "FastAPI coordinates frame processing without blocking the event loop",
+        "InsightFace ArcFace extracts 512-dimensional normalized vector embeddings"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "BaaS & Storage Persistence",
+      "items": [
+        "PostgreSQL pgvector calculates cosine distance via RPC match_faces",
+        "Supabase Storage securely hosts public photobooth strips and QR destinations"
+      ]
+    }
+  ]
+}

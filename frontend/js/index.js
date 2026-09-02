@@ -45,18 +45,17 @@ function requestLocation() {
             },
             (error) => {
                 console.warn("GPS access error/denied:", error);
-                // Fallback for local testing or devices without GPS
-                currentUserLat = -7.979261;
-                currentUserLng = 112.625760;
-                updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
+                currentUserLat = null;
+                currentUserLng = null;
+                updateStatus('warning', 'GPS Tidak Aktif', 'Harap izinkan akses lokasi (GPS) untuk absensi.');
                 camera.start();
             },
             { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
         );
     } else {
-        currentUserLat = -7.979261;
-        currentUserLng = 112.625760;
-        updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
+        currentUserLat = null;
+        currentUserLng = null;
+        updateStatus('warning', 'GPS Tidak Didukung', 'Browser tidak mendukung deteksi lokasi.');
         camera.start();
     }
 }
@@ -323,6 +322,10 @@ window.executeManualCheckin = async function(userId) {
     try {
         const formData = new FormData();
         formData.append('user_id', userId);
+        if (currentUserLat !== null) {
+            formData.append('lat', currentUserLat);
+            formData.append('lng', currentUserLng);
+        }
 
         const response = await fetch('/api/attendance/manual-checkin', {
             method: 'POST',
@@ -331,7 +334,17 @@ window.executeManualCheckin = async function(userId) {
         const data = await response.json();
         loadingOverlay.classList.add('hidden');
 
-        if (data.status === 'success') {
+        if (response.status === 403) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Lokasi di Luar Jangkauan',
+                text: data.message || 'Anda berada di luar area GKI Bromo.',
+                confirmButtonColor: '#f59e0b',
+                background: '#0b0d13',
+                color: '#f8fafc'
+            });
+            resetScan();
+        } else if (data.status === 'success') {
             showSuccessModal(data.data, data.message);
         } else {
             Swal.fire({
