@@ -25,6 +25,25 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+def check_geofence(lat: Optional[float], lng: Optional[float]) -> Optional[JSONResponse]:
+    import os
+    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
+    GEREJA_LAT = -7.979261
+    GEREJA_LNG = 112.625760
+    MAX_RADIUS_METER = 200
+
+    if is_geofence_enabled:
+        if lat is None or lng is None:
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib diizinkan saat absensi di gereja."})
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+    elif lat is not None and lng is not None:
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
+    return None
+
 @router.post("/recognize")
 @limiter.limit("30/minute")  # Abuse protection — 30 scans/min per IP is already generous for a church kiosk
 async def recognize_face(
@@ -33,25 +52,9 @@ async def recognize_face(
     lat: Optional[float] = Form(None),
     lng: Optional[float] = Form(None),
 ):
-    import os
-    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
-    GEREJA_LAT = -7.979261
-    GEREJA_LNG = 112.625760
-    MAX_RADIUS_METER = 200
-
-    # Geofence check is strictly enforced in production when ENABLE_GEOFENCE=true
-    if is_geofence_enabled:
-        if lat is None or lng is None:
-            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib disertakan saat absensi di gereja."})
-        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
-        if distance > MAX_RADIUS_METER:
-            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
-    elif lat is not None and lng is not None:
-        # Informational logging for dev/staging
-        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
-        if distance > MAX_RADIUS_METER:
-            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
-
+    geo_err = check_geofence(lat, lng)
+    if geo_err:
+        return geo_err
 
     start_time = time.time()
     content = await file.read()
@@ -168,8 +171,17 @@ async def search_users(request: Request, q: str = ""):
 
 @router.post("/attendance/manual-checkin")
 @limiter.limit("30/minute")
-async def manual_checkin(request: Request, user_id: int = Form(...)):
+async def manual_checkin(
+    request: Request,
+    user_id: int = Form(...),
+    lat: Optional[float] = Form(None),
+    lng: Optional[float] = Form(None),
+):
     """Fast manual fallback checkin when facial recognition is unavailable."""
+    geo_err = check_geofence(lat, lng)
+    if geo_err:
+        return geo_err
+
     try:
         user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
         if not user_list:

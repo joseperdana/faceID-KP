@@ -1,22 +1,23 @@
-# 📝 Kiosk Face Recognition & Manual Attendance Reliability (Sandbox Fix)
+# 🗺️ Task: Integrate Archify & Generate FaceID-KP System Visualizations
 
-- [x] **1. Root Cause Resolution in Database Service (`services/db_service.py`)**
-  - [x] Update `DBService.insert_log` to safely handle schema without crashing on missing `method` column (PGRST204 fix).
-  - [x] Optimize `DBService.match_faces` default threshold from 0.50 to 0.42 for robust face recall across lighting/angle variations.
-  - [x] Enhance `DBService.search_active_users` to query both `full_name` and `phone_number` with an expanded limit (25) and whitespace sanitization.
+- [x] **1. Skill Installation & Environment Setup**
+  - [x] Copy Archify skill package to `.agents/skills/archify/` with full binary, renderers, schemas, and brand assets.
+  - [x] Verify `node .agents/skills/archify/bin/archify.mjs doctor` and CLI availability.
 
-- [x] **2. Kiosk Frontend Detection & Responsiveness Tuning (`frontend/js/index.js`)**
-  - [x] Tune `REQUIRED_STABLE_FRAMES` from 45 down to 15 (~0.5s) so users don't have to freeze for 3s.
-  - [x] Tune `MOVEMENT_THRESHOLD` from 0.03 to 0.045 to prevent micro-movements (breathing, blinks) from resetting progress.
-  - [x] Adjust MediaPipe `minDetectionConfidence` from 0.6 to 0.45 for reliable detection in warm/dim ambient church lighting.
-  - [x] Broaden safe zone bounds (X: 0.20–0.80, Y: 0.15–0.85).
+- [x] **2. Authoring Typed JSON Specifications for FaceID-KP**
+  - [x] Create `docs/diagrams/faceid-kp.architecture.json` (Multi-tier: Kiosk, Photobooth, Admin <-> FastAPI <-> InsightFace AI <-> Supabase pgvector/Storage).
+  - [x] Create `docs/diagrams/kiosk-detection.lifecycle.json` (Kiosk Face Stability, AI Extraction, Vector Match, and Confirmation State Machine).
+  - [x] Create `docs/diagrams/photobooth-pipeline.workflow.json` (Photobooth 4-shot capture, frame compositing, QR generation, and Supabase Storage pipeline).
 
-- [x] **3. Backend Error Handling & Audit Integrity (`routers/kiosk.py`)**
-  - [x] Ensure `manual_checkin` and `recognize` gracefully return meaningful error payloads if DB errors occur.
-  - [x] Protect timestamp parsing in last_seen calculations against edge cases.
+- [x] **3. Quality Showcase Validation & Compilation**
+  - [x] Run `archify validate` with `--quality showcase` on all 3 specifications (0 errors, 0 warnings).
+  - [x] Run `archify deliver` to generate self-contained, interactive HTML artifacts in `docs/diagrams/`.
 
-- [x] **4. Comprehensive TDD & Sandbox Verification (`tests/`)**
-  - [x] Add unit tests for DB resilience with/without `method` column.
-  - [x] Add tests for multi-field user search (`phone_number` and `full_name`).
-  - [x] Run full Pytest test suite (`pytest tests/ -v` -> 16/16 passed).
-  - [x] Run live sandbox integration test against real Supabase instance.
+- [x] **4. Web Serving & Direct Local Access Integration**
+  - [x] Mount `docs/diagrams` in FastAPI (`/diagrams/architecture`, `/diagrams/lifecycle`, `/diagrams/workflow`) for instant browser preview during development.
+  - [x] Verify HTTP endpoints and static asset serving.
+
+- [x] **5. Verification, QA & Automated Git Management**
+  - [x] Run test suite (`pytest tests/test_kiosk_and_attendance.py tests/test_photobooth_api.py -v` -> 10/10 passed).
+  - [x] Stage and commit changes to `feature/archify-system-architecture`.
+  - [x] Document learning points and direct preview links.

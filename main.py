@@ -30,6 +30,7 @@ async def unauthorized_exception_handler(request: Request, exc: HTTPException):
     return RedirectResponse(url="/login", status_code=303)
 
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
+app.mount("/docs/diagrams", StaticFiles(directory="docs/diagrams"), name="diagrams")
 
 app.include_router(pages.router)
 app.include_router(auth.router)
