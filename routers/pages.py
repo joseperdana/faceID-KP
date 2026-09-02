@@ -28,3 +28,15 @@ def dashboard_page(auth: bool = Depends(check_admin_auth)):
 def logout(response: Response):
     response.delete_cookie(COOKIE_NAME)
     return RedirectResponse(url="/login")
+
+@router.get("/diagrams/architecture")
+def diagram_architecture():
+    return FileResponse("docs/diagrams/faceid-kp.architecture.html")
+
+@router.get("/diagrams/lifecycle")
+def diagram_lifecycle():
+    return FileResponse("docs/diagrams/kiosk-detection.lifecycle.html")
+
+@router.get("/diagrams/workflow")
+def diagram_workflow():
+    return FileResponse("docs/diagrams/photobooth-pipeline.workflow.html")
