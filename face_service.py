@@ -16,7 +16,6 @@ directions and restore a representative magnitude instead.
 
 import logging
 import threading
-from typing import List, Optional
 
 import numpy as np
 
@@ -32,7 +31,7 @@ class FaceServiceUnavailable(RuntimeError):
 class FaceService:
     def __init__(self) -> None:
         self._app = None
-        self._load_error: Optional[str] = None
+        self._load_error: str | None = None
         self._lock = threading.Lock()
 
     # --- model lifecycle -------------------------------------------------
@@ -86,7 +85,7 @@ class FaceService:
 
     # --- inference -------------------------------------------------------
 
-    def get_embedding(self, image_bytes: bytes) -> Optional[List[float]]:
+    def get_embedding(self, image_bytes: bytes) -> list[float] | None:
         """Return the embedding of the largest face, or None if none is found.
 
         Raises ValueError for input that is not a decodable image, and
@@ -135,7 +134,7 @@ class FaceService:
         return np.asarray(face.embedding, dtype=np.float64)
 
 
-def average_embeddings(embeddings: List[List[float]]) -> List[float]:
+def average_embeddings(embeddings: list[list[float]]) -> list[float]:
     """Combine several frames of the same person into one embedding.
 
     A plain `np.mean` over un-normalised vectors is weighted by magnitude, which

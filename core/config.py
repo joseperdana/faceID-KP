@@ -12,7 +12,6 @@ about every missing variable in a single run instead of one per restart.
 
 import os
 import secrets
-from typing import List, Optional
 
 from dotenv import load_dotenv
 
@@ -23,7 +22,7 @@ class ConfigError(RuntimeError):
     """Raised at startup when the environment is not usable."""
 
 
-def _get(name: str, default: Optional[str] = None) -> Optional[str]:
+def _get(name: str, default: str | None = None) -> str | None:
     value = os.getenv(name, default)
     if value is None:
         return None
@@ -38,14 +37,14 @@ def _get_bool(name: str, default: bool) -> bool:
     return raw.lower() in ("true", "1", "yes", "on")
 
 
-def _get_float(name: str, default: Optional[float]) -> Optional[float]:
+def _get_float(name: str, default: float | None) -> float | None:
     raw = _get(name)
     if raw is None:
         return default
     try:
         return float(raw)
     except ValueError:
-        raise ConfigError(f"{name} harus berupa angka, dapat: {raw!r}")
+        raise ConfigError(f"{name} harus berupa angka, dapat: {raw!r}") from None
 
 
 def _get_int(name: str, default: int) -> int:
@@ -55,7 +54,7 @@ def _get_int(name: str, default: int) -> int:
     try:
         return int(raw)
     except ValueError:
-        raise ConfigError(f"{name} harus berupa bilangan bulat, dapat: {raw!r}")
+        raise ConfigError(f"{name} harus berupa bilangan bulat, dapat: {raw!r}") from None
 
 
 # --- Database -------------------------------------------------------------
@@ -143,7 +142,7 @@ def generate_secret(length: int = 48) -> str:
 
 def validate() -> None:
     """Check the whole environment at once and raise a single actionable error."""
-    problems: List[str] = []
+    problems: list[str] = []
 
     if not SUPABASE_URL:
         problems.append("SUPABASE_URL belum diisi.")
@@ -153,7 +152,7 @@ def validate() -> None:
     if not SECRET_KEY:
         problems.append(
             "SECRET_KEY belum diisi. Buat yang baru dengan:\n"
-            "      python -c \"import secrets;print(secrets.token_urlsafe(48))\""
+            '      python -c "import secrets;print(secrets.token_urlsafe(48))"'
         )
     elif len(SECRET_KEY) < 32:
         problems.append(
@@ -171,7 +170,7 @@ def validate() -> None:
         problems.append(
             "KIOSK_TOKEN belum diisi. Token ini mengunci endpoint registrasi dan "
             "absen manual agar tidak terbuka ke internet. Buat dengan:\n"
-            "      python -c \"import secrets;print(secrets.token_urlsafe(32))\""
+            '      python -c "import secrets;print(secrets.token_urlsafe(32))"'
         )
     elif len(KIOSK_TOKEN) < 24:
         problems.append(f"KIOSK_TOKEN hanya {len(KIOSK_TOKEN)} karakter; minimal 24.")

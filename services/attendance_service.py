@@ -8,7 +8,6 @@ twice. Both now call check_in() below.
 """
 
 import logging
-from typing import Dict, Optional
 
 from core.timezone_wib import to_wib, today_bounds_utc, utc_now_iso
 from services.db_service import DBService
@@ -16,12 +15,12 @@ from services.db_service import DBService
 logger = logging.getLogger(__name__)
 
 
-def _format_last_seen(timestamp: Optional[str]) -> str:
+def _format_last_seen(timestamp: str | None) -> str:
     converted = to_wib(timestamp)
     return converted.strftime("%d %b %Y") if converted else "Baru Pertama"
 
 
-def check_in(user_id: int, user_name: str, method: str, similarity: Optional[float] = None) -> Dict:
+def check_in(user_id: int, user_name: str, method: str, similarity: float | None = None) -> dict:
     """Record attendance for one member, once per WIB day.
 
     Returns a response envelope with an explicit status:
@@ -39,7 +38,7 @@ def check_in(user_id: int, user_name: str, method: str, similarity: Optional[flo
     total = summary["total"]
     last_seen = _format_last_seen(summary["last_seen"])
 
-    def envelope(status: str, message: str, checked_in_at: Optional[str] = None) -> Dict:
+    def envelope(status: str, message: str, checked_in_at: str | None = None) -> dict:
         data = {
             "name": user_name,
             "total_attendance": total,

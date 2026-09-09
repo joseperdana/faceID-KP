@@ -2,7 +2,6 @@
 
 import base64
 import time
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -51,8 +50,9 @@ def test_oversized_payload_is_rejected_before_decoding(client, tmp_path):
     declared too large — backwards for a denial-of-service guard.
     """
     huge = "A" * (int(config.PHOTOBOOTH_MAX_BYTES * 4 / 3) + 1000)
-    with patch.object(photobooth, "UPLOAD_DIR", tmp_path), patch.object(
-        base64, "b64decode", side_effect=AssertionError("must not decode")
+    with (
+        patch.object(photobooth, "UPLOAD_DIR", tmp_path),
+        patch.object(base64, "b64decode", side_effect=AssertionError("must not decode")),
     ):
         response = client.post(
             "/api/photobooth/upload", json={"image": "data:image/jpeg;base64," + huge}

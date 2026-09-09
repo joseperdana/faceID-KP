@@ -11,7 +11,6 @@ still (admin only), because overwriting an embedding is irreversible.
 import logging
 import math
 import time
-from typing import List, Optional
 
 import starlette.concurrency
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -35,6 +34,7 @@ _IMAGE_MAGIC = (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"RIFF")
 
 # --- geofencing -----------------------------------------------------------
 
+
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance in metres (haversine)."""
     R = 6371000
@@ -50,10 +50,10 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 def check_geofence(
-    lat: Optional[float],
-    lng: Optional[float],
-    accuracy: Optional[float] = None,
-) -> Optional[JSONResponse]:
+    lat: float | None,
+    lng: float | None,
+    accuracy: float | None = None,
+) -> JSONResponse | None:
     """Reject check-ins that are demonstrably far from the venue.
 
     This is a convenience control, not a security control: the browser supplies
@@ -99,6 +99,7 @@ def check_geofence(
 
 # --- upload validation ----------------------------------------------------
 
+
 async def read_image_upload(file: UploadFile) -> bytes:
     """Read one uploaded image with size and type checks applied first.
 
@@ -120,7 +121,7 @@ async def read_image_upload(file: UploadFile) -> bytes:
     return content
 
 
-def validate_upload_count(files: List[UploadFile]) -> None:
+def validate_upload_count(files: list[UploadFile]) -> None:
     """Bound the work a single request can ask for.
 
     Without this, one request carrying 50 files forced 50 sequential inference
@@ -136,11 +137,11 @@ def validate_upload_count(files: List[UploadFile]) -> None:
         )
 
 
-async def embed_uploads(files: List[UploadFile]) -> List[List[float]]:
+async def embed_uploads(files: list[UploadFile]) -> list[list[float]]:
     """Extract an embedding from each uploaded frame, skipping ones without a face."""
     validate_upload_count(files)
 
-    embeddings: List[List[float]] = []
+    embeddings: list[list[float]] = []
     for file in files:
         content = await read_image_upload(file)
         try:
@@ -151,9 +152,9 @@ async def embed_uploads(files: List[UploadFile]) -> List[List[float]]:
             raise HTTPException(
                 status_code=503,
                 detail="Layanan pengenalan wajah sedang tidak tersedia.",
-            )
+            ) from None
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from None
         if embedding is not None:
             embeddings.append(embedding)
     return embeddings
@@ -161,14 +162,15 @@ async def embed_uploads(files: List[UploadFile]) -> List[List[float]]:
 
 # --- recognition ----------------------------------------------------------
 
+
 @router.post("/recognize")
 @limiter.limit(config.RATE_LIMIT_RECOGNIZE)
 async def recognize_face(
     request: Request,
     file: UploadFile = File(...),
-    lat: Optional[float] = Form(None),
-    lng: Optional[float] = Form(None),
-    accuracy: Optional[float] = Form(None),
+    lat: float | None = Form(None),
+    lng: float | None = Form(None),
+    accuracy: float | None = Form(None),
 ):
     geo_err = check_geofence(lat, lng, accuracy)
     if geo_err:
@@ -187,12 +189,12 @@ async def recognize_face(
         raise HTTPException(
             status_code=503,
             detail="Layanan pengenalan wajah sedang tidak tersedia. Gunakan Cari Nama Manual.",
-        )
+        ) from None
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         logger.exception("Face embedding failed")
-        raise HTTPException(status_code=503, detail="Pengenalan wajah gagal diproses.")
+        raise HTTPException(status_code=503, detail="Pengenalan wajah gagal diproses.") from None
 
     if query_vector is None:
         # Deliberately outside the try block above. When this raise lived inside
@@ -235,6 +237,7 @@ async def recognize_face(
 
 # --- manual fallback ------------------------------------------------------
 
+
 @router.get("/users/search", dependencies=[Depends(check_kiosk_auth)])
 @limiter.limit(config.RATE_LIMIT_SEARCH)
 async def search_users(request: Request, q: str = ""):
@@ -254,7 +257,7 @@ async def search_users(request: Request, q: str = ""):
         return {"status": "success", "data": results}
     except Exception:
         logger.exception("User search failed")
-        raise HTTPException(status_code=503, detail="Pencarian sedang bermasalah.")
+        raise HTTPException(status_code=503, detail="Pencarian sedang bermasalah.") from None
 
 
 @router.post("/attendance/manual-checkin", dependencies=[Depends(check_kiosk_auth)])
@@ -262,9 +265,9 @@ async def search_users(request: Request, q: str = ""):
 async def manual_checkin(
     request: Request,
     user_id: int = Form(...),
-    lat: Optional[float] = Form(None),
-    lng: Optional[float] = Form(None),
-    accuracy: Optional[float] = Form(None),
+    lat: float | None = Form(None),
+    lng: float | None = Form(None),
+    accuracy: float | None = Form(None),
 ):
     """Manual check-in when recognition is unavailable.
 
@@ -276,9 +279,7 @@ async def manual_checkin(
     if geo_err:
         return geo_err
 
-    user_list = await starlette.concurrency.run_in_threadpool(
-        DBService.get_user_by_id, user_id
-    )
+    user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
     if not user_list:
         raise HTTPException(status_code=404, detail="Jemaat tidak ditemukan.")
 
@@ -290,10 +291,11 @@ async def manual_checkin(
         raise
     except Exception:
         logger.exception("Manual check-in failed for user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal menyimpan absensi.")
+        raise HTTPException(status_code=503, detail="Gagal menyimpan absensi.") from None
 
 
 # --- enrolment ------------------------------------------------------------
+
 
 @router.post("/register", dependencies=[Depends(check_kiosk_auth)])
 @limiter.limit(config.RATE_LIMIT_REGISTER)
@@ -303,10 +305,10 @@ async def register_user(
     gender: str = Form(...),
     phone_number: str = Form(...),
     consent: bool = Form(False),
-    lat: Optional[float] = Form(None),
-    lng: Optional[float] = Form(None),
-    accuracy: Optional[float] = Form(None),
-    files: List[UploadFile] = File(...),
+    lat: float | None = Form(None),
+    lng: float | None = Form(None),
+    accuracy: float | None = Form(None),
+    files: list[UploadFile] = File(...),
 ):
     """Register a newcomer and record their attendance for today.
 
@@ -350,7 +352,7 @@ async def register_user(
     try:
         embedding_list = average_embeddings(embeddings)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     # The duplicate bar is deliberately looser than the recognition bar. If it
     # were stricter, a face similar enough to be matched at check-in could still
@@ -390,7 +392,7 @@ async def register_user(
         )
     except Exception:
         logger.exception("Registration failed for %s", cleaned_name)
-        raise HTTPException(status_code=503, detail="Gagal menyimpan pendaftaran.")
+        raise HTTPException(status_code=503, detail="Gagal menyimpan pendaftaran.") from None
 
     return {
         "status": "success",
@@ -404,7 +406,7 @@ async def register_user(
 async def update_face(
     request: Request,
     full_name: str = Form(...),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
 ):
     """Replace a member's stored face data. Admin only.
 
@@ -414,17 +416,13 @@ async def update_face(
     """
     validate_upload_count(files)
 
-    existing = await starlette.concurrency.run_in_threadpool(
-        DBService.get_user_by_name, full_name
-    )
+    existing = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_name, full_name)
     if not existing:
         raise HTTPException(status_code=404, detail="Nama tidak ditemukan.")
 
     embeddings = await embed_uploads(files)
     if not embeddings:
-        raise HTTPException(
-            status_code=400, detail="Wajah tidak terdeteksi jelas. Ulangi foto."
-        )
+        raise HTTPException(status_code=400, detail="Wajah tidak terdeteksi jelas. Ulangi foto.")
 
     try:
         embedding_list = average_embeddings(embeddings)
@@ -432,10 +430,10 @@ async def update_face(
             DBService.update_user, existing[0]["id"], {"face_embedding": embedding_list}
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         logger.exception("Face update failed for %s", full_name)
-        raise HTTPException(status_code=503, detail="Gagal memperbarui data wajah.")
+        raise HTTPException(status_code=503, detail="Gagal memperbarui data wajah.") from None
 
     return {
         "status": "success",

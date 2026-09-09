@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -11,14 +9,14 @@ class UpdateUserDto(BaseModel):
     gender on every save.
     """
 
-    full_name: Optional[str] = Field(default=None, min_length=2, max_length=120)
-    gender: Optional[str] = None
-    phone_number: Optional[str] = Field(default=None, max_length=30)
+    full_name: str | None = Field(default=None, min_length=2, max_length=120)
+    gender: str | None = None
+    phone_number: str | None = Field(default=None, max_length=30)
 
 
 class UserResponse(BaseModel):
     id: int
     full_name: str
-    gender: Optional[str] = None
-    phone_number: Optional[str] = None
+    gender: str | None = None
+    phone_number: str | None = None
     attendance_count: int = 0

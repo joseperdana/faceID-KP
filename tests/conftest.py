@@ -63,6 +63,7 @@ def admin_client(client):
 
 # --- Playwright fixtures (end-to-end suite only) -------------------------
 
+
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
     return {

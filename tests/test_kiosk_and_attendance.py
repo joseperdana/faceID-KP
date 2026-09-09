@@ -25,6 +25,7 @@ def _at_church():
 
 # --- pages ----------------------------------------------------------------
 
+
 def test_kiosk_page_is_public(client):
     response = client.get("/")
     assert response.status_code == 200
@@ -42,6 +43,7 @@ def test_healthz_reports_face_recognition_state(client):
 
 
 # --- geofence maths -------------------------------------------------------
+
 
 def test_haversine_matches_known_distance():
     # Roughly one degree of latitude at the equator is ~111 km.
@@ -66,6 +68,7 @@ def test_the_two_documented_church_coordinates_disagree():
 
 
 # --- geofence policy ------------------------------------------------------
+
 
 def test_at_the_church_is_allowed():
     assert check_geofence(*CHURCH, 20.0) is None
@@ -104,6 +107,7 @@ def test_geofence_disabled_allows_everything():
 
 
 # --- upload validation ----------------------------------------------------
+
 
 def test_non_image_upload_is_refused_before_reaching_the_decoder(client):
     """Arbitrary bytes used to be handed straight to OpenCV's native decoders."""
@@ -144,12 +148,18 @@ def test_recognize_rejects_far_location_before_running_inference(client):
 
 # --- manual fallback ------------------------------------------------------
 
+
 def test_manual_checkin_records_method_manual(kiosk_client):
-    with patch.object(
-        DBService, "get_user_by_id", return_value=[{"id": 1, "full_name": "Jonathan Kristi"}]
-    ), patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value={"total": 2, "last_seen": None}
-    ), patch.object(DBService, "insert_log") as insert:
+    with (
+        patch.object(
+            DBService, "get_user_by_id", return_value=[{"id": 1, "full_name": "Jonathan Kristi"}]
+        ),
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(
+            DBService, "get_attendance_summary", return_value={"total": 2, "last_seen": None}
+        ),
+        patch.object(DBService, "insert_log") as insert,
+    ):
         response = kiosk_client.post(
             "/api/attendance/manual-checkin", data={"user_id": 1, **_at_church()}
         )
@@ -163,11 +173,16 @@ def test_manual_checkin_records_method_manual(kiosk_client):
 
 def test_manual_checkin_duplicate_is_flagged_distinctly(kiosk_client):
     existing = [{"id": 5, "timestamp": "2026-09-12T09:48:00+00:00", "method": "face"}]
-    with patch.object(
-        DBService, "get_user_by_id", return_value=[{"id": 1, "full_name": "Jonathan Kristi"}]
-    ), patch.object(DBService, "check_user_log_today", return_value=existing), patch.object(
-        DBService, "get_attendance_summary", return_value={"total": 2, "last_seen": None}
-    ), patch.object(DBService, "insert_log") as insert:
+    with (
+        patch.object(
+            DBService, "get_user_by_id", return_value=[{"id": 1, "full_name": "Jonathan Kristi"}]
+        ),
+        patch.object(DBService, "check_user_log_today", return_value=existing),
+        patch.object(
+            DBService, "get_attendance_summary", return_value={"total": 2, "last_seen": None}
+        ),
+        patch.object(DBService, "insert_log") as insert,
+    ):
         response = kiosk_client.post(
             "/api/attendance/manual-checkin", data={"user_id": 1, **_at_church()}
         )
@@ -185,6 +200,7 @@ def test_manual_checkin_unknown_user_returns_404(kiosk_client):
 
 
 # --- search ---------------------------------------------------------------
+
 
 def test_search_never_returns_phone_numbers(kiosk_client):
     """The endpoint used to double as a contact-list export."""
@@ -217,6 +233,7 @@ def test_search_rejects_postgrest_filter_metacharacters(hostile):
 
 # --- registration ---------------------------------------------------------
 
+
 def test_registration_requires_consent(kiosk_client):
     """Biometric data is data pribadi spesifik under UU 27/2022."""
     response = kiosk_client.post(
@@ -235,11 +252,13 @@ def test_registration_requires_consent(kiosk_client):
 
 
 def test_registration_stores_consent_timestamp(kiosk_client):
-    with patch("face_service.FaceService.get_embedding", return_value=[1.0] * 512), patch.object(
-        DBService, "get_user_by_name", return_value=[]
-    ), patch.object(DBService, "match_faces", return_value=[]), patch.object(
-        DBService, "insert_user", return_value={"id": 42}
-    ) as insert_user, patch.object(DBService, "insert_log"):
+    with (
+        patch("face_service.FaceService.get_embedding", return_value=[1.0] * 512),
+        patch.object(DBService, "get_user_by_name", return_value=[]),
+        patch.object(DBService, "match_faces", return_value=[]),
+        patch.object(DBService, "insert_user", return_value={"id": 42}) as insert_user,
+        patch.object(DBService, "insert_log"),
+    ):
         response = kiosk_client.post(
             "/api/register",
             data={
@@ -259,11 +278,13 @@ def test_registration_stores_consent_timestamp(kiosk_client):
 
 
 def test_registration_uses_the_looser_duplicate_threshold(kiosk_client):
-    with patch("face_service.FaceService.get_embedding", return_value=[1.0] * 512), patch.object(
-        DBService, "get_user_by_name", return_value=[]
-    ), patch.object(DBService, "match_faces", return_value=[]) as match, patch.object(
-        DBService, "insert_user", return_value={"id": 42}
-    ), patch.object(DBService, "insert_log"):
+    with (
+        patch("face_service.FaceService.get_embedding", return_value=[1.0] * 512),
+        patch.object(DBService, "get_user_by_name", return_value=[]),
+        patch.object(DBService, "match_faces", return_value=[]) as match,
+        patch.object(DBService, "insert_user", return_value={"id": 42}),
+        patch.object(DBService, "insert_log"),
+    ):
         kiosk_client.post(
             "/api/register",
             data={

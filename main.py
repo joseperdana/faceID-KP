@@ -47,7 +47,9 @@ async def lifespan(app: FastAPI):
             "`python scripts/hash_password.py` and set ADMIN_PASSWORD_HASH instead."
         )
     if config.COOKIE_SECURE is False and config.IS_PRODUCTION:
-        logger.warning("COOKIE_SECURE=false in production — session cookies will cross the network in clear.")
+        logger.warning(
+            "COOKIE_SECURE=false in production — session cookies will cross the network in clear."
+        )
 
     # Load the model here rather than at import time. A failure is logged and
     # the app still serves: the kiosk falls back to manual search instead of the

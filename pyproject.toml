@@ -1,0 +1,29 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+    "venv",
+    ".venv",
+    "frontend",
+    # OBS broadcast tooling: unrelated to attendance, slated to move to its own
+    # repository, and not covered by the test suite.
+    "scripts/obs",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = [
+    "E501",  # line length is enforced by the formatter, not the linter
+    "B008",  # FastAPI's Depends()/File()/Form() defaults are the framework idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately stack context managers and use long fixture chains.
+"tests/*" = ["B017"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

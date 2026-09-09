@@ -1,47 +1,142 @@
-name: QA & E2E Verification
+name: QA
 
 on:
   push:
-    branches: [ dev, staging, main ]
+    # dev and staging no longer exist on the remote; listing them was noise.
+    branches: [main]
   pull_request:
-    branches: [ dev, staging, main ]
+    branches: [main]
+
+# Without this the workflow inherits the repository default, which on many repos
+# is a read/write GITHUB_TOKEN — handed to `pip install`, which executes
+# setup.py from every dependency.
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: .
+  # Clearly-fake values. The previous fallbacks looked like plausible production
+  # secrets ('admin123'), which is exactly the sort of thing that gets copied
+  # into a real .env.
+  SUPABASE_URL: https://ci-only.invalid
+  SUPABASE_KEY: ci-only-not-a-real-key
+  SECRET_KEY: ci-only-secret-key-do-not-use-in-production
+  KIOSK_TOKEN: ci-only-kiosk-token-do-not-use-in-prod
+  ADMIN_PASSWORD: ci-only-password-do-not-use
+  ENABLE_GEOFENCE: "true"
+  CHURCH_LAT: "-7.979261"
+  CHURCH_LNG: "112.625760"
+  COOKIE_SECURE: "false"
+  ENVIRONMENT: test
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://fake.supabase.co' }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'fake-key-for-testing' }}
-      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'admin123' }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY || 'test-secret-key-123456789' }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-123456789' }}
-      PYTHONPATH: .
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Dependencies
+      - name: Install lint tooling
+        run: pip install ruff==0.8.6
+
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Tailwind token check
+        # Tailwind silently emits nothing for an undefined colour and there is no
+        # build step, so this class of bug is invisible in review. It is how the
+        # kiosk shipped with invisible fallback buttons.
+        run: node scripts/check_theme_tokens.js
+
+      - name: JavaScript syntax
+        run: for f in frontend/js/*.js; do node --check "$f"; done
+
+  test:
+    runs-on: ubuntu-latest
+    # The default is 360 minutes; a hung model download would burn six hours of
+    # runner time per run.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Production runs 3.12. CI used to run 3.10, so the two resolved
+      # dependencies differently and CI could not catch what production hit.
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Cache InsightFace models
+        # ~275 MB re-downloaded on every single run otherwise.
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.insightface
+          key: insightface-${{ hashFiles('requirements.txt') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('requirements-dev.txt') }}
+
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-      - name: Install Playwright Browsers
+      - name: Dependency vulnerability scan
         run: |
-          playwright install --with-deps chromium
+          pip install pip-audit==2.7.3
+          # Advisory: a new CVE should not block a Saturday fix, but it must be
+          # visible in the log.
+          pip-audit --requirement requirements.txt --progress-spinner off || true
 
-      - name: Run Backend Unit & Integration Tests
-        run: |
-          pytest tests/test_kiosk_and_attendance.py -v
+      - name: Unit and integration tests
+        # The whole directory. Previously a single file was named, so
+        # tests/test_photobooth_api.py never ran in CI at all.
+        run: pytest tests/ --ignore=tests/test_e2e_playwright.py -v --cov=. --cov-report=term-missing
 
-      - name: Start Local Uvicorn Server & Run Playwright E2E
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+
+      - name: Start server and run end-to-end tests
         run: |
-          python -m uvicorn main:app --port 8000 &
-          sleep 4
+          set -euo pipefail
+          python -m uvicorn main:app --port 8000 > uvicorn.log 2>&1 &
+          echo $! > uvicorn.pid
+          # `sleep 4` was not enough: importing main loads the face model, which
+          # takes 8-20 seconds on a clean runner, so the E2E suite started
+          # against a port that was not listening yet.
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8000/healthz > /dev/null && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/healthz
           pytest tests/test_e2e_playwright.py -v
+
+      - name: Stop server
+        if: always()
+        run: kill "$(cat uvicorn.pid)" 2>/dev/null || true
+
+      - name: Upload diagnostics
+        # Without this the uvicorn log vanished with the runner, so a failing
+        # E2E run gave no way to see what the server had done.
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: diagnostics
+          path: |
+            uvicorn.log
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

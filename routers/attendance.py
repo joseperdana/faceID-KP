@@ -19,7 +19,7 @@ async def get_attendance_by_date(target_date: str):
     try:
         day = parse_date(target_date)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     start_utc, end_utc = day_bounds_utc(day)
     try:
@@ -28,7 +28,7 @@ async def get_attendance_by_date(target_date: str):
         )
     except Exception:
         logger.exception("Failed to load attendance for %s", target_date)
-        raise HTTPException(status_code=503, detail="Gagal memuat data kehadiran.")
+        raise HTTPException(status_code=503, detail="Gagal memuat data kehadiran.") from None
     return {"status": "success", "date": target_date, "data": rows}
 
 
@@ -44,7 +44,7 @@ async def delete_log(log_id: int):
         result = await starlette.concurrency.run_in_threadpool(DBService.delete_log, log_id)
     except Exception:
         logger.exception("Failed to delete log_id=%s", log_id)
-        raise HTTPException(status_code=503, detail="Gagal menghapus entri.")
+        raise HTTPException(status_code=503, detail="Gagal menghapus entri.") from None
     if not result:
         raise HTTPException(status_code=404, detail="Entri tidak ditemukan.")
     logger.info("Attendance log %s deleted by admin", log_id)
@@ -67,7 +67,7 @@ async def get_all_logs(
         )
     except Exception:
         logger.exception("Failed to load logs")
-        raise HTTPException(status_code=503, detail="Gagal memuat riwayat.")
+        raise HTTPException(status_code=503, detail="Gagal memuat riwayat.") from None
     return {
         "status": "success",
         "data": page["rows"],

@@ -16,7 +16,6 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import starlette.concurrency
 from fastapi import APIRouter, HTTPException, Request
@@ -46,7 +45,7 @@ _last_prune = 0.0
 
 class PhotoboothUploadDto(BaseModel):
     image: str = Field(..., description="Base64 JPEG of the composed strip")
-    gif_image: Optional[str] = Field(default="", description="Base64 animated GIF")
+    gif_image: str | None = Field(default="", description="Base64 animated GIF")
     frame: str = Field(default="3-strip", max_length=40)
     caption: str = Field(default="", max_length=120)
 
@@ -64,7 +63,7 @@ def _decode_media(raw: str, magic, label: str, max_bytes: int) -> bytes:
     try:
         data = base64.b64decode(payload, validate=True)
     except (binascii.Error, ValueError):
-        raise HTTPException(status_code=400, detail=f"Data {label} tidak valid.")
+        raise HTTPException(status_code=400, detail=f"Data {label} tidak valid.") from None
     if len(data) > max_bytes:
         raise HTTPException(status_code=413, detail=f"Ukuran {label} melebihi batas.")
     if not data.startswith(magic):
@@ -72,7 +71,7 @@ def _decode_media(raw: str, magic, label: str, max_bytes: int) -> bytes:
     return data
 
 
-def prune_old_photos(retention_days: Optional[int] = None) -> int:
+def prune_old_photos(retention_days: int | None = None) -> int:
     """Delete strips older than the retention window.
 
     Without this, one evening of ~100 sessions leaves roughly 300 MB behind
@@ -134,9 +133,7 @@ def _write(path: Path, data: bytes) -> None:
 async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto):
     _maybe_prune()
 
-    image_bytes = _decode_media(
-        payload.image, _JPEG_MAGIC, "foto", config.PHOTOBOOTH_MAX_BYTES
-    )
+    image_bytes = _decode_media(payload.image, _JPEG_MAGIC, "foto", config.PHOTOBOOTH_MAX_BYTES)
 
     # Full 128-bit id. The previous 8 hex characters were guessable, so anyone
     # could enumerate other people's photos.
@@ -162,7 +159,7 @@ async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto
         raise
     except OSError:
         logger.exception("Failed to write photobooth files")
-        raise HTTPException(status_code=507, detail="Penyimpanan penuh. Hubungi panitia.")
+        raise HTTPException(status_code=507, detail="Penyimpanan penuh. Hubungi panitia.") from None
 
     base_host = get_public_base_url()
     return {

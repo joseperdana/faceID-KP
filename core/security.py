@@ -17,8 +17,7 @@ door with the window left open.
 """
 
 import hmac
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import HTTPException, Request, Response
@@ -33,11 +32,10 @@ COOKIE_NAME = "faceid_token"
 
 # --- Token issuing / verification ----------------------------------------
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(hours=config.SESSION_HOURS)
-    )
+    expire = datetime.now(UTC) + (expires_delta or timedelta(hours=config.SESSION_HOURS))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -48,12 +46,13 @@ def verify_token(token: str) -> dict:
         # `alg: none` nor an RS256->HS256 confusion attack applies here.
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Sesi telah berakhir")
+        raise HTTPException(status_code=401, detail="Sesi telah berakhir") from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Sesi tidak valid")
+        raise HTTPException(status_code=401, detail="Sesi tidak valid") from None
 
 
 # --- Cookie helpers -------------------------------------------------------
+
 
 def set_admin_cookie(response: Response, token: str) -> None:
     response.set_cookie(
@@ -85,6 +84,7 @@ def set_kiosk_cookie(response: Response) -> None:
 
 # --- Identity checks ------------------------------------------------------
 
+
 def _is_admin(request: Request) -> bool:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
@@ -104,9 +104,7 @@ def _is_kiosk(request: Request) -> bool:
     """
     if not config.KIOSK_TOKEN:
         return False
-    presented = request.cookies.get(KIOSK_COOKIE_NAME) or request.headers.get(
-        "x-kiosk-token"
-    )
+    presented = request.cookies.get(KIOSK_COOKIE_NAME) or request.headers.get("x-kiosk-token")
     if not presented:
         return False
     return hmac.compare_digest(presented, config.KIOSK_TOKEN)

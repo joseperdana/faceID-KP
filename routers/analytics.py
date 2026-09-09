@@ -2,7 +2,6 @@
 
 import logging
 import time
-from typing import Dict, Optional
 
 import starlette.concurrency
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,7 +21,7 @@ XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 # competed with face inference for the single vCPU and stalled the kiosk queue.
 _STATS_TTL = 20
 _ANALYTICS_TTL = 300
-_cache: Dict[str, Dict] = {}
+_cache: dict[str, dict] = {}
 
 
 async def _cached(key: str, ttl: int, fn, *args):
@@ -44,7 +43,7 @@ async def get_dashboard_stats():
         # 503, not a 200 carrying {"status": "error"} — an uptime check reading
         # the old response would have reported the system healthy while it was
         # completely unable to reach the database.
-        raise HTTPException(status_code=503, detail="Gagal memuat statistik.")
+        raise HTTPException(status_code=503, detail="Gagal memuat statistik.") from None
     return {**data, "status": "success"}
 
 
@@ -63,7 +62,7 @@ async def get_analytics(
         )
     except Exception:
         logger.exception("Analytics failed for filter=%s", filter_type)
-        raise HTTPException(status_code=503, detail="Gagal memuat analitik.")
+        raise HTTPException(status_code=503, detail="Gagal memuat analitik.") from None
     return {**data, "status": "success"}
 
 
@@ -77,7 +76,7 @@ async def export_excel(
         )
     except Exception:
         logger.exception("Excel export failed for filter=%s", filter_type)
-        raise HTTPException(status_code=503, detail="Gagal membuat laporan.")
+        raise HTTPException(status_code=503, detail="Gagal membuat laporan.") from None
     return StreamingResponse(
         output,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
@@ -92,10 +91,10 @@ async def export_excel_by_date(target_date: str):
             AnalyticsService.generate_daily_excel_report, target_date
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         logger.exception("Daily export failed for %s", target_date)
-        raise HTTPException(status_code=503, detail="Gagal membuat laporan harian.")
+        raise HTTPException(status_code=503, detail="Gagal membuat laporan harian.") from None
     return StreamingResponse(
         output,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},

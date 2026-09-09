@@ -32,10 +32,11 @@ def test_dashboard_counts_the_current_wib_day(admin_client=None):
         captured["start"], captured["end"] = start, end
         return []
 
-    with patch.object(DBService, "get_users_with_count", return_value=10), patch.object(
-        DBService, "get_logs_from_date", side_effect=fake_logs
-    ), patch.object(DBService, "get_new_users_today", return_value=[]), patch.object(
-        DBService, "get_recent_logs", return_value=[]
+    with (
+        patch.object(DBService, "get_users_with_count", return_value=10),
+        patch.object(DBService, "get_logs_from_date", side_effect=fake_logs),
+        patch.object(DBService, "get_new_users_today", return_value=[]),
+        patch.object(DBService, "get_recent_logs", return_value=[]),
     ):
         AnalyticsService.calculate_dashboard_stats()
 
@@ -58,10 +59,11 @@ def test_dashboard_reports_the_face_versus_manual_ratio():
         _log("2026-09-12T10:02:00+00:00", method="manual", user_id=3),
         _log("2026-09-12T10:03:00+00:00", method=None, user_id=4),
     ]
-    with patch.object(DBService, "get_users_with_count", return_value=10), patch.object(
-        DBService, "get_logs_from_date", return_value=logs
-    ), patch.object(DBService, "get_new_users_today", return_value=[]), patch.object(
-        DBService, "get_recent_logs", return_value=[]
+    with (
+        patch.object(DBService, "get_users_with_count", return_value=10),
+        patch.object(DBService, "get_logs_from_date", return_value=logs),
+        patch.object(DBService, "get_new_users_today", return_value=[]),
+        patch.object(DBService, "get_recent_logs", return_value=[]),
     ):
         stats = AnalyticsService.calculate_dashboard_stats()
 
@@ -83,10 +85,11 @@ def test_gender_ratio_is_based_on_attendance_not_the_member_table():
         _log(f"{today}T11:00:00+00:00", name="A", gender="Pria", user_id=1),
         _log(f"{today}T11:01:00+00:00", name="C", gender=None, user_id=3),
     ]
-    with patch.object(DBService, "get_logs_from_date", return_value=logs), patch.object(
-        DBService, "get_all_logs_from_date_paginated", return_value=[]
-    ), patch.object(DBService, "get_users_last_seen", return_value=[]), patch.object(
-        DBService, "get_users_by_gender", return_value=[{"gender": "Pria"}] * 99
+    with (
+        patch.object(DBService, "get_logs_from_date", return_value=logs),
+        patch.object(DBService, "get_all_logs_from_date_paginated", return_value=[]),
+        patch.object(DBService, "get_users_last_seen", return_value=[]),
+        patch.object(DBService, "get_users_by_gender", return_value=[{"gender": "Pria"}] * 99),
     ):
         data = AnalyticsService.get_analytics_data("7d", 21)
 
@@ -104,9 +107,11 @@ def test_peak_hour_is_reported_in_wib():
     """17:00 WIB is the service hour; the same moment is 10:00 UTC."""
     today = today_wib().isoformat()
     logs = [_log(f"{today}T10:05:00+00:00")]
-    with patch.object(DBService, "get_logs_from_date", return_value=logs), patch.object(
-        DBService, "get_all_logs_from_date_paginated", return_value=[]
-    ), patch.object(DBService, "get_users_last_seen", return_value=[]):
+    with (
+        patch.object(DBService, "get_logs_from_date", return_value=logs),
+        patch.object(DBService, "get_all_logs_from_date_paginated", return_value=[]),
+        patch.object(DBService, "get_users_last_seen", return_value=[]),
+    ):
         data = AnalyticsService.get_analytics_data("7d", 21)
 
     assert data["peak_time"] == {"17:00": 1}
@@ -114,12 +119,16 @@ def test_peak_hour_is_reported_in_wib():
 
 def test_heatmap_buckets_by_wib_date():
     """A 23:30 WIB check-in belongs to that WIB day, not the previous UTC one."""
-    with patch.object(DBService, "get_logs_from_date", return_value=[]), patch.object(
-        DBService,
-        "get_all_logs_from_date_paginated",
-        # 16:30 UTC on the 12th is 23:30 WIB on the 12th.
-        return_value=[{"timestamp": "2026-09-12T16:30:00+00:00", "user_id": 1}],
-    ), patch.object(DBService, "get_users_last_seen", return_value=[]):
+    with (
+        patch.object(DBService, "get_logs_from_date", return_value=[]),
+        patch.object(
+            DBService,
+            "get_all_logs_from_date_paginated",
+            # 16:30 UTC on the 12th is 23:30 WIB on the 12th.
+            return_value=[{"timestamp": "2026-09-12T16:30:00+00:00", "user_id": 1}],
+        ),
+        patch.object(DBService, "get_users_last_seen", return_value=[]),
+    ):
         data = AnalyticsService.get_analytics_data("30d", 21)
 
     assert data["heatmap_all"] == {"2026-09-12": 1}
@@ -127,14 +136,19 @@ def test_heatmap_buckets_by_wib_date():
 
 def test_members_who_never_attended_are_listed_first():
     users = [
-        {"id": 1, "full_name": "Lama", "phone_number": "0812", "attendance_logs": [
-            {"timestamp": "2020-01-01T00:00:00+00:00"}
-        ]},
+        {
+            "id": 1,
+            "full_name": "Lama",
+            "phone_number": "0812",
+            "attendance_logs": [{"timestamp": "2020-01-01T00:00:00+00:00"}],
+        },
         {"id": 2, "full_name": "Belum Pernah", "phone_number": "0813", "attendance_logs": []},
     ]
-    with patch.object(DBService, "get_logs_from_date", return_value=[]), patch.object(
-        DBService, "get_all_logs_from_date_paginated", return_value=[]
-    ), patch.object(DBService, "get_users_last_seen", return_value=users):
+    with (
+        patch.object(DBService, "get_logs_from_date", return_value=[]),
+        patch.object(DBService, "get_all_logs_from_date_paginated", return_value=[]),
+        patch.object(DBService, "get_users_last_seen", return_value=users),
+    ):
         data = AnalyticsService.get_analytics_data("30d", 21)
 
     at_risk = data["at_risk"]

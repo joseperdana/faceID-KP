@@ -10,9 +10,7 @@ from services.db_service import DBService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/api/users", tags=["users"], dependencies=[Depends(check_admin_auth)]
-)
+router = APIRouter(prefix="/api/users", tags=["users"], dependencies=[Depends(check_admin_auth)])
 
 
 @router.get("")
@@ -25,7 +23,7 @@ async def get_all_users():
         return {"status": "success", "data": users_data}
     except Exception:
         logger.exception("Failed to list users")
-        raise HTTPException(status_code=503, detail="Gagal memuat data jemaat.")
+        raise HTTPException(status_code=503, detail="Gagal memuat data jemaat.") from None
 
 
 @router.get("/{user_id}/history")
@@ -34,7 +32,7 @@ async def get_user_history(user_id: int):
         return {"status": "success", "data": DBService.get_user_history(user_id)}
     except Exception:
         logger.exception("Failed to load history for user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal memuat riwayat kehadiran.")
+        raise HTTPException(status_code=503, detail="Gagal memuat riwayat kehadiran.") from None
 
 
 @router.put("/{user_id}")
@@ -53,7 +51,7 @@ async def update_user(user_id: int, data: UpdateUserDto):
         result = DBService.update_user(user_id, payload)
     except Exception:
         logger.exception("Failed to update user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal menyimpan perubahan.")
+        raise HTTPException(status_code=503, detail="Gagal menyimpan perubahan.") from None
     if not result:
         # Supabase returns an empty list rather than an error for a missing row,
         # so without this check a typo'd id reported success.
@@ -68,7 +66,7 @@ async def archive_user(user_id: int):
         result = DBService.soft_delete_user(user_id)
     except Exception:
         logger.exception("Failed to archive user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal mengarsipkan jemaat.")
+        raise HTTPException(status_code=503, detail="Gagal mengarsipkan jemaat.") from None
     if not result:
         raise HTTPException(status_code=404, detail="Jemaat tidak ditemukan atau sudah diarsipkan.")
     return {
@@ -83,7 +81,7 @@ async def restore_user(user_id: int):
         result = DBService.restore_user(user_id)
     except Exception:
         logger.exception("Failed to restore user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal memulihkan jemaat.")
+        raise HTTPException(status_code=503, detail="Gagal memulihkan jemaat.") from None
     if not result:
         raise HTTPException(status_code=404, detail="Jemaat tidak ditemukan.")
     return {"status": "success", "message": "Jemaat dipulihkan."}
@@ -101,7 +99,7 @@ async def purge_biometrics(user_id: int):
         result = DBService.purge_biometrics(user_id)
     except Exception:
         logger.exception("Failed to purge biometrics for user_id=%s", user_id)
-        raise HTTPException(status_code=503, detail="Gagal menghapus data biometrik.")
+        raise HTTPException(status_code=503, detail="Gagal menghapus data biometrik.") from None
     if not result:
         raise HTTPException(status_code=404, detail="Jemaat tidak ditemukan.")
     logger.warning("Biometric data purged for user_id=%s", user_id)

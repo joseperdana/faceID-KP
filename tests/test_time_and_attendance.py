@@ -6,7 +6,7 @@ belonged to the previous UTC day and a member could be recorded twice for the
 same WIB day.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -22,8 +22,8 @@ from core.timezone_wib import (
 from services import attendance_service
 from services.db_service import DBService
 
-
 # --- day boundaries -------------------------------------------------------
+
 
 def test_day_bounds_cover_one_wib_day_in_utc():
     start, end = day_bounds_utc(date(2026, 9, 12))
@@ -45,7 +45,7 @@ def test_day_bounds_cover_one_wib_day_in_utc():
 )
 def test_early_morning_and_evening_share_one_wib_day(moment_wib, expected_day):
     start, end = day_bounds_utc(parse_date(expected_day))
-    moment_utc = datetime.fromisoformat(moment_wib).astimezone(timezone.utc).isoformat()
+    moment_utc = datetime.fromisoformat(moment_wib).astimezone(UTC).isoformat()
     assert start <= moment_utc < end
     assert wib_date_str(moment_utc) == expected_day
 
@@ -73,14 +73,17 @@ def test_parse_date_rejects_garbage():
 
 # --- check-in behaviour ---------------------------------------------------
 
+
 def _summary(total=3, last_seen="2026-09-05T10:00:00+00:00"):
     return {"total": total, "last_seen": last_seen}
 
 
 def test_first_checkin_of_the_day_is_recorded():
-    with patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary()
-    ), patch.object(DBService, "insert_log") as insert:
+    with (
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(DBService, "get_attendance_summary", return_value=_summary()),
+        patch.object(DBService, "insert_log") as insert,
+    ):
         result = attendance_service.check_in(1, "Jonathan Kristi", "face", 0.81)
 
     assert result["status"] == "success"
@@ -98,9 +101,11 @@ def test_second_checkin_same_day_is_not_reported_as_success():
     modal either way and nobody could tell that the scan had recorded nothing.
     """
     existing = [{"id": 9, "timestamp": "2026-09-12T09:48:00+00:00", "method": "face"}]
-    with patch.object(DBService, "check_user_log_today", return_value=existing), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary()
-    ), patch.object(DBService, "insert_log") as insert:
+    with (
+        patch.object(DBService, "check_user_log_today", return_value=existing),
+        patch.object(DBService, "get_attendance_summary", return_value=_summary()),
+        patch.object(DBService, "insert_log") as insert,
+    ):
         result = attendance_service.check_in(1, "Jonathan Kristi", "face")
 
     assert result["status"] == "already_checked_in"
@@ -110,10 +115,14 @@ def test_second_checkin_same_day_is_not_reported_as_success():
 
 def test_unique_violation_is_treated_as_duplicate_not_error():
     """Closes the race between the check and the insert."""
-    with patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary()
-    ), patch.object(
-        DBService, "insert_log", side_effect=Exception('duplicate key value violates unique constraint (23505)')
+    with (
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(DBService, "get_attendance_summary", return_value=_summary()),
+        patch.object(
+            DBService,
+            "insert_log",
+            side_effect=Exception("duplicate key value violates unique constraint (23505)"),
+        ),
     ):
         result = attendance_service.check_in(1, "Jonathan Kristi", "manual")
 
@@ -121,17 +130,23 @@ def test_unique_violation_is_treated_as_duplicate_not_error():
 
 
 def test_real_database_errors_still_propagate():
-    with patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary()
-    ), patch.object(DBService, "insert_log", side_effect=Exception("connection refused")):
+    with (
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(DBService, "get_attendance_summary", return_value=_summary()),
+        patch.object(DBService, "insert_log", side_effect=Exception("connection refused")),
+    ):
         with pytest.raises(Exception, match="connection refused"):
             attendance_service.check_in(1, "Jonathan Kristi", "manual")
 
 
 def test_never_attended_reports_baru_pertama():
-    with patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary(total=0, last_seen=None)
-    ), patch.object(DBService, "insert_log"):
+    with (
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(
+            DBService, "get_attendance_summary", return_value=_summary(total=0, last_seen=None)
+        ),
+        patch.object(DBService, "insert_log"),
+    ):
         result = attendance_service.check_in(2, "Joanna Putri", "manual")
 
     assert result["data"]["last_seen"] == "Baru Pertama"
@@ -147,9 +162,11 @@ def test_check_in_queries_the_current_wib_day():
         captured["end"] = end_iso
         return []
 
-    with patch.object(DBService, "check_user_log_today", side_effect=fake_check), patch.object(
-        DBService, "get_attendance_summary", return_value=_summary()
-    ), patch.object(DBService, "insert_log"):
+    with (
+        patch.object(DBService, "check_user_log_today", side_effect=fake_check),
+        patch.object(DBService, "get_attendance_summary", return_value=_summary()),
+        patch.object(DBService, "insert_log"),
+    ):
         attendance_service.check_in(1, "Jonathan Kristi", "face")
 
     start = datetime.fromisoformat(captured["start"])

@@ -1,9 +1,11 @@
 import re
-import pytest
-from playwright.sync_api import Page, BrowserContext, expect
-from core.security import create_access_token, COOKIE_NAME
+
+from playwright.sync_api import BrowserContext, Page, expect
+
+from core.security import COOKIE_NAME, create_access_token
 
 BASE_URL = "http://127.0.0.1:8000"
+
 
 def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContext):
     """Test Kiosk root page and interactive manual search modal with geolocation granted."""
@@ -11,38 +13,39 @@ def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContex
     context.set_geolocation({"latitude": -7.979261, "longitude": 112.625760})
 
     page.goto(f"{BASE_URL}/")
-    
+
     # Check Title and Header
     expect(page).to_have_title("Absen Komisi Pemuda GKI Bromo")
     expect(page.locator("text=FaceID Absen KP")).to_be_visible()
-    
+
     # Check Video element & status
     expect(page.locator("#video")).to_be_visible()
     expect(page.locator("#status-title")).to_be_visible()
-    
+
     # Check Manual Search Modal interaction (initially hidden)
     modal = page.locator("#manual-search-modal")
     expect(modal).to_have_class(re.compile(r"hidden"))
-    
+
     # Open Modal via top button
     btn_open = page.locator("#btn-open-manual-search")
     btn_open.click()
     expect(modal).not_to_have_class(re.compile(r"\bhidden\b"))
-    
+
     # Type query in search
     search_input = page.locator("#manual-search-input")
     search_input.fill("Jonathan")
-    page.wait_for_timeout(300) # wait debounce
-    
+    page.wait_for_timeout(300)  # wait debounce
+
     # Close modal
     btn_close = page.locator("#btn-close-manual-search")
     btn_close.click()
     expect(modal).to_have_class(re.compile(r"hidden"))
 
+
 def test_photobooth_page_interactions(page: Page):
     """Test Nusantara Festive Light Photobooth UI controls, Landing Preview, 4 Layouts, 3s/5s Timers, and Stage transitions."""
     page.goto(f"{BASE_URL}/photobooth")
-    
+
     # Check Page Header
     expect(page).to_have_title(re.compile(r"KP45|Photobooth"))
     expect(page.locator("text=KP45 PHOTOBOOTH")).to_be_visible()
@@ -70,20 +73,20 @@ def test_photobooth_page_interactions(page: Page):
     # Switch back to 3s timer
     timer_3s.click()
     expect(timer_3s).to_have_class(re.compile(r"bg-merdeka-navy"))
-    
+
     # Check 4 Layout Card selections on Welcome Stage
     layout_3strip = page.locator('[data-layout="3-strip"]')
     layout_4strip = page.locator('[data-layout="4-strip"]')
     layout_bento = page.locator('[data-layout="2x2-grid"]')
     layout_single = page.locator('[data-layout="single-wide"]')
-    
+
     expect(layout_3strip).to_have_class(re.compile(r"layout-card-active"))
-    
+
     # Click 4-Strip layout
     layout_4strip.click()
     expect(layout_4strip).to_have_class(re.compile(r"layout-card-active"))
     expect(layout_3strip).not_to_have_class(re.compile(r"layout-card-active"))
-    
+
     # Click 2x2 Bento layout
     layout_bento.click()
     expect(layout_bento).to_have_class(re.compile(r"layout-card-active"))
@@ -92,20 +95,20 @@ def test_photobooth_page_interactions(page: Page):
     # Click Single Wide layout
     layout_single.click()
     expect(layout_single).to_have_class(re.compile(r"layout-card-active"))
-    
+
     # Switch back to 3-Strip
     layout_3strip.click()
     expect(layout_3strip).to_have_class(re.compile(r"layout-card-active"))
-    
+
     # Check Custom Caption input in Result Modal
     caption_input = page.locator("#modal-custom-caption")
     expect(caption_input).to_be_attached()
-    
+
     # Click Start Session Button -> Transitions to Camera Stage
     btn_start = page.locator("#btn-start-session")
     expect(btn_start).to_be_visible()
     btn_start.click()
-    
+
     # Check Welcome stage hidden, Camera stage visible
     welcome_stage = page.locator("#welcome-stage")
     camera_stage = page.locator("#camera-stage")
@@ -118,12 +121,13 @@ def test_photobooth_page_interactions(page: Page):
     expect(page.locator("#retake-count-text")).to_contain_text("2x")
     expect(page.locator("#btn-retake-pose")).to_be_attached()
     expect(page.locator("#btn-next-pose")).to_be_attached()
-    
+
     # Check Cancel button returns to Welcome stage
     btn_cancel = page.locator("#btn-cancel-session")
     btn_cancel.click()
     expect(welcome_stage).not_to_have_class(re.compile(r"hidden"))
     expect(camera_stage).to_have_class(re.compile(r"hidden"))
+
 
 def test_photobooth_retake_flow_and_timer_interval(page: Page):
     """Test timer intervals, mirror toggle on preview, and retake quota state."""
@@ -153,6 +157,7 @@ def test_photobooth_retake_flow_and_timer_interval(page: Page):
     page.locator("#btn-cancel-session").click()
     expect(page.locator("#welcome-stage")).to_be_visible()
 
+
 def test_photobooth_full_delivery_to_result_modal(page: Page):
     """Test that photobooth completes output processing, opens result modal, renders Stitch photostrip, and updates custom caption in real-time."""
     errors = []
@@ -161,7 +166,7 @@ def test_photobooth_full_delivery_to_result_modal(page: Page):
 
     page.goto(f"{BASE_URL}/photobooth")
     page.wait_for_load_state("networkidle")
-    
+
     if errors:
         print(f"Page errors: {errors}")
 
@@ -173,7 +178,7 @@ def test_photobooth_full_delivery_to_result_modal(page: Page):
         const ctx = dummyCanvas.getContext('2d');
         ctx.fillStyle = '#b7102a';
         ctx.fillRect(0, 0, 640, 480);
-        
+
         window.__photobooth.setCapturedPoses([dummyCanvas, dummyCanvas, dummyCanvas]);
         window.__photobooth.processAndDeliverOutputs();
     }""")
@@ -205,16 +210,19 @@ def test_photobooth_full_delivery_to_result_modal(page: Page):
     expect(result_modal).to_have_class(re.compile(r"hidden"))
     expect(page.locator("#welcome-stage")).to_be_visible()
 
+
 def test_login_page_form(page: Page):
     """Test Admin login page."""
     page.goto(f"{BASE_URL}/login")
     expect(page.locator('input[type="password"]')).to_be_visible()
     expect(page.locator('button[type="submit"]')).to_be_visible()
 
+
 def test_protected_routes_redirect_to_login(page: Page):
     """Verify that unauthenticated access to /dashboard redirects to /login."""
     page.goto(f"{BASE_URL}/dashboard")
     expect(page).to_have_url(f"{BASE_URL}/login")
+
 
 def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: BrowserContext):
     """E2E Test ensuring dashboard loads all live data, stats, graphs, and handles tabs with 0 console errors."""
@@ -223,16 +231,11 @@ def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: Br
 
     # Set authenticated admin cookie
     token = create_access_token(data={"sub": "admin"})
-    context.add_cookies([{
-        "name": COOKIE_NAME,
-        "value": token,
-        "domain": "127.0.0.1",
-        "path": "/"
-    }])
+    context.add_cookies([{"name": COOKIE_NAME, "value": token, "domain": "127.0.0.1", "path": "/"}])
 
     # Navigate to Dashboard
     page.goto(f"{BASE_URL}/dashboard")
-    expect(page).to_have_title(re.compile(r"Attendance Intelligence Hub|Dashboard Presensi"))
+    expect(page).to_have_title(re.compile(r"Attendance Intelligence Hub|Dashboard|Presensi"))
 
     # 1. Overview Tab & Stats assertions
     page.wait_for_selector("#stat-total-users")
@@ -288,5 +291,79 @@ def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: Br
     page.evaluate("closeGlobalCalendarModal()")
     expect(modal_cal).to_have_class(re.compile(r"hidden"))
 
-    # Assert 0 console errors occurred during entire dashboard session
-    assert len(console_errors) == 0, f"Dashboard had console errors: {console_errors}"
+    # Console errors are filtered rather than required to be zero.
+    #
+    # CI points at a nonexistent Supabase, so failed API calls are expected here
+    # and the page is *supposed* to report them. A blanket "zero console errors"
+    # assertion made this test fail for the correct behaviour, which is why it
+    # could not be trusted. Only errors that indicate broken page code fail the
+    # test.
+    ignorable = ("Failed to load resource", "net::ERR_", "503", "Gagal memuat", "Layanan sedang")
+    real_errors = [e for e in console_errors if not any(token in e for token in ignorable)]
+    assert not real_errors, f"Dashboard had unexpected console errors: {real_errors}"
+
+
+def test_dashboard_shows_an_error_state_when_the_api_fails(page: Page, context: BrowserContext):
+    """A failed load must say so, not look like an empty church.
+
+    Every dashboard loader used to swallow errors into console.error, leaving
+    dashes in the KPI cards and empty tables — indistinguishable from "nobody
+    has checked in yet".
+    """
+    token = create_access_token(data={"sub": "admin"})
+    context.add_cookies([{"name": COOKIE_NAME, "value": token, "domain": "127.0.0.1", "path": "/"}])
+
+    page.goto(f"{BASE_URL}/dashboard")
+    page.wait_for_selector("#feed-table")
+    # CI has no reachable database, so the feed must render a visible failure
+    # with a retry affordance.
+    expect(page.locator("#feed-table .js-retry")).to_be_visible(timeout=15000)
+
+
+def test_kiosk_manual_fallback_is_wired_before_any_cdn_code_runs(page: Page):
+    """The fallback button must work even if the AI libraries never load.
+
+    `new FaceDetection(...)` used to run at the top level of index.js, so an
+    unreachable CDN threw a ReferenceError that stopped the rest of the file —
+    including the listener for this button. The kiosk's fallback silently became
+    a dead control in exactly the situation it exists for.
+    """
+    # Block the CDN entirely to simulate the church hall losing its uplink.
+    page.route("**/cdn.jsdelivr.net/**", lambda route: route.abort())
+    page.goto(f"{BASE_URL}/")
+
+    modal = page.locator("#manual-search-modal")
+    page.locator("#btn-open-manual-search").click()
+    expect(modal).not_to_have_class(re.compile(r"\bhidden\b"))
+
+
+def test_register_page_requires_an_enrolled_device(page: Page):
+    """/register is reachable from an enrolled kiosk or an admin, nobody else."""
+    page.goto(f"{BASE_URL}/register")
+    expect(page).to_have_url(f"{BASE_URL}/login")
+
+
+def test_register_page_shows_the_consent_checkbox(page: Page, context: BrowserContext):
+    """Biometric consent is mandatory and must be visible before capture."""
+    token = create_access_token(data={"sub": "admin"})
+    context.add_cookies([{"name": COOKIE_NAME, "value": token, "domain": "127.0.0.1", "path": "/"}])
+
+    page.goto(f"{BASE_URL}/register")
+    consent = page.locator("#consent")
+    expect(consent).to_be_visible()
+    assert consent.get_attribute("required") is not None
+    expect(page.locator("#consent-wrapper")).to_contain_text("menyetujui")
+
+
+def test_security_headers_are_served(page: Page):
+    response = page.goto(f"{BASE_URL}/")
+    headers = response.headers
+    assert headers.get("x-frame-options") == "DENY"
+    assert headers.get("x-content-type-options") == "nosniff"
+    assert "frame-ancestors 'none'" in headers.get("content-security-policy", "")
+
+
+def test_static_mount_does_not_serve_protected_pages(page: Page):
+    """/static used to expose /static/dashboard.html with no session at all."""
+    response = page.request.get(f"{BASE_URL}/static/dashboard.html")
+    assert response.status == 404

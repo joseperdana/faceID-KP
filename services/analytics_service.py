@@ -14,7 +14,6 @@ import logging
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
-from typing import Dict, List, Optional, Tuple
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -37,7 +36,7 @@ _FILTER_DAYS = {"7d": 7, "30d": 30, "90d": 90}
 _HEATMAP_DAYS = 365
 
 
-def _period_bounds(filter_type: str) -> Tuple[str, str, int]:
+def _period_bounds(filter_type: str) -> tuple[str, str, int]:
     """UTC bounds covering whole WIB days for the requested period."""
     today = today_wib()
     if filter_type == "all":
@@ -50,7 +49,7 @@ def _period_bounds(filter_type: str) -> Tuple[str, str, int]:
     return start_utc, end_utc, days
 
 
-def _method_of(log: Dict) -> str:
+def _method_of(log: dict) -> str:
     method = (log.get("method") or "").lower()
     if method in ("face", "manual", "register"):
         return method
@@ -61,7 +60,7 @@ class AnalyticsService:
     # --- overview --------------------------------------------------------
 
     @staticmethod
-    def calculate_dashboard_stats() -> Dict:
+    def calculate_dashboard_stats() -> dict:
         start_utc, end_utc = today_bounds_utc()
 
         total_users = DBService.get_users_with_count()
@@ -99,13 +98,13 @@ class AnalyticsService:
     # --- analytics -------------------------------------------------------
 
     @staticmethod
-    def get_analytics_data(filter_type: str, at_risk_days: int) -> Dict:
+    def get_analytics_data(filter_type: str, at_risk_days: int) -> dict:
         start_utc, end_utc, days = _period_bounds(filter_type)
         logs_data = DBService.get_logs_from_date(start_utc, end_utc)
 
         today = today_wib()
         window = min(days, 365)
-        date_counts: Dict[str, int] = {
+        date_counts: dict[str, int] = {
             (today - timedelta(days=i)).isoformat(): 0 for i in range(window)
         }
 
@@ -142,7 +141,7 @@ class AnalyticsService:
 
         saturday_values = [
             count
-            for day, count in zip(sorted_dates, trend_data)
+            for day, count in zip(sorted_dates, trend_data, strict=False)
             if datetime.fromisoformat(day).weekday() == 5 and count > 0
         ]
         avg_attendance = (
@@ -150,7 +149,7 @@ class AnalyticsService:
         )
 
         heatmap_start, _ = day_bounds_utc(today - timedelta(days=_HEATMAP_DAYS))
-        heatmap_all: Dict[str, int] = defaultdict(int)
+        heatmap_all: dict[str, int] = defaultdict(int)
         for log in DBService.get_all_logs_from_date_paginated(heatmap_start):
             day_key = wib_date_str(log.get("timestamp"))
             if day_key:
@@ -206,9 +205,9 @@ class AnalyticsService:
         }
 
     @staticmethod
-    def _build_at_risk(at_risk_days: int) -> List[Dict]:
+    def _build_at_risk(at_risk_days: int) -> list[dict]:
         now = now_wib()
-        result: List[Dict] = []
+        result: list[dict] = []
         for user in DBService.get_users_last_seen():
             logs = user.get("attendance_logs") or []
             if not logs:
@@ -241,7 +240,7 @@ class AnalyticsService:
     # --- exports ---------------------------------------------------------
 
     @staticmethod
-    def _write_sheet(rows: List[Dict], headers: List[str], sheet_name: str) -> BytesIO:
+    def _write_sheet(rows: list[dict], headers: list[str], sheet_name: str) -> BytesIO:
         workbook = Workbook()
         sheet = workbook.active
         # Excel rejects sheet names over 31 chars or containing []:*?/\
@@ -268,7 +267,7 @@ class AnalyticsService:
         return output
 
     @staticmethod
-    def _rows_from_logs(logs: List[Dict], time_format: str) -> List[Dict]:
+    def _rows_from_logs(logs: list[dict], time_format: str) -> list[dict]:
         rows = []
         for item in logs:
             local = to_wib(item.get("timestamp"))
@@ -289,7 +288,7 @@ class AnalyticsService:
         return rows
 
     @staticmethod
-    def generate_excel_report(filter_type: str) -> Tuple[BytesIO, str]:
+    def generate_excel_report(filter_type: str) -> tuple[BytesIO, str]:
         start_utc, end_utc, _ = _period_bounds(filter_type)
         logs = DBService.get_logs_desc(start_utc, end_utc)
         headers = ["Waktu (WIB)", "Nama Lengkap", "No. HP", "Metode", "Status"]
@@ -302,7 +301,7 @@ class AnalyticsService:
         return output, filename
 
     @staticmethod
-    def generate_daily_excel_report(target_date: str) -> Tuple[BytesIO, str]:
+    def generate_daily_excel_report(target_date: str) -> tuple[BytesIO, str]:
         day = parse_date(target_date)
         start_utc, end_utc = day_bounds_utc(day)
         logs = DBService.get_logs_from_date(start_utc, end_utc)

@@ -17,7 +17,6 @@ explicit here so that cannot happen by accident again.
 
 import logging
 import re
-from typing import Dict, List, Optional
 
 from core import config
 from core.timezone_wib import utc_now_iso
@@ -42,7 +41,7 @@ class DBService:
     # --- users -----------------------------------------------------------
 
     @staticmethod
-    def get_all_users() -> List[Dict]:
+    def get_all_users() -> list[dict]:
         res = (
             supabase.table("users")
             .select(f"{USER_PUBLIC_COLUMNS}, attendance_logs(count)")
@@ -53,26 +52,21 @@ class DBService:
 
     @staticmethod
     def get_users_with_count() -> int:
-        res = (
-            supabase.table("users")
-            .select("id", count="exact")
-            .eq("is_deleted", False)
-            .execute()
-        )
+        res = supabase.table("users").select("id", count="exact").eq("is_deleted", False).execute()
         return res.count or 0
 
     @staticmethod
-    def get_users_by_gender() -> List[Dict]:
+    def get_users_by_gender() -> list[dict]:
         res = supabase.table("users").select("gender").eq("is_deleted", False).execute()
         return res.data
 
     @staticmethod
-    def insert_user(user_data: dict) -> Dict:
+    def insert_user(user_data: dict) -> dict:
         res = supabase.table("users").insert(user_data).execute()
         return res.data[0]
 
     @staticmethod
-    def update_user(user_id: int, user_data: dict) -> List[Dict]:
+    def update_user(user_id: int, user_data: dict) -> list[dict]:
         res = (
             supabase.table("users")
             .update(user_data)
@@ -83,7 +77,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def soft_delete_user(user_id: int) -> List[Dict]:
+    def soft_delete_user(user_id: int) -> list[dict]:
         """Archive a member: hidden everywhere, attendance history preserved.
 
         This intentionally keeps `face_embedding`, because an archived member may
@@ -100,7 +94,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def restore_user(user_id: int) -> List[Dict]:
+    def restore_user(user_id: int) -> list[dict]:
         res = (
             supabase.table("users")
             .update({"is_deleted": False, "deleted_at": None})
@@ -110,7 +104,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def purge_biometrics(user_id: int) -> List[Dict]:
+    def purge_biometrics(user_id: int) -> list[dict]:
         """Irreversibly erase a member's biometric data and phone number.
 
         This is what satisfies a deletion request under UU 27/2022. The
@@ -140,7 +134,7 @@ class DBService:
         supabase.table("users").delete().eq("id", user_id).execute()
 
     @staticmethod
-    def get_user_by_name(full_name: str) -> List[Dict]:
+    def get_user_by_name(full_name: str) -> list[dict]:
         """Exact-name lookup, insensitive to case and surrounding whitespace.
 
         Previously an exact match, so "Jose", "jose" and "Jose " registered as
@@ -159,7 +153,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def get_new_users_today(start_iso: str, end_iso: Optional[str] = None) -> List[Dict]:
+    def get_new_users_today(start_iso: str, end_iso: str | None = None) -> list[dict]:
         query = (
             supabase.table("users")
             .select(USER_PUBLIC_COLUMNS)
@@ -171,7 +165,7 @@ class DBService:
         return query.execute().data
 
     @staticmethod
-    def get_user_by_id(user_id: int) -> List[Dict]:
+    def get_user_by_id(user_id: int) -> list[dict]:
         res = (
             supabase.table("users")
             .select(USER_PUBLIC_COLUMNS)
@@ -182,7 +176,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def search_active_users(query: str, limit: int = 25) -> List[Dict]:
+    def search_active_users(query: str, limit: int = 25) -> list[dict]:
         """Name search for the kiosk's manual fallback.
 
         Returns names and ids only. The phone number used to be included, which
@@ -206,7 +200,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def get_users_last_seen() -> List[Dict]:
+    def get_users_last_seen() -> list[dict]:
         res = (
             supabase.table("users")
             .select("id, full_name, phone_number, attendance_logs(timestamp)")
@@ -220,7 +214,7 @@ class DBService:
     # --- attendance logs -------------------------------------------------
 
     @staticmethod
-    def get_recent_logs(limit: int = 15) -> List[Dict]:
+    def get_recent_logs(limit: int = 15) -> list[dict]:
         res = (
             supabase.table("attendance_logs")
             .select("id, timestamp, status, method, user_id, users!inner(id, full_name)")
@@ -232,7 +226,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def get_logs_from_date(start_iso: str, end_iso: Optional[str] = None) -> List[Dict]:
+    def get_logs_from_date(start_iso: str, end_iso: str | None = None) -> list[dict]:
         query = (
             supabase.table("attendance_logs")
             .select(
@@ -248,7 +242,7 @@ class DBService:
         return query.order("timestamp", desc=False).execute().data
 
     @staticmethod
-    def get_logs_desc(start_iso: str, end_iso: Optional[str] = None) -> List[Dict]:
+    def get_logs_desc(start_iso: str, end_iso: str | None = None) -> list[dict]:
         query = (
             supabase.table("attendance_logs")
             .select("timestamp, status, method, users!inner(full_name, phone_number)")
@@ -260,7 +254,7 @@ class DBService:
         return query.order("timestamp", desc=True).execute().data
 
     @staticmethod
-    def get_all_logs_with_users(limit: int = 500, offset: int = 0) -> Dict:
+    def get_all_logs_with_users(limit: int = 500, offset: int = 0) -> dict:
         """One page of the full log, with the true total.
 
         The unpaginated version silently stopped at PostgREST's 1000-row cap, so
@@ -280,7 +274,7 @@ class DBService:
         return {"rows": res.data, "total": res.count or 0}
 
     @staticmethod
-    def get_user_history(user_id: int, limit: int = 500) -> List[Dict]:
+    def get_user_history(user_id: int, limit: int = 500) -> list[dict]:
         res = (
             supabase.table("attendance_logs")
             .select("id, timestamp, status, method")
@@ -292,7 +286,7 @@ class DBService:
         return res.data
 
     @staticmethod
-    def get_attendance_summary(user_id: int, before_iso: str) -> Dict:
+    def get_attendance_summary(user_id: int, before_iso: str) -> dict:
         """Total attendance count plus the most recent visit before `before_iso`.
 
         Replaces fetching a member's entire history on every scan just to call
@@ -320,7 +314,7 @@ class DBService:
         }
 
     @staticmethod
-    def check_user_log_today(user_id: int, start_iso: str, end_iso: str) -> List[Dict]:
+    def check_user_log_today(user_id: int, start_iso: str, end_iso: str) -> list[dict]:
         """Has this member already checked in during the current WIB day?
 
         Bounds are half-open [start, end) so a check-in at exactly midnight WIB
@@ -361,7 +355,7 @@ class DBService:
             raise
 
     @staticmethod
-    def delete_log(log_id: int) -> List[Dict]:
+    def delete_log(log_id: int) -> list[dict]:
         res = supabase.table("attendance_logs").delete().eq("id", log_id).execute()
         return res.data
 
@@ -370,8 +364,8 @@ class DBService:
         supabase.table("attendance_logs").delete().eq("user_id", user_id).execute()
 
     @staticmethod
-    def get_all_logs_from_date_paginated(start_iso: str) -> List[Dict]:
-        all_logs: List[Dict] = []
+    def get_all_logs_from_date_paginated(start_iso: str) -> list[dict]:
+        all_logs: list[dict] = []
         offset = 0
         while True:
             res = (
@@ -393,9 +387,9 @@ class DBService:
     @staticmethod
     def match_faces(
         query_embedding: list,
-        threshold: Optional[float] = None,
+        threshold: float | None = None,
         limit: int = 2,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Nearest registered faces above `threshold`, best first.
 
         Defaults to two candidates so the caller can reject an ambiguous match

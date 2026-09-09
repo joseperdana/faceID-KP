@@ -61,9 +61,9 @@ def _is_rejected(response) -> bool:
 
 @pytest.mark.parametrize("method,path,scope", PROTECTED, ids=lambda v: str(v))
 def test_protected_endpoints_reject_anonymous(client, method, path, scope):
-    assert _is_rejected(_call(client, method, path)), (
-        f"{method} {path} is reachable without credentials"
-    )
+    assert _is_rejected(
+        _call(client, method, path)
+    ), f"{method} {path} is reachable without credentials"
 
 
 @pytest.mark.parametrize("method,path,scope", ADMIN_ONLY, ids=lambda v: str(v))
@@ -73,9 +73,9 @@ def test_admin_only_endpoints_reject_kiosk_token(kiosk_client, method, path, sco
     /api/update-face is the one that matters most: overwriting an embedding
     locks the real person out of the system and cannot be undone.
     """
-    assert _is_rejected(_call(kiosk_client, method, path)), (
-        f"{method} {path} is reachable with only a kiosk token"
-    )
+    assert _is_rejected(
+        _call(kiosk_client, method, path)
+    ), f"{method} {path} is reachable with only a kiosk token"
 
 
 def test_kiosk_scope_accepts_enrolled_device(kiosk_client):

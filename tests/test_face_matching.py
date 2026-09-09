@@ -20,6 +20,7 @@ JPEG_HEADER = b"\xff\xd8\xff\xe0" + b"\x00" * 200
 
 # --- threshold configuration ---------------------------------------------
 
+
 def test_duplicate_threshold_is_looser_than_match_threshold():
     """The dead zone that logged attendance under the wrong name.
 
@@ -27,22 +28,24 @@ def test_duplicate_threshold_is_looser_than_match_threshold():
     passed the duplicate check (0.45 < 0.5, "a different person") and was then
     matched to that existing member at check-in (0.45 >= 0.42).
     """
-    assert config.FACE_DUPLICATE_THRESHOLD <= config.FACE_MATCH_THRESHOLD, (
-        "Duplicate detection must catch every face that recognition could later match"
-    )
+    assert (
+        config.FACE_DUPLICATE_THRESHOLD <= config.FACE_MATCH_THRESHOLD
+    ), "Duplicate detection must catch every face that recognition could later match"
 
 
 def test_config_rejects_an_inverted_threshold_pair():
     from core.config import ConfigError
 
-    with patch.object(config, "FACE_DUPLICATE_THRESHOLD", 0.5), patch.object(
-        config, "FACE_MATCH_THRESHOLD", 0.42
+    with (
+        patch.object(config, "FACE_DUPLICATE_THRESHOLD", 0.5),
+        patch.object(config, "FACE_MATCH_THRESHOLD", 0.42),
     ):
         with pytest.raises(ConfigError, match="zona mati"):
             config.validate()
 
 
 # --- embedding averaging --------------------------------------------------
+
 
 def test_average_is_not_dominated_by_the_brightest_frame():
     """A plain mean weights by magnitude, which tracks brightness.
@@ -90,6 +93,7 @@ def test_average_rejects_frames_that_cancel_out():
 
 # --- recognition endpoint -------------------------------------------------
 
+
 def _patch_embedding(vector):
     return patch("face_service.FaceService.get_embedding", return_value=vector)
 
@@ -100,8 +104,9 @@ def test_ambiguous_match_is_refused_rather_than_guessed(client):
         {"id": 1, "full_name": "Andre", "similarity": 0.62},
         {"id": 2, "full_name": "Andrea", "similarity": 0.60},
     ]
-    with _patch_embedding([0.1] * 512), patch.object(
-        DBService, "match_faces", return_value=candidates
+    with (
+        _patch_embedding([0.1] * 512),
+        patch.object(DBService, "match_faces", return_value=candidates),
     ):
         response = client.post(
             "/api/recognize",
@@ -118,11 +123,15 @@ def test_clear_winner_is_accepted(client):
         {"id": 1, "full_name": "Andre", "similarity": 0.81},
         {"id": 2, "full_name": "Andrea", "similarity": 0.44},
     ]
-    with _patch_embedding([0.1] * 512), patch.object(
-        DBService, "match_faces", return_value=candidates
-    ), patch.object(DBService, "check_user_log_today", return_value=[]), patch.object(
-        DBService, "get_attendance_summary", return_value={"total": 1, "last_seen": None}
-    ), patch.object(DBService, "insert_log"):
+    with (
+        _patch_embedding([0.1] * 512),
+        patch.object(DBService, "match_faces", return_value=candidates),
+        patch.object(DBService, "check_user_log_today", return_value=[]),
+        patch.object(
+            DBService, "get_attendance_summary", return_value={"total": 1, "last_seen": None}
+        ),
+        patch.object(DBService, "insert_log"),
+    ):
         response = client.post(
             "/api/recognize",
             files={"file": ("f.jpg", io.BytesIO(JPEG_HEADER), "image/jpeg")},

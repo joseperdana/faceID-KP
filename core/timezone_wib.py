@@ -10,15 +10,14 @@ WIB those disagree, which allowed a member who checked in at 06:30 WIB (still
 Every day-boundary computation in the application must go through here.
 """
 
-from datetime import date, datetime, time, timedelta, timezone
-from typing import Optional, Tuple
+from datetime import UTC, date, datetime, time, timedelta, timezone
 
 WIB = timezone(timedelta(hours=7), name="WIB")
 
 
 def now_wib() -> datetime:
     """Current moment expressed in WIB."""
-    return datetime.now(timezone.utc).astimezone(WIB)
+    return datetime.now(UTC).astimezone(WIB)
 
 
 def today_wib() -> date:
@@ -26,7 +25,7 @@ def today_wib() -> date:
     return now_wib().date()
 
 
-def day_bounds_utc(target: date) -> Tuple[str, str]:
+def day_bounds_utc(target: date) -> tuple[str, str]:
     """UTC ISO bounds [start, end) covering one full WIB calendar day.
 
     Half-open on purpose: use `.gte(start).lt(end)` so a log written at exactly
@@ -35,12 +34,12 @@ def day_bounds_utc(target: date) -> Tuple[str, str]:
     start_wib = datetime.combine(target, time.min, tzinfo=WIB)
     end_wib = start_wib + timedelta(days=1)
     return (
-        start_wib.astimezone(timezone.utc).isoformat(),
-        end_wib.astimezone(timezone.utc).isoformat(),
+        start_wib.astimezone(UTC).isoformat(),
+        end_wib.astimezone(UTC).isoformat(),
     )
 
 
-def today_bounds_utc() -> Tuple[str, str]:
+def today_bounds_utc() -> tuple[str, str]:
     """UTC ISO bounds for the current WIB day."""
     return day_bounds_utc(today_wib())
 
@@ -50,10 +49,10 @@ def parse_date(target_date: str) -> date:
     try:
         return datetime.strptime(target_date, "%Y-%m-%d").date()
     except ValueError:
-        raise ValueError(f"Format tanggal harus YYYY-MM-DD, dapat: {target_date!r}")
+        raise ValueError(f"Format tanggal harus YYYY-MM-DD, dapat: {target_date!r}") from None
 
 
-def to_wib(value: Optional[str]) -> Optional[datetime]:
+def to_wib(value: str | None) -> datetime | None:
     """Convert a stored ISO timestamp to WIB.
 
     Timestamps written by this application always carry an offset. Rows written
@@ -71,17 +70,17 @@ def to_wib(value: Optional[str]) -> Optional[datetime]:
         except ValueError:
             return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed.astimezone(WIB)
 
 
-def wib_date_str(value: Optional[str]) -> Optional[str]:
+def wib_date_str(value: str | None) -> str | None:
     """The WIB calendar date (YYYY-MM-DD) a stored timestamp falls on."""
     converted = to_wib(value)
     return converted.date().isoformat() if converted else None
 
 
-def wib_hour(value: Optional[str]) -> Optional[int]:
+def wib_hour(value: str | None) -> int | None:
     """The WIB hour-of-day a stored timestamp falls on."""
     converted = to_wib(value)
     return converted.hour if converted else None
@@ -89,4 +88,4 @@ def wib_hour(value: Optional[str]) -> Optional[int]:
 
 def utc_now_iso() -> str:
     """Timestamp for writing to the database — always stored in UTC."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
