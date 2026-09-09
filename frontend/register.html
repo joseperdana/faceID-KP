@@ -7,40 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>window.KP_VENDOR_BASE = null;</script>
+    <script src="/static/js/tailwind-theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                    },
-                    colors: {
-                        obsidian: {
-                            950: '#06070A',
-                            900: '#0B0D13',
-                            850: '#11141E',
-                            800: '#151926',
-                            700: '#22283A'
-                        },
-                        azure: {
-                            500: '#3B82F6',
-                            600: '#2563EB',
-                            700: '#1D4ED8'
-                        },
-                        cyan: {
-                            400: '#38BDF8',
-                            500: '#0EA5E9'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="/static/js/shared.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .glow-mesh {
@@ -104,11 +76,11 @@
 
             <form id="reg-form" class="space-y-4">
                 <div>
-                    <label class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
+                    <label for="full_name" class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
                         Nama Lengkap
                     </label>
                     <input type="text" id="full_name" required 
-                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all text-sm" 
+                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all text-sm" 
                         placeholder="Contoh: Jonathan Setiawan">
                 </div>
 
@@ -129,12 +101,30 @@
                 </div>
 
                 <div id="phone-wrapper">
-                    <label class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
+                    <label for="phone_number" class="block text-slate-300 text-xs font-medium uppercase tracking-wider mb-1.5 font-mono">
                         Nomor WhatsApp
                     </label>
                     <input type="tel" id="phone_number" required 
-                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all font-mono text-sm" 
+                        class="w-full bg-obsidian-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all font-mono text-sm" 
                         placeholder="08123456789">
+                </div>
+
+
+                <!-- Consent is mandatory and recorded server-side. Face
+                     embeddings are "data pribadi spesifik" under UU 27/2022,
+                     which requires explicit, standalone consent — there was
+                     previously none anywhere in the flow. -->
+                <div id="consent-wrapper" class="rounded-xl bg-obsidian-900 border border-white/10 p-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="consent" name="consent" required
+                            class="mt-0.5 w-5 h-5 shrink-0 accent-azure-600 cursor-pointer">
+                        <span class="text-sm text-slate-300 leading-relaxed">
+                            Saya menyetujui pengambilan dan penyimpanan <strong class="text-white">data wajah</strong> saya
+                            oleh Komisi Pemuda GKI Bromo Malang untuk keperluan presensi.
+                            Saya dapat menarik persetujuan dan meminta penghapusan data kapan saja melalui pengurus.
+                            <span class="block mt-1.5 text-slate-400">Jika berusia di bawah 18 tahun, pendaftaran perlu didampingi orang tua atau wali.</span>
+                        </span>
+                    </label>
                 </div>
 
                 <!-- Face Status Indicator -->
@@ -150,13 +140,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    Ambil 3 Foto & Simpan Data
+                    Ambil 3 Foto &amp; Daftar
                 </button>
             </form>
 
             <div id="result-message" class="mt-4 hidden p-3.5 rounded-xl text-center text-xs font-mono"></div>
             
-            <a href="/" class="mt-5 flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-300 transition-colors text-xs">
+            <a href="/" class="mt-5 flex items-center justify-center gap-1.5 text-slate-300 hover:text-white transition-colors text-sm">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>

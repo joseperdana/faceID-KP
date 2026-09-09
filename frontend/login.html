@@ -7,38 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="/static/js/tailwind-theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                    },
-                    colors: {
-                        obsidian: {
-                            950: '#06070A',
-                            900: '#0B0D13',
-                            850: '#11141E',
-                            800: '#151926',
-                            700: '#22283A'
-                        },
-                        azure: {
-                            500: '#3B82F6',
-                            600: '#2563EB',
-                            700: '#1D4ED8'
-                        },
-                        cyan: {
-                            400: '#38BDF8',
-                            500: '#0EA5E9'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .glow-mesh {
@@ -49,8 +19,6 @@
 </head>
 <body class="bg-obsidian-950 text-slate-100 flex items-center justify-center min-h-screen p-4 glow-mesh selection:bg-azure-600 selection:text-white">
     <div class="w-full max-w-md bg-obsidian-900/90 backdrop-blur-2xl p-8 md:p-10 rounded-3xl shadow-2xl border border-white/[0.08] relative overflow-hidden">
-        <div class="absolute -top-24 -right-24 w-48 h-48 bg-azure-600/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <!-- Header Monogram -->
         <div class="flex flex-col items-center mb-8 relative z-10">
@@ -63,18 +31,18 @@
                 KP BROMO
             </h1>
             <span class="text-xs font-mono font-medium tracking-wider uppercase text-cyan-400 mt-1 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
-                Leader Portal Area
+                Area Pengurus
             </span>
         </div>
 
-        <form onsubmit="handleLogin(event)" class="space-y-5 relative z-10">
+        <form id="login-form" class="space-y-5 relative z-10">
             <div>
                 <label for="password" class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2 font-mono">
                     Password Admin
                 </label>
                 <div class="relative">
                     <input type="password" id="password" required placeholder="••••••••••••" 
-                        class="w-full px-4 py-3.5 rounded-xl bg-obsidian-850 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all font-mono text-sm">
+                        class="w-full px-4 py-3.5 rounded-xl bg-obsidian-850 border border-white/10 text-white placeholder-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:border-azure-500 focus:ring-2 focus:ring-azure-500/20 transition-all font-mono text-sm">
                 </div>
             </div>
 
@@ -87,10 +55,10 @@
             </button>
         </form>
 
-        <p id="error" class="text-rose-400 text-xs font-medium text-center mt-5 bg-rose-500/10 border border-rose-500/20 py-2.5 px-3 rounded-xl hidden"></p>
+        <p id="error" role="alert" aria-live="assertive" class="text-rose-300 text-sm font-medium text-center mt-5 bg-rose-500/10 border border-rose-500/20 py-2.5 px-3 rounded-xl hidden"></p>
 
-        <div class="mt-8 pt-6 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-500">
-            <a href="/" class="hover:text-slate-300 transition-colors flex items-center gap-1.5">
+        <div class="mt-8 pt-6 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
+            <a href="/" class="hover:text-slate-200 transition-colors flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,32 +10,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     
+    <!-- Vendor base. scripts/vendor_assets.sh downloads these into
+         frontend/vendor/ so the kiosk keeps working when the hall wifi is down;
+         until it is run, the pinned CDN copies are used. -->
+    <script>window.KP_VENDOR_BASE = null;</script>
+    <script src="/static/js/tailwind-theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                    },
-                    colors: {
-                        obsidian: {
-                            950: '#06070a',
-                            900: '#0b0d13',
-                            850: '#11141e',
-                            800: '#171c2a',
-                            700: '#22293d',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/static/js/shared.js"></script>
+    <!-- Versions pinned. Floating tags meant a CDN-side release could break the
+         kiosk with no commit in this repository. -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
 
     <style>
         .progress-bar-transition { transition: width 0.12s ease-out; }
@@ -44,15 +30,28 @@
         .countdown-bar { animation: countdown 3.5s linear forwards; }
         @keyframes countdown { from { width: 100%; } to { width: 0%; } }
         
-        /* High-tech scanline */
+        /* Scanline. Idle by default and animated only while a face is actually
+           being tracked: running it permanently claimed the kiosk was scanning
+           even when the camera was dead, and kept the tablet's GPU busy for the
+           whole service. index.js toggles .is-scanning. */
         .scan-laser {
             background: linear-gradient(180deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.4) 50%, rgba(56, 189, 248, 0.8) 100%);
+            opacity: 0;
+            top: 15%;
+            transition: opacity .3s ease;
+        }
+        .is-scanning .scan-laser {
+            opacity: 1;
             animation: scanline 2.2s ease-in-out infinite alternate;
         }
         @keyframes scanline {
             0% { top: 15%; opacity: 0.2; }
             50% { opacity: 0.9; }
             100% { top: 80%; opacity: 0.2; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .is-scanning .scan-laser { animation: none; opacity: .5; }
+            .countdown-bar { animation-duration: 3.5s; }
         }
     </style>
 </head>
@@ -83,7 +82,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span class="hidden sm:inline">KP45 Photobooth</span>
+                <span class="hidden sm:inline">Photobooth</span>
             </a>
 
             <!-- Manual Search Fallback Trigger -->
@@ -91,7 +90,7 @@
                 <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <span class="hidden sm:inline">Cari Manual</span>
+                <span>Cari Manual</span>
             </button>
 
             <!-- Register New Member -->
@@ -99,29 +98,31 @@
                 <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
-                <span class="hidden md:inline">Daftar Wajah</span>
+                <span>Daftar Wajah</span>
             </a>
         </div>
     </header>
 
     <!-- SUCCESS MODAL -->
-    <div id="success-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-xl">
-        <div class="bg-obsidian-900 border border-emerald-500/30 rounded-3xl p-8 max-w-sm w-full shadow-2xl shadow-emerald-950/60 text-center transform scale-95 opacity-0 transition-all duration-300" id="success-modal-content">
-            <div class="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+    <div id="success-modal" role="dialog" aria-modal="true" aria-live="assertive" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-xl">
+        <div class="bg-obsidian-900 border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl shadow-emerald-950/60 text-center transform scale-95 opacity-0 transition-all duration-300" id="success-modal-content">
+            <div id="success-icon" class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 flex items-center justify-center mb-4 mx-auto">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
-            <h2 class="text-2xl font-extrabold text-white tracking-tight mb-1">Halo, <span id="success-name" class="text-emerald-400">Nama</span>!</h2>
-            <p class="text-slate-400 text-sm mb-4 font-medium" id="success-message">Kehadiran berhasil dicatat.</p>
-            <div id="success-badge-method" class="inline-flex items-center gap-1.5 mb-5 text-[11px] font-bold font-mono px-3 py-1 rounded-full bg-obsidian-800 text-sky-300 border border-sky-500/20">
+            <h2 class="sr-only">Hasil absensi</h2>
+            <p><span id="success-heading" class="text-3xl font-extrabold text-white mb-1 tracking-tight">Halo,</span>
+               <span id="success-name" class="text-3xl font-extrabold text-emerald-400 tracking-tight">Nama</span></p>
+            <p class="text-slate-300 text-base mb-4 mt-2" id="success-message">Kehadiran berhasil dicatat.</p>
+            <div id="success-badge-method" class="inline-flex items-center gap-1.5 mb-5 text-xs font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
                 Scan Wajah
             </div>
-            
+
             <div class="grid grid-cols-2 gap-3 mb-6">
                 <div class="bg-obsidian-850 rounded-2xl p-4 border border-white/[0.06] text-left">
                     <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Total Hadir</p>
-                    <p class="text-2xl font-black font-mono text-sky-400" id="success-streak">1<span class="text-sm font-normal text-sky-600 ml-0.5">x</span></p>
+                    <p class="text-2xl font-black font-mono text-sky-400"><span id="success-streak">1</span><span class="text-sm font-normal text-sky-500 ml-0.5">x</span></p>
                 </div>
                 <div class="bg-obsidian-850 rounded-2xl p-4 border border-white/[0.06] flex flex-col justify-center text-left">
                     <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Terakhir Hadir</p>
@@ -136,21 +137,21 @@
     </div>
 
     <!-- MANUAL SEARCH FALLBACK MODAL -->
-    <div id="manual-search-modal" class="fixed inset-0 z-[90] hidden flex items-center justify-center p-4 bg-obsidian-950/85 backdrop-blur-xl">
+    <div id="manual-search-modal" role="dialog" aria-modal="true" aria-labelledby="manual-search-title" class="fixed inset-0 z-[90] hidden flex items-center justify-center p-4 bg-obsidian-950/85 backdrop-blur-xl">
         <div class="bg-obsidian-900 border border-white/[0.08] rounded-3xl p-6 max-w-md w-full shadow-2xl flex flex-col max-h-[85vh]">
             <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h3 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                    <h3 id="manual-search-title" class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
                         <span>Cari Nama Manual</span>
                     </h3>
                     <p class="text-xs text-slate-400">Fallback jika kamera silau atau wajah belum terdeteksi</p>
                 </div>
-                <button id="btn-close-manual-search" class="text-slate-400 hover:text-white p-2 text-sm font-mono rounded-lg hover:bg-obsidian-800 transition-colors">✕</button>
+                <button id="btn-close-manual-search" type="button" aria-label="Tutup pencarian" class="text-slate-400 hover:text-white p-2 text-sm font-mono rounded-lg hover:bg-obsidian-800 transition-colors">✕</button>
             </div>
 
             <!-- Search Input -->
             <div class="relative mb-4">
-                <input id="manual-search-input" type="text" placeholder="Ketik nama jemaat..." autocomplete="off" class="w-full bg-obsidian-850 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all font-medium">
+                <input id="manual-search-input" type="text" placeholder="Ketik nama jemaat..." autocomplete="off" class="w-full bg-obsidian-850 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/40 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all font-medium">
                 <svg class="w-4 h-4 text-slate-500 absolute left-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -158,8 +159,8 @@
 
             <!-- Search Results List -->
             <div id="manual-search-results" class="flex-grow overflow-y-auto space-y-2 pr-1 min-h-[200px] max-h-[350px]">
-                <div class="text-center py-10 text-slate-500 text-xs font-medium">
-                    Ketik minimal 1 huruf untuk mencari nama jemaat.
+                <div class="text-center py-10 text-slate-400 text-sm">
+                    Ketik minimal 2 huruf nama untuk mencari.
                 </div>
             </div>
         </div>
@@ -198,7 +199,7 @@
             
             <div>
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">Attendance Terminal</span>
+                    <span class="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">Terminal Presensi</span>
                     <span class="flex h-2 w-2 relative">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -215,7 +216,7 @@
                     </svg>
                 </div>
                 <h3 id="status-title" class="text-3xl font-extrabold text-white mb-2 leading-tight tracking-tight">Siap Absen</h3>
-                <p id="status-desc" class="text-slate-400 text-sm md:text-base leading-relaxed">Silakan berdiri tegap dan posisikan wajah di dalam garis oval.</p>
+                <p id="status-desc" class="text-slate-300 text-base md:text-lg leading-relaxed">Posisikan wajah di dalam oval.</p>
 
                 <div class="mt-6 w-full bg-obsidian-800 rounded-full h-2 overflow-hidden border border-white/[0.04]">
                     <div id="scan-progress" class="bg-gradient-to-r from-sky-400 to-blue-500 h-full w-0 progress-bar-transition"></div>
@@ -224,8 +225,8 @@
 
             <!-- Fallback Search Trigger on Sidebar -->
             <div class="pt-4 border-t border-white/[0.06] flex justify-between items-center">
-                <span class="text-xs text-slate-500">Kamera silau?</span>
-                <button id="btn-sidebar-manual-search" class="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors">
+                <span class="text-sm text-slate-400">Kamera silau?</span>
+                <button id="btn-sidebar-manual-search" class="text-sm font-bold text-sky-300 hover:text-sky-200 flex items-center gap-1 transition-colors">
                     <span>Cari Nama Manual &rarr;</span>
                 </button>
             </div>
