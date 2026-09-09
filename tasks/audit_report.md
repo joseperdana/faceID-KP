@@ -1,3 +1,7 @@
+> **⚠️ OUTDATED — kept for history.**
+> This report describes a version of the codebase that no longer exists: main.py is now 44 lines across 7 routers, and authentication uses JWT rather than a static token.
+> For the current state see [`AUDIT_2026-09-08.md`](AUDIT_2026-09-08.md).
+
 # Architectural Audit Report: KPBromoMalang (FaceID-KP)
 
 ## 1. Backend & ML Pipeline (FastAPI)

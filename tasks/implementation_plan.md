@@ -1,3 +1,10 @@
+> **⚠️ SUPERSEDED — 2026-09-09.**
+> The environment variable names below did not match what the code reads, so
+> following this document produced a `.env` that crash-looped the service on
+> boot. It also carried church coordinates ~965 m from the ones in the code.
+> Use [`../.env.example`](../.env.example) and [`../UPGRADE.md`](../UPGRADE.md)
+> instead; deployment is now `bash scripts/deploy_vps.sh`.
+
 # 🚀 Production Deployment Plan: FaceID-KP on Ubuntu 24.04 VPS
 
 ## 📋 Server Profile (Based on VPS Dashboard)

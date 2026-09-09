@@ -1,3 +1,7 @@
+> **⚠️ OUTDATED — kept for history.**
+> This report describes a version of the codebase that no longer exists: Deletion is a soft delete plus an explicit biometric-purge action; the cascade described here no longer exists.
+> For the current state see [`AUDIT_2026-09-08.md`](AUDIT_2026-09-08.md).
+
 # 🔍 FaceID-KP — System Audit Report
 **Auditor Role:** Senior Systems Architect & Principal UI/UX Designer  
 **Scope:** Full codebase audit — Backend, ML Pipeline, Security, Dashboard UX  
