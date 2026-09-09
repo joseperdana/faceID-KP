@@ -1,17 +1,35 @@
-fastapi
-uvicorn[standard]
-python-multipart
-python-dotenv
-supabase
-insightface
-onnxruntime
-opencv-python-headless
-numpy
-pandas
-pydantic
-sentry-sdk
-openpyxl
-slowapi
-pytest
-playwright
-pytest-playwright
+# Pinned so the VPS, CI and a developer laptop resolve to the same versions.
+# Unpinned, a `pip install` on deploy day could pull numpy 2.x against an
+# insightface/opencv build compiled for the 1.x ABI — an ImportError at boot
+# and a crash-loop with no rollback.
+#
+# Regenerate with:  pip install -U -r requirements.in && pip freeze > requirements.txt
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+python-multipart==0.0.20
+python-dotenv==1.0.1
+pydantic==2.10.5
+
+supabase==2.11.0
+
+# Was only ever pulled in transitively through supabase -> gotrue. If supabase
+# changed its JWT implementation, /login and the whole dashboard would break on
+# the next deploy.
+PyJWT==2.10.1
+bcrypt==4.2.1
+
+# numpy is pinned below 2.0: insightface and the opencv wheels are built
+# against the 1.x ABI.
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+insightface==0.7.3
+onnxruntime==1.20.1
+
+# openpyxl writes the two flat report sheets directly. pandas was ~60 MB of RAM
+# on a 2 GB box that also has to hold the face model.
+openpyxl==3.1.5
+
+slowapi==0.1.9
+sentry-sdk==2.19.2

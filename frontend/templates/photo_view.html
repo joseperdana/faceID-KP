@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<!-- Pinch-zoom is deliberately left enabled: blocking it fails WCAG 1.4.4, and
+     this is the one page in the project that is always opened on a phone. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KP45 Photo Strip — KP Bromo</title>
+<style>
+/* Self-contained styles. This page is opened by scanning a QR code at an
+   event, often on a saturated network, so it loads no external CSS or fonts. */
+:root{
+  --surface:#fff8f1; --container:#faedd2; --ink:#211b0b;
+  --navy:#1d3557; --red:#b7102a; --red-hover:#e63946; --gold:#ffd700;
+  --muted:#5a5344;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;padding:16px;
+  background:var(--surface);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  -webkit-font-smoothing:antialiased;
+}
+header,main,footer{width:100%;max-width:384px}
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;margin-bottom:12px;border-bottom:2px solid rgba(29,53,87,.15);
+}
+.brand{display:flex;align-items:center;gap:10px}
+.badge{
+  width:36px;height:36px;border-radius:16px;background:var(--red);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;letter-spacing:.02em;
+  border:2px solid var(--navy);box-shadow:2px 2px 0 var(--navy);
+}
+h1{font-size:12px;font-weight:800;letter-spacing:-.01em;margin:0;line-height:1}
+.sub{font-size:10px;color:var(--muted);margin:3px 0 0;font-weight:500}
+.booth-link{font-size:12px;font-weight:800;color:var(--red);text-decoration:none}
+.booth-link:hover{text-decoration:underline}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:4px 0}
+.tabs{display:{{TABS_DISPLAY}};justify-content:center;gap:8px;margin-bottom:10px;width:100%}
+.tab{
+  padding:5px 16px;border-radius:999px;border:2px solid var(--navy);
+  font-size:12px;font-weight:700;cursor:pointer;background:var(--container);color:var(--navy);
+}
+.tab[aria-selected="true"]{background:#fff;font-weight:800;color:var(--red);box-shadow:2px 2px 0 var(--navy)}
+.frame{
+  position:relative;background:#fff;padding:12px;border-radius:24px;
+  border:3px solid var(--navy);box-shadow:4px 4px 0 var(--navy);
+  max-height:64vh;display:flex;align-items:center;justify-content:center;
+}
+.frame img{max-height:58vh;width:auto;max-width:100%;border-radius:16px;object-fit:contain;border:1px solid rgba(29,53,87,.2)}
+[hidden]{display:none!important}
+footer{display:flex;flex-direction:column;gap:8px;padding:12px 0 8px;border-top:2px solid rgba(29,53,87,.15)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{
+  padding:12px;border-radius:999px;font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  border:2px solid var(--navy);cursor:pointer;text-decoration:none;
+  transition:transform .08s ease,background .15s ease;
+}
+.btn:active{transform:translate(2px,2px)}
+.btn-primary{background:var(--red);color:#fff;box-shadow:4px 4px 0 var(--navy)}
+.btn-primary:hover{background:var(--red-hover)}
+.btn-secondary{background:#fff;color:var(--navy);box-shadow:4px 4px 0 var(--navy)}
+.btn-secondary:hover{background:var(--container)}
+.btn svg{width:16px;height:16px;flex:none}
+.hint{text-align:center;font-size:10px;color:var(--muted);margin:2px 0 0;font-family:ui-monospace,monospace}
+:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="badge">KP45</div>
+    <div>
+      <h1>KP45 PHOTO STRIP</h1>
+      <p class="sub">Komisi Pemuda GKI Bromo</p>
+    </div>
+  </div>
+  <a class="booth-link" href="/photobooth">Booth &rarr;</a>
+</header>
+
+<main>
+  <div class="tabs" role="tablist" aria-label="Pilih format">
+    <button class="tab" id="tab-strip" role="tab" aria-selected="true" aria-controls="img-strip">Photo Strip</button>
+    <button class="tab" id="tab-gif" role="tab" aria-selected="false" aria-controls="img-gif">Animated GIF</button>
+  </div>
+  <div class="frame">
+    <img id="img-strip" src="{{IMAGE_SRC}}" alt="Photo strip KP45">
+    <img id="img-gif" src="{{GIF_SRC}}" alt="Animasi GIF KP45" hidden>
+  </div>
+</main>
+
+<footer>
+  <div class="actions">
+    <a id="btn-download" class="btn btn-primary" href="{{IMAGE_SRC}}" download="KP45_Photo_{{PHOTO_ID}}.jpg">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      <span>Simpan Foto</span>
+    </a>
+    <button id="btn-share" class="btn btn-secondary" type="button">
+      <svg fill="none" stroke="var(--gold)" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+      </svg>
+      <span>Bagikan</span>
+    </button>
+  </div>
+  <p class="hint">Tekan &amp; tahan foto jika unduhan otomatis diblokir browser.</p>
+</footer>
+
+<script>
+(function () {
+  var tabStrip = document.getElementById('tab-strip');
+  var tabGif = document.getElementById('tab-gif');
+  var imgStrip = document.getElementById('img-strip');
+  var imgGif = document.getElementById('img-gif');
+  var download = document.getElementById('btn-download');
+  var photoId = '{{PHOTO_ID}}';
+  var gifSrc = '{{GIF_SRC}}';
+
+  function select(showGif) {
+    imgGif.hidden = !showGif;
+    imgStrip.hidden = showGif;
+    tabGif.setAttribute('aria-selected', String(showGif));
+    tabStrip.setAttribute('aria-selected', String(!showGif));
+    download.href = showGif ? gifSrc : '{{IMAGE_SRC}}';
+    download.download = showGif
+      ? 'KP45_Animated_' + photoId + '.gif'
+      : 'KP45_Photo_' + photoId + '.jpg';
+  }
+
+  if (gifSrc) {
+    tabStrip.addEventListener('click', function () { select(false); });
+    tabGif.addEventListener('click', function () { select(true); });
+  }
+
+  document.getElementById('btn-share').addEventListener('click', async function () {
+    var url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'KP45 Photo Strip',
+          text: 'Photo Strip KP45 di Komisi Pemuda GKI Bromo Malang!',
+          url: url
+        });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Tautan foto disalin ke papan klip.');
+    } catch (err) {
+      alert('Salin tautan ini: ' + url);
+    }
+  });
+})();
+</script>
+</body>
+</html>

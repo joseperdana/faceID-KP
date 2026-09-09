@@ -4,6 +4,7 @@ OBS Director CLI & Automation Script for KPBromo Multi-Camera Setup.
 Controls OBS Studio via OBS WebSocket v5 protocol.
 """
 
+import os
 import sys
 import time
 import argparse
@@ -11,7 +12,9 @@ import obsws_python as obs
 
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 4455
-DEFAULT_PASS = "Nss3uVFS8VlhhfgD"
+# Previously a hardcoded password, committed to a public repository and echoed
+# to stdout on every connection failure. Set OBS_WS_PASSWORD in the environment.
+DEFAULT_PASS = os.getenv("OBS_WS_PASSWORD", "")
 
 def get_client(host=DEFAULT_HOST, port=DEFAULT_PORT, password=DEFAULT_PASS):
     try:
@@ -22,7 +25,7 @@ def get_client(host=DEFAULT_HOST, port=DEFAULT_PORT, password=DEFAULT_PASS):
         print("\n💡 Pastikan:")
         print("   1. OBS Studio sedang terbuka di Mac.")
         print("   2. WebSocket Server aktif di OBS: Menu 'Tools' -> 'WebSocket Server Settings' -> Centang 'Enable WebSocket server'.")
-        print(f"   3. Server Port: {port}, Password: {password}")
+        print(f"   3. Server Port: {port}; set OBS_WS_PASSWORD di environment.")
         sys.exit(1)
 
 def list_scenes(client):

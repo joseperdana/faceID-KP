@@ -1,8 +1,39 @@
+# Secrets — never commit. If .env is ever committed, rotate every value in it:
+# removing the file later does not remove it from git history.
 .env
+.env.*
+!.env.example
+
+# Python
 venv/
+.venv/
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Logs
 *.log
-frontend/uploads/photobooth/*.jpg
-frontend/uploads/photobooth/*.gif
+
+# Biometric and personal data must never enter version control.
+static/images/
+frontend/uploads/photobooth/*
 !frontend/uploads/photobooth/.gitkeep
+
+# Vendored third-party assets, fetched by scripts/vendor_assets.sh
+frontend/vendor/*
+!frontend/vendor/.gitkeep
+!frontend/vendor/README.md
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Playwright
+test-results/
+playwright-report/

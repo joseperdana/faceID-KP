@@ -1,17 +1,20 @@
-import os
-from supabase import create_client, Client
-from dotenv import load_dotenv
+"""Supabase client.
 
-# Load environment variables
-load_dotenv()
+Configuration and validation live in core.config, which is imported first so a
+missing variable produces one complete, actionable error instead of failing on
+whichever module happened to load first.
+"""
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+import logging
 
-if not url or not key:
-    raise ValueError("Pastikan file .env sudah diisi dengan SUPABASE_URL dan SUPABASE_KEY")
+from supabase import Client, create_client
 
-# Inisialisasi Client
-supabase: Client = create_client(url, key)
+from core import config
 
-print("✅ Database connection initialized.")
+logger = logging.getLogger(__name__)
+
+config.validate()
+
+supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+
+logger.info("Database connection initialized.")
