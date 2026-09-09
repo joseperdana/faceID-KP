@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const welcomeStage = document.getElementById('welcome-stage');
     const cameraStage = document.getElementById('camera-stage');
     const layoutCards = document.querySelectorAll('.layout-card');
-    const customCaptionInput = document.getElementById('custom-caption-input');
     const btnStartSession = document.getElementById('btn-start-session');
     const btnCancelSession = document.getElementById('btn-cancel-session');
 
@@ -72,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let countdownInterval = null;
     let reviewInterval = null;
     let reviewResolver = null;
+    let captionRenderTimer = null;
     let autoResetInterval = null;
     let qrCodeInstance = null;
 
@@ -430,9 +430,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * One photo session.
+     *
+     * The whole body is wrapped so isSessionRunning is cleared no matter how it
+     * exits. It used to be reset only on the success path, while two mid-loop
+     * `return`s and an unguarded showResultModal() could leave it true forever —
+     * after which the booth looked alive (button clickable, camera stage
+     * appearing) but never counted down again, and only a page reload fixed it.
+     */
     async function runMultiPoseCaptureSequence() {
         if (isSessionRunning) return;
         isSessionRunning = true;
+        try {
+            await runCaptureSequenceInner();
+        } catch (err) {
+            console.error('Sesi photobooth gagal:', err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Sesi Gagal',
+                    text: 'Terjadi kendala saat memproses foto. Silakan mulai sesi baru.',
+                    confirmButtonColor: '#b7102a',
+                });
+            }
+            returnToWelcomeStage();
+        } finally {
+            isSessionRunning = false;
+        }
+    }
+
+    async function runCaptureSequenceInner() {
         capturedPoses = [];
 
         for (let i = 0; i < targetPoses; i++) {
@@ -487,8 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 4. Generate Composite Strip & Animated GIF
         await processAndDeliverOutputs();
-
-        isSessionRunning = false;
     }
 
     function runCenterCountdown(seconds) {
@@ -1157,7 +1183,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 2. IMMEDIATELY show Result Modal with local assets (Zero waiting for user!)
-        showResultModal({ download_url: base64Strip, qr_url: window.location.href }, base64Strip, null);
+        // qr_url is deliberately omitted: the real link only exists once the
+        // upload completes. Passing window.location.href meant a QR scanned in
+        // the first seconds opened an empty photobooth page instead of the photo.
+        showResultModal({ download_url: base64Strip }, base64Strip, null);
 
         // 3. Generate GIF and Upload in background without blocking the user
         (async () => {
@@ -1191,10 +1220,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await response.json();
                     if (data && data.status === 'success') {
                         updateModalWithServerData(data);
+                    } else {
+                        renderQrUnavailable();
                     }
+                } else {
+                    renderQrUnavailable();
                 }
             } catch (uploadErr) {
                 console.warn("Background upload error (offline fallback active):", uploadErr);
+                renderQrUnavailable();
             }
         })();
     }
@@ -1246,7 +1280,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showStripTab();
 
-        renderQrCode((uploadData && uploadData.qr_url) || window.location.href);
+        if (uploadData && uploadData.qr_url) {
+            renderQrCode(uploadData.qr_url);
+        } else {
+            renderQrPending();
+        }
 
         if (resultModal) {
             resultModal.classList.remove('hidden');
@@ -1263,6 +1301,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
 
         startAutoResetTimer(45);
+    }
+
+    /** Placeholder shown until the upload returns a shareable link. */
+    function renderQrPending() {
+        if (!qrCodeContainer) return;
+        qrCodeContainer.innerHTML =
+            '<div class="flex flex-col items-center justify-center gap-2 text-center" style="width:135px;height:135px">' +
+            '<div class="w-6 h-6 border-2 border-merdeka-navy/30 border-t-merdeka-navy rounded-full animate-spin"></div>' +
+            '<span class="text-[10px] font-bold text-merdeka-navy/70">Menyiapkan tautan…</span>' +
+            '</div>';
+    }
+
+    /** Shown when the upload failed: the photo is still downloadable locally. */
+    function renderQrUnavailable() {
+        if (!qrCodeContainer) return;
+        qrCodeContainer.innerHTML =
+            '<div class="flex items-center justify-center text-center px-2" style="width:135px;height:135px">' +
+            '<span class="text-[10px] font-bold text-merdeka-red leading-snug">Tautan online tidak tersedia.<br>Silakan unduh langsung ke perangkat.</span>' +
+            '</div>';
     }
 
     function renderQrCode(targetUrl) {
@@ -1330,23 +1387,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Live Custom Message Event Listener
     if (modalCustomCaption) {
         modalCustomCaption.addEventListener('input', () => {
-            const caption = modalCustomCaption.value.trim();
-            const todayStr = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()).toUpperCase();
-
-            // 1. Live update DOM preview text
+            // Typing must not re-render the full-resolution canvas per keystroke.
+            // Eighteen characters meant eighteen ~8 MB canvas allocations plus
+            // eighteen synchronous JPEG encodes on the main thread, so the field
+            // dropped characters on a tablet.
             if (stripPreviewMessage) {
-                stripPreviewMessage.innerText = caption; // Blank if empty
+                stripPreviewMessage.innerText = modalCustomCaption.value.trim();
             }
 
-            // 2. Re-render the composite canvas for download
-            const updatedCanvas = renderCompositeStripCanvas();
-            const updatedDataUrl = updatedCanvas.toDataURL('image/jpeg', 0.95);
-            if (btnDownloadStrip) btnDownloadStrip.href = updatedDataUrl;
+            // Any interaction also restarts the 45s auto-close. A group typing a
+            // caption together used to have the modal close and the strip vanish
+            // mid-sentence, sending them back to the end of the queue.
+            startAutoResetTimer(45);
 
-            // 3. If non-3-strip layout, update the preview image as well
-            if (selectedLayout !== '3-strip' && resultStripImg) {
-                resultStripImg.src = updatedDataUrl;
-            }
+            clearTimeout(captionRenderTimer);
+            captionRenderTimer = setTimeout(() => {
+                const updatedDataUrl = renderCompositeStripCanvas().toDataURL('image/jpeg', 0.9);
+                if (btnDownloadStrip) btnDownloadStrip.href = updatedDataUrl;
+                if (selectedLayout !== '3-strip' && resultStripImg) {
+                    resultStripImg.src = updatedDataUrl;
+                }
+            }, 300);
         });
     }
 
@@ -1366,9 +1427,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
+    /**
+     * Close the result modal and release what the session was holding.
+     *
+     * Captured canvases and several multi-hundred-kilobyte base64 data URLs
+     * stayed referenced between sessions. Over an evening of ~60 sessions that
+     * accumulated tens of megabytes of strings the collector could not reclaim.
+     */
     function closeResultModal() {
         clearInterval(autoResetInterval);
+        clearTimeout(captionRenderTimer);
         if (resultModal) resultModal.classList.add('hidden');
+
+        [stripPreviewPhoto1, stripPreviewPhoto2, stripPreviewPhoto3, resultGifImg, resultStripImg, poseReviewThumb]
+            .forEach(img => { if (img) img.src = ''; });
+        if (btnDownloadStrip) btnDownloadStrip.removeAttribute('href');
+        if (btnDownloadGif) btnDownloadGif.removeAttribute('href');
+        if (qrCodeInstance && typeof qrCodeInstance.clear === 'function') {
+            qrCodeInstance.clear();
+            qrCodeInstance = null;
+        }
+        if (qrCodeContainer) qrCodeContainer.innerHTML = '';
+        capturedPoses = [];
+
         returnToWelcomeStage();
     }
 

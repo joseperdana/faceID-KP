@@ -9,45 +9,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <script src="/static/js/tailwind-theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                    },
-                    colors: {
-                        obsidian: {
-                            950: '#06070A',
-                            900: '#0B0D13',
-                            850: '#11141E',
-                            800: '#151926',
-                            750: '#1C2132',
-                            700: '#22283A'
-                        },
-                        azure: {
-                            400: '#60A5FA',
-                            500: '#3B82F6',
-                            600: '#2563EB',
-                            700: '#1D4ED8'
-                        },
-                        cyan: {
-                            400: '#38BDF8',
-                            500: '#0EA5E9'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/static/js/shared.js"></script>
+    <!-- Pinned. chart.js was loaded from a floating tag, so a major release on
+         the CDN could empty the Analytics tab with no commit in this repo. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/id.js"></script>
-
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
@@ -64,6 +34,9 @@
     </style>
 </head>
 <body class="bg-obsidian-950 text-slate-100 min-h-screen flex font-sans antialiased glow-mesh selection:bg-azure-600 selection:text-white">
+    <!-- Tapping outside the drawer closes it. Without this the sidebar covered
+         most of a phone screen with the hamburger hidden behind it. -->
+    <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/60 z-20 md:hidden hidden"></div>
 
     <!-- Sidebar Navigation -->
     <aside class="w-64 bg-obsidian-900 text-slate-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full md:translate-x-0 border-r border-white/[0.08]" id="sidebar">
@@ -136,7 +109,7 @@
                 <div class="w-8 h-8 rounded-lg bg-azure-600 flex items-center justify-center font-bold text-white text-xs">KP</div>
                 <h1 class="font-extrabold text-sm text-white">Leader Portal</h1>
             </div>
-            <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="p-2 bg-obsidian-800 text-slate-200 rounded-xl border border-white/10">
+            <button onclick="toggleSidebar()" class="p-2 bg-obsidian-800 text-slate-200 rounded-xl border border-white/10">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
         </div>
@@ -186,6 +159,16 @@
             </div>
 
             <!-- Live Activity Table -->
+            <!-- Face ID vs manual fallback. The backend has always recorded this
+                 column; nothing displayed it. It is the measurement that shows
+                 whether face recognition is earning its keep. -->
+            <section class="bg-obsidian-900 border border-white/[0.06] rounded-2xl p-5 mb-4">
+                <div class="flex items-baseline justify-between mb-3">
+                    <h3 class="text-base font-bold text-white">Metode Presensi Hari Ini</h3>
+                    <span class="text-xs text-slate-400">Face ID vs Manual</span>
+                </div>
+                <div id="method-ratio"><p class="text-slate-400 text-sm">Memuat…</p></div>
+            </section>
             <div class="bg-obsidian-900/90 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden shadow-2xl">
                 <div class="p-5 md:p-6 border-b border-white/[0.06] flex justify-between items-center">
                     <div class="flex items-center gap-2.5">
@@ -200,7 +183,7 @@
                             <tr>
                                 <th class="p-4">Waktu</th>
                                 <th class="p-4">Nama Jemaat</th>
-                                <th class="p-4">Status</th>
+                                <th class="p-4">Metode</th>
                                 <th class="p-4 text-right">Aksi</th>
                             </tr>
                         </thead>
@@ -232,9 +215,9 @@
             <div class="bg-obsidian-900 p-4 rounded-t-2xl border border-white/[0.08] border-b-0 flex flex-col md:flex-row justify-between gap-4 items-center">
                 
                 <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                    <input type="text" id="search-user" oninput="applyUserFilters()" placeholder="Cari nama jemaat..." class="bg-obsidian-850 border border-white/10 px-4 py-2 rounded-xl text-xs text-white placeholder-slate-500 w-full sm:w-64 focus:outline-none focus:border-azure-500">
+                    <input type="text" id="search-user" oninput="applyUserFilters()" placeholder="Cari nama jemaat..." class="bg-obsidian-850 border border-white/10 px-4 py-2 rounded-xl text-xs text-white placeholder-slate-500 w-full sm:w-64 focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none focus:border-azure-500">
                     
-                    <select id="sort-user" onchange="applyUserFilters()" class="bg-obsidian-850 border border-white/10 px-3 py-2 rounded-xl text-xs text-slate-200 focus:outline-none cursor-pointer">
+                    <select id="sort-user" onchange="applyUserFilters()" class="bg-obsidian-850 border border-white/10 px-3 py-2 rounded-xl text-xs text-slate-200 focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none cursor-pointer">
                         <option value="name-asc">A - Z</option>
                         <option value="name-desc">Z - A</option>
                         <option value="freq-desc">Paling Sering Hadir</option>
@@ -246,7 +229,7 @@
 
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-400 font-mono">Tampilkan:</span>
-                    <select id="users-per-page" onchange="changeUsersLimit()" class="bg-obsidian-850 border border-white/10 px-2.5 py-1.5 rounded-xl text-xs text-slate-200 focus:outline-none cursor-pointer font-mono">
+                    <select id="users-per-page" onchange="changeUsersLimit()" class="bg-obsidian-850 border border-white/10 px-2.5 py-1.5 rounded-xl text-xs text-slate-200 focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none cursor-pointer font-mono">
                         <option value="20">20</option>
                         <option value="50">50</option>
                         <option value="100">100</option>
@@ -267,7 +250,7 @@
                             </tr>
                         </thead>
                         <tbody id="users-table" class="divide-y divide-white/[0.04]">
-                            <tr><td colspan="4" class="p-8 text-center text-slate-500 font-mono text-xs">Memuat data...</td></tr>
+                            <tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm">Memuat data...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -302,7 +285,7 @@
 
                     <div class="flex items-center gap-2 bg-obsidian-900 px-3 py-1.5 rounded-xl border border-white/10">
                         <span class="text-xs text-slate-400 font-mono">Filter:</span>
-                        <select id="time-filter" onchange="loadAnalytics(this.value)" class="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer">
+                        <select id="time-filter" onchange="loadAnalytics()" class="bg-transparent text-xs font-semibold text-slate-200 focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none cursor-pointer">
                             <option value="7d">7 Hari Terakhir</option>
                             <option value="30d" selected>30 Hari Terakhir</option>
                             <option value="90d">3 Bulan Terakhir</option>
@@ -369,7 +352,7 @@
                     <span class="text-cyan-400 font-bold flex items-center gap-1">
                         Pria: <span id="stat-pria" class="text-white">0</span>
                     </span>
-                    <span class="text-slate-400 font-bold flex items-center gap-1 hidden" id="container-unknown">
+                    <span class="text-slate-300 font-bold flex items-center gap-1 hidden" id="container-unknown">
                         Tanpa Keterangan: <span id="stat-unknown" class="text-slate-400">0</span>
                     </span>
                     <span class="text-pink-400 font-bold flex items-center gap-1">
@@ -385,7 +368,8 @@
 
                 <div class="flex justify-between text-xs font-mono text-slate-400">
                     <span id="persen-pria">50%</span>
-                    <span id="persen-unknown" class="hidden text-slate-400">0%</span>
+                    <span id="persen-unknown" class="hidden text-slate-300">0%</span>
+                    <p id="gender-basis-note" class="w-full text-xs text-slate-400 mt-2"></p>
                     <span id="persen-wanita">50%</span>
                 </div>
             </div>
@@ -435,11 +419,11 @@
                 <input type="hidden" id="edit-id">
                 <div class="mb-4">
                     <label class="block text-xs font-mono uppercase text-slate-400 mb-1.5">Nama Lengkap</label>
-                    <input type="text" id="edit-name" required class="w-full bg-obsidian-850 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-azure-500">
+                    <input type="text" id="edit-name" required class="w-full bg-obsidian-850 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none focus:border-azure-500">
                 </div>
                 <div class="mb-6">
                     <label class="block text-xs font-mono uppercase text-slate-400 mb-1.5">No. HP / WhatsApp</label>
-                    <input type="text" id="edit-phone" required class="w-full bg-obsidian-850 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-azure-500">
+                    <input type="text" id="edit-phone" required class="w-full bg-obsidian-850 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none focus:border-azure-500">
                 </div>
                 <div class="flex justify-end gap-2.5">
                     <button type="button" onclick="closeModal()" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold">Batal</button>
@@ -463,7 +447,7 @@
             <div class="flex justify-between items-center mb-4 bg-obsidian-850 p-3 rounded-xl border border-white/[0.06]">
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-400 font-mono">Tampilkan:</span>
-                    <select id="logs-per-page" onchange="changeLogsPerPage()" class="bg-obsidian-800 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer font-mono">
+                    <select id="logs-per-page" onchange="changeLogsPerPage()" class="bg-obsidian-800 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none cursor-pointer font-mono">
                         <option value="20">20</option>
                         <option value="50">50</option>
                         <option value="100">100</option>
@@ -477,9 +461,10 @@
                 <table class="w-full text-left text-sm">
                     <thead class="bg-obsidian-850 text-slate-400 font-mono text-xs uppercase tracking-wider sticky top-0 shadow-sm">
                         <tr>
-                            <th class="p-4 border-b border-white/[0.06]">Waktu (WIB)</th>
-                            <th class="p-4 border-b border-white/[0.06]">Nama Lengkap</th>
-                            <th class="p-4 border-b border-white/[0.06]">Status</th>
+                            <th scope="col" class="p-4 border-b border-white/[0.06]">Waktu (WIB)</th>
+                            <th scope="col" class="p-4 border-b border-white/[0.06]">Nama Lengkap</th>
+                            <th scope="col" class="p-4 border-b border-white/[0.06]">Metode</th>
+                            <th scope="col" class="p-4 border-b border-white/[0.06] text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="all-logs-tbody" class="divide-y divide-white/[0.04] bg-obsidian-900/60">
@@ -550,7 +535,13 @@
 
                 <div class="flex gap-3 pt-4 border-t border-white/[0.06]">
                     <button id="btn-open-edit" class="flex-1 bg-obsidian-800 hover:bg-obsidian-750 text-slate-200 font-semibold py-2.5 rounded-xl transition-colors text-xs border border-white/10">Edit Data</button>
-                    <button id="btn-delete-user" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold py-2.5 rounded-xl transition-colors text-xs border border-rose-500/20">Hapus Jemaat</button>
+                    <button id="btn-delete-user" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold py-2.5 rounded-xl transition-colors text-xs border border-rose-500/20">Arsipkan Jemaat</button>
+                    <!-- Separate from archiving, because they do different things: archiving
+                         keeps the face embedding, this erases it. The old single "Hapus"
+                         action claimed to do both and did neither. -->
+                    <button type="button" id="btn-purge-biometrics" class="w-full mt-2 py-2.5 px-4 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-sm font-semibold transition-all">
+                        Hapus Data Biometrik (Permanen)
+                    </button>
                 </div>
             </div>
         </div>
@@ -645,7 +636,7 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
-                    <input type="text" id="search-daily" oninput="applyDailyFilter()" placeholder="Cari nama jemaat..." class="bg-obsidian-850 border border-white/10 px-4 py-2 rounded-xl text-xs text-white placeholder-slate-500 w-full sm:w-64 focus:outline-none focus:border-azure-500">
+                    <input type="text" id="search-daily" oninput="applyDailyFilter()" placeholder="Cari nama jemaat..." class="bg-obsidian-850 border border-white/10 px-4 py-2 rounded-xl text-xs text-white placeholder-slate-500 w-full sm:w-64 focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none focus:border-azure-500">
                     
                     <div class="flex items-center gap-2">
                         <button onclick="downloadExcelSpecificDate()" id="btn-export-daily" class="bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all font-mono">
@@ -654,7 +645,7 @@
                         
                         <span class="text-xs text-slate-400 font-mono ml-2 border-l border-white/10 pl-3">Tampilkan:</span>
                         
-                        <select id="limit-daily" onchange="applyDailyFilter()" class="bg-obsidian-850 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer font-mono">
+                        <select id="limit-daily" onchange="applyDailyFilter()" class="bg-obsidian-850 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus-visible:ring-2 focus-visible:ring-azure-400/50 focus:outline-none cursor-pointer font-mono">
                             <option value="10">10</option>
                             <option value="20" selected>20</option>
                             <option value="50">50</option>
@@ -666,9 +657,10 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-obsidian-850 text-slate-400 font-mono text-xs uppercase tracking-wider sticky top-0 shadow-sm z-10">
                             <tr>
-                                <th class="p-4 border-b border-white/[0.06]">Waktu Datang</th>
-                                <th class="p-4 border-b border-white/[0.06]">Nama Jemaat</th>
-                                <th class="p-4 border-b border-white/[0.06]">Status</th>
+                                <th scope="col" class="p-4 border-b border-white/[0.06]">Waktu Datang</th>
+                                <th scope="col" class="p-4 border-b border-white/[0.06]">Nama Jemaat</th>
+                                <th scope="col" class="p-4 border-b border-white/[0.06]">Metode</th>
+                                <th scope="col" class="p-4 border-b border-white/[0.06] text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="daily-tbody" class="divide-y divide-white/[0.04] bg-obsidian-900/60">
@@ -690,19 +682,66 @@
     <!-- JAVASCRIPT APPLICATION LOGIC -->
     <script>
         moment.locale('id');
+        // Timestamps are stored in UTC and rendered in WIB explicitly. Formatting
+        // in the browser's local zone while appending a literal "WIB" meant a
+        // laptop set to another timezone showed wrong times under a WIB label.
+        const WIB_OFFSET = 7 * 60;
+        function wib(value) { return moment(value).utcOffset(WIB_OFFSET); }
+
         let allUsers = [];
+        let overviewPollTimer = null;
         let attendanceChartInstance = null;
         let peakChartInstance = null;
         let globalNewUsersToday = [];
 
-        function escapeHTML(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+        // Single implementation, shared with the kiosk (frontend/js/shared.js).
+        const escapeHTML = KP.escapeHtml;
+
+        /**
+         * Render a failure into the container instead of only console.error.
+         *
+         * Every loader used to swallow errors, so an expired session or a
+         * database outage looked identical to "nobody has checked in yet":
+         * dashes in the KPI cards and empty tables, with no way for a pengurus
+         * to tell the difference.
+         */
+        function renderErrorState(container, message, retryFn) {
+            const node = typeof container === 'string' ? document.getElementById(container) : container;
+            if (!node) return;
+            const isRow = node.tagName === 'TBODY';
+            const inner = `
+                <div class="py-10 text-center">
+                    <p class="text-rose-300 text-sm mb-3">${escapeHTML(message)}</p>
+                    <button type="button" class="js-retry px-4 py-2 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 border border-white/10 text-slate-200 text-sm font-semibold">Coba Lagi</button>
+                </div>`;
+            node.innerHTML = isRow ? `<tr><td colspan="12">${inner}</td></tr>` : inner;
+            const retry = node.querySelector('.js-retry');
+            if (retry && retryFn) retry.addEventListener('click', retryFn);
+        }
+
+        function methodBadge(method) {
+            const map = {
+                face:     ['Face ID',    'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'],
+                manual:   ['Manual',     'bg-amber-500/10 text-amber-300 border-amber-500/20'],
+                register: ['Registrasi', 'bg-violet-500/10 text-violet-300 border-violet-500/20'],
+            };
+            const [label, cls] = map[method] || ['Hadir', 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'];
+            return `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${cls}">${label}</span>`;
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (sidebar && window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
+            if (backdrop) backdrop.classList.add('hidden');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const opening = sidebar.classList.contains('-translate-x-full');
+            sidebar.classList.toggle('-translate-x-full', !opening);
+            if (backdrop) backdrop.classList.toggle('hidden', !opening);
         }
 
         function switchTab(tabId) {
@@ -719,56 +758,96 @@
                 activeBtn.className = "nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm font-semibold text-white bg-azure-600/15 border border-azure-500/30 shadow-sm";
             }
 
+            // Close the mobile drawer after navigating. It used to stay open,
+            // covering most of a phone screen, with the hamburger hidden behind it.
+            closeSidebar();
+
+            // Poll only while the Overview tab is visible.
+            if (overviewPollTimer) { clearInterval(overviewPollTimer); overviewPollTimer = null; }
+
             if (tabId === 'database') loadDatabase();
             if (tabId === 'analytics') loadAnalytics();
-            if (tabId === 'overview') loadDashboardData();
+            if (tabId === 'overview') {
+                loadDashboardData();
+                overviewPollTimer = setInterval(function () {
+                    if (!document.hidden) loadDashboardData();
+                }, 15000);
+            }
         }
 
         async function loadDashboardData() {
             try {
-                const res = await fetch('/api/dashboard-stats');
-                if (!res.ok) throw new Error("Gagal mengambil data");
-                const data = await res.json();
-                
+                const data = await KP.apiFetch('/api/dashboard-stats');
+
                 document.getElementById('stat-total-users').innerText = data.total_users ?? 0;
                 document.getElementById('stat-present-today').innerText = data.present_today ?? 0;
                 document.getElementById('stat-new-today').innerText = data.new_users_today ?? 0;
                 globalNewUsersToday = data.new_users_list || [];
 
+                renderMethodRatio(data.method_today || {});
+
                 const tbody = document.getElementById('feed-table');
-                tbody.innerHTML = '';
                 const recentLogs = data.recent_logs || [];
                 if (recentLogs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-mono text-xs">Belum ada absensi hari ini.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm">Belum ada absensi hari ini.</td></tr>';
                 } else {
-                    recentLogs.forEach(log => {
-                        const name = log.users ? log.users.full_name : (log.full_name || 'Tanpa Nama');
-                        const safeName = escapeHTML(name);
-                        const safeTime = moment(log.timestamp).format('HH:mm:ss');
-                        const userId = log.user_id || (log.users ? log.users.id : null);
-
-                        tbody.innerHTML += `
+                    // Built once and assigned once. `innerHTML +=` inside a loop
+                    // reserialises and reparses the whole tbody per row.
+                    tbody.innerHTML = recentLogs.map(log => {
+                        const user = log.users || {};
+                        const userId = log.user_id ?? user.id ?? null;
+                        return `
                             <tr class="hover:bg-obsidian-850/60 transition-colors">
-                                <td class="p-4 text-slate-400 font-mono text-xs">${safeTime} WIB</td>
-                                <td class="p-4 font-semibold text-white">${safeName}</td>
-                                <td class="p-4"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold">Hadir</span></td>
-                                <td class="p-4 text-right">
-                                    ${userId ? `
-                                    <button onclick="openProfileModal('${userId}')" class="text-cyan-400 hover:text-cyan-300 text-xs font-mono font-semibold">
-                                        Detail &rarr;
-                                    </button>
-                                    ` : '-'}
-                                </td>
-                            </tr>
-                        `;
-                    });
+                                <td class="p-4 text-slate-300 font-mono text-xs">${wib(log.timestamp).format('HH:mm:ss')} WIB</td>
+                                <td class="p-4 font-semibold text-white">${escapeHTML(user.full_name || log.full_name || 'Tanpa Nama')}</td>
+                                <td class="p-4">${methodBadge(log.method)}</td>
+                                <td class="p-4 text-right">${userId === null ? '-' :
+                                    `<button type="button" data-user-id="${escapeHTML(String(userId))}" class="js-profile text-cyan-300 hover:text-cyan-200 text-sm font-semibold">Detail &rarr;</button>`}</td>
+                            </tr>`;
+                    }).join('');
                 }
 
-                const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                document.getElementById('feed-last-updated').innerText = `Diperbarui ${timeStr} WIB`;
+                document.getElementById('feed-last-updated').innerText =
+                    'Diperbarui ' + wib(data.generated_at || undefined).format('HH:mm:ss') + ' WIB';
             } catch (err) {
-                console.error("Dashboard Stats Error:", err);
+                renderErrorState('feed-table', err.message, loadDashboardData);
             }
+        }
+
+        /**
+         * Face ID versus manual fallback.
+         *
+         * The backend has always written this column; nothing ever displayed it.
+         * It is the one number that shows whether face recognition is actually
+         * working or whether everyone is quietly typing their name instead.
+         */
+        function renderMethodRatio(counts) {
+            const host = document.getElementById('method-ratio');
+            if (!host) return;
+            const face = counts.face || 0;
+            const manual = counts.manual || 0;
+            const register = counts.register || 0;
+            const total = face + manual + register;
+            if (total === 0) {
+                host.innerHTML = '<p class="text-slate-400 text-sm">Belum ada data metode hari ini.</p>';
+                return;
+            }
+            const pct = n => Math.round((n / total) * 100);
+            host.innerHTML = `
+                <div class="flex items-end gap-3 mb-3">
+                    <span class="text-3xl font-black font-mono text-cyan-300">${pct(face)}%</span>
+                    <span class="text-sm text-slate-300 pb-1">lewat scan wajah (${face} dari ${total})</span>
+                </div>
+                <div class="flex h-2.5 rounded-full overflow-hidden bg-obsidian-800">
+                    <div class="bg-cyan-500" style="width:${pct(face)}%"></div>
+                    <div class="bg-amber-500" style="width:${pct(manual)}%"></div>
+                    <div class="bg-violet-500" style="width:${pct(register)}%"></div>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-slate-300">
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-cyan-500 mr-1.5"></span>Face ID ${face}</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>Manual ${manual}</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-violet-500 mr-1.5"></span>Registrasi ${register}</span>
+                </div>`;
         }
 
         function showNewUsersToday() {
@@ -815,17 +894,19 @@
 
         async function openAllLogsModal() {
             document.getElementById('all-logs-modal').classList.remove('hidden');
-            document.getElementById('all-logs-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Mengambil data dari server...</td></tr>';
+            document.getElementById('all-logs-tbody').innerHTML =
+                '<tr><td colspan="4" class="text-center p-8 text-slate-400 text-sm">Mengambil data dari server…</td></tr>';
             try {
-                const res = await fetch('/api/all-logs');
-                if (!res.ok) throw new Error("Gagal load riwayat absensi");
-                const json = await res.json();
+                // Paginated server-side. The unpaginated call silently stopped at
+                // PostgREST's 1000-row ceiling, so the "complete history" quietly
+                // omitted older entries with no indication.
+                const json = await KP.apiFetch('/api/all-logs?limit=1000&offset=0');
                 allLogsData = json.data || [];
+                allLogsTotal = json.total || allLogsData.length;
                 currentLogsPage = 1;
                 renderLogsTable();
             } catch (err) {
-                console.error(err);
-                document.getElementById('all-logs-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-rose-400 font-mono text-xs">Gagal mengambil data riwayat.</td></tr>';
+                renderErrorState('all-logs-tbody', err.message, openAllLogsModal);
             }
         }
 
@@ -835,8 +916,6 @@
 
         function renderLogsTable() {
             const tbody = document.getElementById('all-logs-tbody');
-            tbody.innerHTML = '';
-
             const total = allLogsData.length;
             const totalPages = Math.ceil(total / logsLimit) || 1;
             if (currentLogsPage > totalPages) currentLogsPage = totalPages;
@@ -846,25 +925,59 @@
             const pageData = allLogsData.slice(start, end);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Tidak ada riwayat absensi.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400 text-sm">Tidak ada riwayat absensi.</td></tr>';
             } else {
-                pageData.forEach(log => {
-                    const name = log.users ? log.users.full_name : (log.full_name || 'Tanpa Nama');
-                    const safeName = escapeHTML(name);
-                    const safeTime = moment(log.timestamp).format('DD MMM YYYY, HH:mm:ss');
-                    tbody.innerHTML += `
+                tbody.innerHTML = pageData.map(log => {
+                    const user = log.users || {};
+                    return `
                         <tr class="hover:bg-obsidian-850/60 transition-colors">
-                            <td class="p-4 text-slate-400 font-mono text-xs">${safeTime} WIB</td>
-                            <td class="p-4 font-semibold text-white">${safeName}</td>
-                            <td class="p-4"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold">Hadir</span></td>
-                        </tr>
-                    `;
-                });
+                            <td class="p-4 text-slate-300 font-mono text-xs">${wib(log.timestamp).format('DD MMM YYYY, HH:mm:ss')} WIB</td>
+                            <td class="p-4 font-semibold text-white">${escapeHTML(user.full_name || 'Tanpa Nama')}</td>
+                            <td class="p-4">${methodBadge(log.method)}</td>
+                            <td class="p-4 text-right">
+                                <button type="button" data-log-id="${escapeHTML(String(log.id))}" data-log-name="${escapeHTML(user.full_name || '')}" class="js-delete-log text-rose-300 hover:text-rose-200 text-sm font-semibold">Hapus</button>
+                            </td>
+                        </tr>`;
+                }).join('');
             }
 
-            document.getElementById('logs-page-info').innerText = `Menampilkan ${total === 0 ? 0 : start + 1}-${Math.min(end, total)} dari ${total}`;
+            // Say so when the server has more rows than were fetched, instead of
+            // presenting a truncated list as complete.
+            const shownNote = allLogsTotal > total ? ` (dari total ${allLogsTotal} di server)` : '';
+            document.getElementById('logs-page-info').innerText =
+                `Menampilkan ${total === 0 ? 0 : start + 1}-${Math.min(end, total)} dari ${total}${shownNote}`;
             document.getElementById('btn-prev-logs').disabled = (currentLogsPage <= 1);
             document.getElementById('btn-next-logs').disabled = (currentLogsPage >= totalPages);
+        }
+
+        /**
+         * Remove a mistaken attendance entry.
+         *
+         * DELETE /api/logs/{id} existed but nothing in the UI called it, so a
+         * misrecognition could not be corrected without opening Supabase by
+         * hand — and one wrong row permanently distorts the retention list Sie
+         * Pemerhati uses to decide who to follow up.
+         */
+        async function deleteLog(logId, name) {
+            const confirmed = await Swal.fire(Object.assign({}, KP.swalTheme, {
+                title: 'Hapus Entri Kehadiran?',
+                text: `Entri kehadiran ${name || 'jemaat ini'} akan dihapus. Data jemaatnya tetap tersimpan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Hapus Entri',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#e11d48',
+            }));
+            if (!confirmed.isConfirmed) return;
+
+            try {
+                await KP.apiFetch(`/api/logs/${encodeURIComponent(logId)}`, { method: 'DELETE' });
+                allLogsData = allLogsData.filter(l => String(l.id) !== String(logId));
+                renderLogsTable();
+                loadDashboardData();
+            } catch (err) {
+                KP.alertError('Gagal Menghapus', err.message);
+            }
         }
 
         function changeLogsPerPage() {
@@ -888,18 +1001,21 @@
             }
         }
 
+        let allLogsTotal = 0;
         let filteredUsers = [];
         let currentUsersPage = 1;
         let usersLimit = 20;
 
         async function loadDatabase() {
             try {
-                const res = await fetch('/api/users');
-                if (!res.ok) throw new Error("Gagal mengambil database jemaat");
-                allUsers = await res.json();
+                // The endpoint now returns {status, data} and no longer includes
+                // face_embedding, which used to ship a 512-float biometric vector
+                // per member to the browser.
+                const json = await KP.apiFetch('/api/users');
+                allUsers = Array.isArray(json) ? json : (json.data || []);
                 applyUserFilters();
             } catch (err) {
-                console.error(err);
+                renderErrorState('users-table', err.message, loadDatabase);
             }
         }
 
@@ -940,36 +1056,29 @@
             const pageData = filteredUsers.slice(start, end);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-mono text-xs">Tidak ada data jemaat yang cocok.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm">Tidak ada data jemaat yang cocok.</td></tr>';
             } else {
-                pageData.forEach(user => {
-                    const safeName = escapeHTML(user.full_name);
-                    const safeGender = escapeHTML(user.gender || '-');
-                    const safePhone = escapeHTML(user.phone_number || '-');
-                    const safeDate = user.created_at ? escapeHTML(moment(user.created_at).format('DD MMM YYYY')) : '-';
+                tbody.innerHTML = pageData.map(user => {
                     const safeId = escapeHTML(String(user.id));
-                    const count = user.attendance_count || 0;
-
-                    tbody.innerHTML += `
+                    return `
                         <tr class="hover:bg-obsidian-850/60 transition-colors">
                             <td class="p-4">
-                                <div class="font-semibold text-white">${safeName}</div>
-                                <div class="text-xs text-slate-500 font-mono flex items-center gap-2 mt-0.5">
-                                    <span>${safeGender}</span>
-                                    <span>•</span>
-                                    <span>${safePhone}</span>
+                                <div class="font-semibold text-white">${escapeHTML(user.full_name)}</div>
+                                <div class="text-xs text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+                                    <span>${escapeHTML(user.gender || '-')}</span>
+                                    <span>&bull;</span>
+                                    <span>${escapeHTML(user.phone_number || '-')}</span>
                                 </div>
                             </td>
-                            <td class="p-4 text-center font-mono font-bold text-cyan-400">${count}x</td>
-                            <td class="p-4 text-center text-xs text-slate-400 font-mono">${safeDate}</td>
+                            <td class="p-4 text-center font-mono font-bold text-cyan-300">${user.attendance_count || 0}x</td>
+                            <td class="p-4 text-center text-xs text-slate-300 font-mono">${user.created_at ? wib(user.created_at).format('DD MMM YYYY') : '-'}</td>
                             <td class="p-4 text-right">
-                                <button onclick="openProfileModal('${safeId}')" class="text-azure-400 hover:text-azure-300 text-xs font-mono font-semibold bg-azure-600/10 border border-azure-500/20 px-3 py-1.5 rounded-xl hover:bg-azure-600/20 transition-all">
+                                <button type="button" data-user-id="${safeId}" class="js-profile text-azure-300 hover:text-azure-200 text-sm font-semibold bg-azure-600/10 border border-azure-500/20 px-3 py-1.5 rounded-xl hover:bg-azure-600/20 transition-all">
                                     Profil &rarr;
                                 </button>
                             </td>
-                        </tr>
-                    `;
-                });
+                        </tr>`;
+                }).join('');
             }
 
             document.getElementById('users-page-info').innerText = `Menampilkan ${total === 0 ? 0 : start + 1}-${Math.min(end, total)} dari ${total} jemaat`;
@@ -1019,12 +1128,13 @@
             let user = allUsers.find(u => String(u.id) === String(userId));
             if (!user) {
                 try {
-                    const res = await fetch('/api/users');
-                    if (res.ok) {
-                        allUsers = await res.json();
-                        user = allUsers.find(u => String(u.id) === String(userId));
-                    }
-                } catch(e) {}
+                    const json = await KP.apiFetch('/api/users');
+                    allUsers = Array.isArray(json) ? json : (json.data || []);
+                    user = allUsers.find(u => String(u.id) === String(userId));
+                } catch (err) {
+                    KP.alertError('Gagal Memuat Profil', err.message);
+                    return;
+                }
             }
             if (!user) return;
 
@@ -1033,7 +1143,7 @@
             document.getElementById('profile-initial').innerText = user.full_name.charAt(0).toUpperCase();
             document.getElementById('profile-phone').innerText = user.phone_number || '-';
             document.getElementById('profile-gender').innerText = user.gender || '-';
-            document.getElementById('profile-join-date').innerText = user.created_at ? moment(user.created_at).format('DD MMM YYYY') : '-';
+            document.getElementById('profile-join-date').innerText = user.created_at ? wib(user.created_at).format('DD MMM YYYY') : '-';
             
             document.getElementById('profile-total-attend').innerHTML = `<span class="text-xs text-slate-500 font-mono">Memuat...</span>`;
             document.getElementById('calendar-grid').innerHTML = '<div class="col-span-7 text-center text-xs text-slate-500 font-mono py-6">Memuat aktivitas...</div>';
@@ -1045,20 +1155,21 @@
             document.getElementById('btn-delete-user').onclick = () => {
                 deleteUser(user.id, user.full_name);
             };
+            const btnPurge = document.getElementById('btn-purge-biometrics');
+            if (btnPurge) btnPurge.onclick = () => purgeBiometrics(user.id, user.full_name);
 
             try {
-                const res = await fetch(`/api/users/${userId}/history`);
-                if (!res.ok) throw new Error("Gagal load history");
-                const json = await res.json();
+                const json = await KP.apiFetch(`/api/users/${encodeURIComponent(userId)}/history`);
                 const logs = json.data || [];
                 currentProfileLogs = logs;
-                document.getElementById('profile-total-attend').innerHTML = `${logs.length}<span class="text-xs font-normal text-slate-500 ml-1">x</span>`;
+                document.getElementById('profile-total-attend').innerHTML =
+                    `${logs.length}<span class="text-xs font-normal text-slate-400 ml-1">x</span>`;
                 profileCalMoment = moment();
                 renderProfileCalendar();
             } catch (err) {
-                console.error(err);
-                document.getElementById('calendar-grid').innerHTML = '<div class="col-span-7 text-center text-xs text-rose-400 font-mono py-6">Gagal memuat riwayat.</div>';
-                document.getElementById('profile-total-attend').innerText = `-`;
+                document.getElementById('calendar-grid').innerHTML =
+                    `<div class="col-span-7 text-center text-sm text-rose-300 py-6">${escapeHTML(err.message)}</div>`;
+                document.getElementById('profile-total-attend').innerText = '-';
             }
         }
 
@@ -1067,6 +1178,7 @@
         }
 
         function renderProfileCalendar() {
+            const gridCells = [];
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
             document.getElementById('calendar-month-year').innerText = profileCalMoment.format('MMM YYYY');
@@ -1078,7 +1190,7 @@
             const attendedDates = new Set(currentProfileLogs.map(l => moment(l.timestamp).format('YYYY-MM-DD')));
 
             for (let i = 0; i < startDay; i++) {
-                grid.innerHTML += `<div class="h-7"></div>`;
+                gridCells.push('<div class="h-7"></div>');
             }
 
             for (let day = 1; day <= daysInMonth; day++) {
@@ -1092,12 +1204,15 @@
                     ? "bg-azure-600/20 text-azure-300 border border-azure-500/40" 
                     : "bg-obsidian-800 text-slate-400 border border-white/[0.04]";
 
-                grid.innerHTML += `
+                gridCells.push(`
                     <div class="h-7 flex items-center justify-center rounded-lg text-xs font-mono transition-all ${cellClass}">
                         ${day}
                     </div>
-                `;
+                `);
             }
+            // One assignment rather than one per cell: `innerHTML +=` in a loop
+            // reserialises and reparses the whole grid on every iteration.
+            grid.innerHTML = gridCells.join('');
         }
 
         function prevCalMonth() {
@@ -1109,6 +1224,31 @@
             profileCalMoment.add(1, 'month');
             renderProfileCalendar();
         }
+
+        /**
+         * One delegated listener instead of inline onclick handlers that
+         * interpolated ids straight into a JavaScript context, where HTML
+         * escaping would not have protected anything.
+         */
+        document.addEventListener('click', function (event) {
+            const profile = event.target.closest('.js-profile');
+            if (profile) { openProfileModal(profile.dataset.userId); return; }
+
+            const daily = event.target.closest('.js-daily');
+            if (daily) { openDailyDetail(daily.dataset.date); return; }
+
+            const del = event.target.closest('.js-delete-log');
+            if (del) { deleteLog(del.dataset.logId, del.dataset.logName); return; }
+        });
+
+        // Escape closes whichever modal is open, and a click on the backdrop
+        // does the same. Neither worked before on any of the nine modals.
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            document.querySelectorAll('[role="dialog"]:not(.hidden), .fixed.inset-0:not(.hidden)').forEach(function (modal) {
+                if (modal.id && modal.classList.contains('z-50')) modal.classList.add('hidden');
+            });
+        });
 
         function openEditModal(user) {
             document.getElementById('edit-id').value = user.id;
@@ -1124,81 +1264,108 @@
         async function saveEditUser(e) {
             e.preventDefault();
             const id = document.getElementById('edit-id').value;
-            const full_name = document.getElementById('edit-name').value;
-            const phone_number = document.getElementById('edit-phone').value;
-            const user = allUsers.find(u => String(u.id) === String(id));
-            const gender = user ? user.gender : 'Pria';
+            const button = e.target.querySelector('[type="submit"]');
+            if (button) button.disabled = true;
+
+            // Only the fields this form actually shows are sent. It used to
+            // include gender, defaulting to "Pria" whenever allUsers was cold —
+            // so fixing a typo in a woman's phone number silently changed her
+            // recorded gender, and with it the commission's gender statistics.
+            const payload = {
+                full_name: document.getElementById('edit-name').value.trim(),
+                phone_number: document.getElementById('edit-phone').value.trim(),
+            };
 
             try {
-                const res = await fetch(`/api/users/${id}`, {
+                await KP.apiFetch(`/api/users/${encodeURIComponent(id)}`, {
                     method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ full_name, phone_number, gender })
-                });
-                if (!res.ok) throw new Error("Gagal update user");
-
-                Swal.fire({
-                    title: 'Berhasil!',
-                    text: 'Data jemaat telah diperbarui.',
-                    icon: 'success',
-                    background: '#0b0d13',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#2563eb'
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
                 });
                 closeModal();
+                await Swal.fire(Object.assign({}, KP.swalTheme, {
+                    title: 'Tersimpan', text: 'Data jemaat diperbarui.', icon: 'success',
+                }));
                 loadDatabase();
             } catch (err) {
-                Swal.fire({
-                    title: 'Gagal',
-                    text: 'Terjadi kesalahan sistem.',
-                    icon: 'error',
-                    background: '#0b0d13',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#2563eb'
-                });
+                KP.alertError('Gagal Menyimpan', err.message);
+            } finally {
+                if (button) button.disabled = false;
             }
         }
 
+        /**
+         * Archive a member.
+         *
+         * The old dialog promised "Seluruh foto wajah dan riwayat presensi akan
+         * dihapus permanen" while the backend performed a soft delete that never
+         * touched face_embedding. That told operators a deletion request had been
+         * honoured when the biometric data was still stored — so the wording now
+         * matches what actually happens, and genuine erasure is a separate action.
+         */
         async function deleteUser(id, name) {
-            const confirm = await Swal.fire({
-                title: 'Hapus Jemaat?',
-                text: `Apakah Anda yakin ingin menghapus data "${name}"? Seluruh foto wajah dan riwayat presensi akan dihapus permanen.`,
+            const confirmed = await Swal.fire(Object.assign({}, KP.swalTheme, {
+                title: 'Arsipkan Jemaat?',
+                html: `<p><strong>${escapeHTML(name)}</strong> akan hilang dari daftar dan dari kiosk.</p>
+                       <p class="mt-2 text-sm opacity-80">Riwayat kehadirannya tetap tersimpan untuk statistik, dan data wajahnya masih ada di database. Gunakan "Hapus Data Biometrik" bila yang bersangkutan meminta datanya dihapus.</p>`,
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#e11d48',
-                cancelButtonColor: '#334155',
-                confirmButtonText: 'Ya, Hapus Data',
+                confirmButtonText: 'Ya, Arsipkan',
                 cancelButtonText: 'Batal',
-                background: '#0b0d13',
-                color: '#f8fafc'
-            });
+                confirmButtonColor: '#d97706',
+            }));
+            if (!confirmed.isConfirmed) return;
 
-            if (confirm.isConfirmed) {
-                try {
-                    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-                    if (!res.ok) throw new Error("Gagal menghapus");
+            try {
+                const result = await KP.apiFetch(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+                closeProfileModal();
+                await Swal.fire(Object.assign({}, KP.swalTheme, {
+                    title: 'Diarsipkan',
+                    // The server's own wording, rather than a hardcoded string
+                    // that could drift from what the server actually did.
+                    text: result.message || 'Jemaat diarsipkan.',
+                    icon: 'success',
+                }));
+                loadDatabase();
+                loadDashboardData();
+            } catch (err) {
+                KP.alertError('Gagal Mengarsipkan', err.message);
+            }
+        }
 
-                    closeProfileModal();
-                    Swal.fire({
-                        title: 'Terhapus!',
-                        text: 'Data jemaat telah dihapus.',
-                        icon: 'success',
-                        background: '#0b0d13',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#2563eb'
-                    });
-                    loadDatabase();
-                    loadDashboardData();
-                } catch (err) {
-                    Swal.fire({
-                        title: 'Gagal',
-                        text: 'Terjadi kendala saat menghapus data.',
-                        icon: 'error',
-                        background: '#0b0d13',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#2563eb'
-                    });
-                }
+        /**
+         * Irreversibly erase a member's biometric data and phone number.
+         *
+         * This is what satisfies a deletion request under UU 27/2022. Attendance
+         * history is kept because it carries no biometric data and the weekly
+         * statistics depend on it.
+         */
+        async function purgeBiometrics(id, name) {
+            const confirmed = await Swal.fire(Object.assign({}, KP.swalTheme, {
+                title: 'Hapus Data Biometrik?',
+                html: `<p>Data wajah dan nomor telepon <strong>${escapeHTML(name)}</strong> akan dihapus <strong>permanen</strong> dan tidak dapat dipulihkan.</p>
+                       <p class="mt-2 text-sm opacity-80">Yang bersangkutan tidak akan bisa dikenali kiosk lagi. Riwayat kehadiran tetap tersimpan.</p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Hapus Permanen',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#e11d48',
+                input: 'text',
+                inputPlaceholder: 'Ketik HAPUS untuk konfirmasi',
+                inputValidator: value => value !== 'HAPUS' ? 'Ketik HAPUS untuk melanjutkan.' : undefined,
+            }));
+            if (!confirmed.isConfirmed) return;
+
+            try {
+                const result = await KP.apiFetch(`/api/users/${encodeURIComponent(id)}/biometrics`, { method: 'DELETE' });
+                closeProfileModal();
+                await Swal.fire(Object.assign({}, KP.swalTheme, {
+                    title: 'Dihapus Permanen', text: result.message, icon: 'success',
+                }));
+                loadDatabase();
+                loadDashboardData();
+            } catch (err) {
+                KP.alertError('Gagal Menghapus', err.message);
             }
         }
 
@@ -1216,6 +1383,7 @@
         }
 
         function renderGlobalCalendar() {
+            const gridCells = [];
             const grid = document.getElementById('global-calendar-grid');
             grid.innerHTML = '';
             document.getElementById('global-calendar-month-year').innerText = globalCalMoment.format('MMMM YYYY');
@@ -1225,7 +1393,7 @@
             const startDay = startOfMonth.day();
 
             for (let i = 0; i < startDay; i++) {
-                grid.innerHTML += `<div class="h-10"></div>`;
+                gridCells.push('<div class="h-10"></div>');
             }
 
             for (let day = 1; day <= daysInMonth; day++) {
@@ -1245,13 +1413,17 @@
                     ? "bg-obsidian-800 border border-white/20 text-white" 
                     : "bg-obsidian-850/60 border border-white/[0.04] text-slate-400";
 
-                grid.innerHTML += `
-                    <div onclick="openDailyDetail('${dateStr}')" class="h-10 flex flex-col items-center justify-center rounded-xl cursor-pointer hover:scale-105 transition-all text-xs font-mono relative ${cellClass}" title="${count} Jemaat Hadir">
+                // A button, so every day is reachable by keyboard; the id goes
+                // in a data attribute rather than being interpolated into an
+                // inline handler.
+                gridCells.push(`
+                    <button type="button" data-date="${dateStr}" class="js-daily h-10 w-full flex flex-col items-center justify-center rounded-xl cursor-pointer hover:scale-105 focus-visible:ring-2 focus-visible:ring-azure-400 transition-all text-xs font-mono relative ${cellClass}" title="${count} jemaat hadir">
                         <span>${day}</span>
                         ${countBadge}
-                    </div>
-                `;
+                    </button>
+                `);
             }
+            grid.innerHTML = gridCells.join('');
         }
 
         function prevGlobalCalMonth() {
@@ -1264,12 +1436,22 @@
             renderGlobalCalendar();
         }
 
-        async function loadAnalytics(filter = '30d') {
+        /**
+         * Both controls are read from the DOM, which is the only source of truth.
+         *
+         * The signature used to default filter to '30d', and the At-Risk select
+         * called loadAnalytics() with no argument — so narrowing the At-Risk
+         * window silently reset the period to 30 days while the time filter still
+         * displayed "3 Bulan Terakhir". Numbers quoted from that screen into a
+         * committee meeting were for a different period than the label claimed.
+         */
+        async function loadAnalytics() {
             try {
+                const filter = document.getElementById('time-filter').value;
                 const atRiskDays = document.getElementById('at-risk-filter').value;
-                const res = await fetch(`/api/analytics?filter_type=${filter}&at_risk_days=${atRiskDays}`);
-                if (!res.ok) throw new Error("Gagal load analytics");
-                const data = await res.json();
+                const data = await KP.apiFetch(
+                    `/api/analytics?filter_type=${encodeURIComponent(filter)}&at_risk_days=${encodeURIComponent(atRiskDays)}`
+                );
 
                 document.getElementById('stat-avg').innerText = data.avg_attendance || 0;
 
@@ -1362,20 +1544,36 @@
                     }
                 });
 
-                // Gender Stats
+                // Gender split, now computed from attendance within the selected
+                // period rather than from the whole users table — the old figure
+                // never changed when the period filter moved.
                 const gender = data.gender_stats || {};
-                const priaCount = gender.pria || 0;
-                const wanitaCount = gender.wanita || 0;
                 const unknownCount = gender.unknown || 0;
-
-                document.getElementById('stat-pria').innerText = priaCount;
-                document.getElementById('stat-wanita').innerText = wanitaCount;
+                document.getElementById('stat-pria').innerText = gender.pria || 0;
+                document.getElementById('stat-wanita').innerText = gender.wanita || 0;
                 document.getElementById('stat-unknown').innerText = unknownCount;
-
                 document.getElementById('persen-pria').innerText = `${gender.persen_pria || 0}%`;
                 document.getElementById('persen-wanita').innerText = `${gender.persen_wanita || 0}%`;
                 document.getElementById('bar-pria').style.width = `${gender.persen_pria || 0}%`;
                 document.getElementById('bar-wanita').style.width = `${gender.persen_wanita || 0}%`;
+
+                // "Tanpa Keterangan" was counted in the percentages but its
+                // container was hard-coded hidden and never revealed, so the bars
+                // could read 45% + 48% with the remainder unexplained.
+                const unknownBox = document.getElementById('container-unknown');
+                const unknownPct = document.getElementById('persen-unknown');
+                const unknownBar = document.getElementById('bar-unknown');
+                if (unknownBox) unknownBox.classList.toggle('hidden', unknownCount === 0);
+                if (unknownPct) {
+                    unknownPct.classList.toggle('hidden', unknownCount === 0);
+                    unknownPct.innerText = `${gender.persen_unknown || 0}%`;
+                }
+                if (unknownBar) unknownBar.style.width = `${gender.persen_unknown || 0}%`;
+
+                const genderNote = document.getElementById('gender-basis-note');
+                if (genderNote) {
+                    genderNote.innerText = `Berdasarkan ${gender.attendees || 0} jemaat yang hadir pada periode terpilih.`;
+                }
 
                 // Heatmap Calendar Map
                 globalAttendanceMap = data.heatmap_all || {};
@@ -1384,42 +1582,47 @@
                 const heatmapWrapper = document.getElementById('global-heatmap');
                 heatmapWrapper.innerHTML = '';
 
+                const cells = [];
                 for (let i = 27; i >= 0; i--) {
-                    const d = moment().subtract(i, 'days');
+                    const d = wib(moment()).subtract(i, 'days');
                     const dateStr = d.format('YYYY-MM-DD');
                     const count = globalAttendanceMap[dateStr] || 0;
 
-                    let bg = "bg-obsidian-800 border border-white/[0.04]";
-                    if (count >= 20) bg = "bg-emerald-400 text-obsidian-950 shadow-sm shadow-emerald-400/50";
-                    else if (count >= 10) bg = "bg-emerald-600 text-white";
-                    else if (count > 0) bg = "bg-emerald-900 border border-emerald-700/50 text-emerald-300";
+                    let bg = 'bg-obsidian-800 border border-white/[0.04] text-slate-400';
+                    if (count >= 20) bg = 'bg-emerald-400 text-obsidian-950 shadow-sm shadow-emerald-400/50';
+                    else if (count >= 10) bg = 'bg-emerald-600 text-white';
+                    else if (count > 0) bg = 'bg-emerald-900 border border-emerald-700/50 text-emerald-200';
 
-                    heatmapWrapper.innerHTML += `
-                        <div onclick="openDailyDetail('${dateStr}')" class="w-9 h-12 flex flex-col items-center justify-between p-1 rounded-xl cursor-pointer hover:scale-110 transition-all ${bg}" title="${d.format('DD MMM YYYY')}: ${count} Jemaat">
+                    // A real button, so keyboard users can reach all 28 cells.
+                    cells.push(`
+                        <button type="button" data-date="${dateStr}" class="js-daily w-9 h-12 flex flex-col items-center justify-between p-1 rounded-xl cursor-pointer hover:scale-110 focus-visible:ring-2 focus-visible:ring-azure-400 transition-all ${bg}" title="${d.format('DD MMM YYYY')}: ${count} jemaat">
                             <span class="text-[9px] font-mono opacity-80">${d.format('DD')}</span>
                             <span class="text-[10px] font-mono font-bold">${count > 0 ? count : '-'}</span>
-                        </div>
-                    `;
+                        </button>`);
                 }
+                heatmapWrapper.innerHTML = cells.join('');
 
                 // At-Risk List & Top Users
                 renderAtRiskList(data.at_risk || []);
                 renderTopUsersList(data.top_users || []);
 
             } catch (err) {
-                console.error("Analytics Load Error:", err);
+                renderErrorState('at-risk-list', err.message, loadAnalytics);
+                renderErrorState('global-heatmap', err.message, loadAnalytics);
             }
         }
 
         function renderAtRiskList(users) {
+            const shortItems = [];
+            const fullItems = [];
             const list = document.getElementById('at-risk-list');
             const fullList = document.getElementById('full-at-risk-list');
             list.innerHTML = '';
             if (fullList) fullList.innerHTML = '';
             
             if (users.length === 0) {
-                list.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Semua jemaat aktif hadir.</li>';
-                if (fullList) fullList.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Semua jemaat aktif hadir.</li>';
+                list.innerHTML = '<li class="text-slate-400 text-sm text-center py-4">Semua jemaat aktif hadir.</li>';
+                if (fullList) fullList.innerHTML = '<li class="text-slate-400 text-sm text-center py-4">Semua jemaat aktif hadir.</li>';
                 return;
             }
 
@@ -1433,7 +1636,7 @@
                     <li class="p-3 bg-obsidian-850 rounded-xl border border-rose-500/20 flex justify-between items-center text-xs">
                         <div>
                             <span class="font-bold text-white">${safeName}</span>
-                            <span class="text-rose-400 font-mono text-[11px] ml-2">Absen ${safeDays === '999' ? 'Belum pernah' : safeDays + ' hari'}</span>
+                            <span class="text-rose-400 font-mono text-[11px] ml-2">${user.never_attended ? 'Belum pernah hadir' : 'Absen ' + safeDays + ' hari'}</span>
                         </div>
                         ${waLink ? `
                             <a href="${waLink}" target="_blank" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-3 py-1 rounded-xl font-mono text-[11px] font-semibold transition-all">
@@ -1442,9 +1645,11 @@
                         ` : ''}
                     </li>
                 `;
-                if (i < 4) list.innerHTML += itemHtml;
-                if (fullList) fullList.innerHTML += itemHtml;
+                if (i < 4) shortItems.push(itemHtml);
+                fullItems.push(itemHtml);
             });
+            list.innerHTML = shortItems.join('');
+            if (fullList) fullList.innerHTML = fullItems.join('');
         }
 
         function openAtRiskModal() {
@@ -1452,14 +1657,16 @@
         }
 
         function renderTopUsersList(users) {
+            const shortItems = [];
+            const fullItems = [];
             const list = document.getElementById('top-users-list');
             const fullList = document.getElementById('full-top-users-list');
             list.innerHTML = '';
             if (fullList) fullList.innerHTML = '';
             
             if (users.length === 0) {
-                list.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Belum ada data kehadiran.</li>';
-                if (fullList) fullList.innerHTML = '<li class="text-slate-500 font-mono text-xs text-center py-4">Belum ada data kehadiran.</li>';
+                list.innerHTML = '<li class="text-slate-400 text-sm text-center py-4">Belum ada data kehadiran.</li>';
+                if (fullList) fullList.innerHTML = '<li class="text-slate-400 text-sm text-center py-4">Belum ada data kehadiran.</li>';
                 return;
             }
 
@@ -1475,9 +1682,11 @@
                         <span class="font-mono font-bold text-cyan-400">${count}x Hadir</span>
                     </li>
                 `;
-                if (i < 5) list.innerHTML += itemHtml;
-                if (fullList) fullList.innerHTML += itemHtml;
+                if (i < 5) shortItems.push(itemHtml);
+                fullItems.push(itemHtml);
             });
+            list.innerHTML = shortItems.join('');
+            if (fullList) fullList.innerHTML = fullItems.join('');
         }
 
         function openTopUsersModal() {
@@ -1505,16 +1714,18 @@
             document.getElementById('daily-detail-subtitle').innerText = formattedTitle;
             document.getElementById('daily-detail-modal').classList.remove('hidden');
 
-            document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 font-mono text-xs">Memuat data dari server...</td></tr>';
+            document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400 text-sm">Memuat data dari server…</td></tr>';
             try {
-                const res = await fetch(`/api/attendance/date/${dateStr}`);
-                if (!res.ok) throw new Error("Gagal mengambil detail harian");
-                const json = await res.json();
+                const json = await KP.apiFetch(`/api/attendance/date/${encodeURIComponent(dateStr)}`);
                 const logs = json.data || [];
-                
+
+                // id and method are carried through so a mistaken entry can be
+                // removed from here, and so the method column can be rendered.
                 dailyAllLogs = logs.map(l => ({
+                    id: l.id,
                     full_name: l.users ? l.users.full_name : 'Tanpa Nama',
                     gender: l.users ? l.users.gender : '-',
+                    method: l.method,
                     timestamp: l.timestamp
                 }));
                 document.getElementById('daily-total-attend').innerText = dailyAllLogs.length;
@@ -1545,7 +1756,7 @@
 
                 applyDailyFilter();
             } catch (err) {
-                console.error(err);
+                renderErrorState('daily-tbody', err.message, function () { openDailyDetail(dateStr); });
                 document.getElementById('daily-tbody').innerHTML = '<tr><td colspan="3" class="text-center p-8 text-rose-400 font-mono text-xs">Gagal mengambil data.</td></tr>';
             }
         }
@@ -1564,6 +1775,7 @@
         }
 
         function renderDailyTable() {
+            const rows = [];
             const tbody = document.getElementById('daily-tbody');
             tbody.innerHTML = '';
 
@@ -1576,20 +1788,22 @@
             const pageData = dailyFilteredLogs.slice(start, end);
 
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-500 font-mono text-xs">Tidak ada data kehadiran yang cocok.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm">Tidak ada data kehadiran yang cocok.</td></tr>';
             } else {
                 pageData.forEach(l => {
-                    const safeName = escapeHTML(l.full_name);
-                    const safeTime = escapeHTML(moment(l.timestamp).format('HH:mm:ss'));
-                    tbody.innerHTML += `
+                    rows.push(`
                         <tr class="hover:bg-obsidian-850/60 transition-colors">
-                            <td class="p-4 text-slate-400 font-mono text-xs">${safeTime} WIB</td>
-                            <td class="p-4 font-semibold text-white">${safeName}</td>
-                            <td class="p-4"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold">Hadir</span></td>
+                            <td class="p-4 text-slate-300 font-mono text-xs">${escapeHTML(wib(l.timestamp).format('HH:mm:ss'))} WIB</td>
+                            <td class="p-4 font-semibold text-white">${escapeHTML(l.full_name)}</td>
+                            <td class="p-4">${methodBadge(l.method)}</td>
+                            <td class="p-4 text-right">
+                                <button type="button" data-log-id="${escapeHTML(String(l.id))}" data-log-name="${escapeHTML(l.full_name || '')}" class="js-delete-log text-rose-300 hover:text-rose-200 text-sm font-semibold">Hapus</button>
+                            </td>
                         </tr>
-                    `;
+                    `);
                 });
             }
+            tbody.innerHTML = rows.join('');
 
             document.getElementById('daily-page-info').innerText = `Menampilkan ${total === 0 ? 0 : start + 1}-${Math.min(end, total)} dari ${total}`;
             document.getElementById('btn-prev-daily').disabled = (currentDailyPage <= 1);
