@@ -63,7 +63,12 @@ async def recognize_face(
         query_vector = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
         if query_vector is None:
             raise HTTPException(status_code=400, detail="Wajah tidak terdeteksi")
+    except HTTPException:
+        raise
     except Exception as e:
+        # HTTPException tidak dilaporkan otomatis oleh integrasi Sentry, jadi
+        # kegagalan model harus dilaporkan eksplisit sebelum di-raise.
+        capture_error(e, where="kiosk.face_embedding")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
     if hasattr(query_vector, 'tolist'):
@@ -99,8 +104,13 @@ async def recognize_face(
                 last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
                 last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
                 break
-            except Exception:
-                pass
+            except Exception as e:
+                capture_event(
+                    "Timestamp log gagal di-parse saat menghitung last_seen",
+                    where="kiosk.recognize_face.last_seen",
+                    timestamp_raw=str(ts)[:40],
+                    error=str(e)[:200],
+                )
 
     if today_log:
         return {
@@ -129,6 +139,14 @@ async def recognize_face(
         # the second insert will be rejected here instead of creating a duplicate entry.
         err_str = str(e)
         if "23505" in err_str or "unique" in err_str.lower():
+            # Perilaku benar (TOCTOU tertangani DB), tapi tetap dicatat sebagai info:
+            # frekuensinya memberi tahu seberapa sering antrian benar-benar bertabrakan.
+            capture_event(
+                "Race check-in duplikat tertangkap unique constraint",
+                where="kiosk.recognize_face.duplicate_race",
+                level="info",
+                user_id=user_id,
+            )
             return {
                 "status": "success",
                 "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -140,6 +158,7 @@ async def recognize_face(
                     "method": "face"
                 }
             }
+        capture_error(e, where="kiosk.recognize_face.insert_log", user_id=user_id)
         raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
 
     process_time = (time.time() - start_time) * 1000
@@ -167,6 +186,7 @@ async def search_users(request: Request, q: str = ""):
         results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 25)
         return {"status": "success", "data": results}
     except Exception as e:
+        capture_error(e, where="kiosk.search_users")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.post("/attendance/manual-checkin")
@@ -203,8 +223,13 @@ async def manual_checkin(
                     last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
                     last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
                     break
-                except Exception:
-                    pass
+                except Exception as e:
+                    capture_event(
+                        "Timestamp log gagal di-parse saat menghitung last_seen",
+                        where="kiosk.manual_checkin.last_seen",
+                        timestamp_raw=str(ts)[:40],
+                        error=str(e)[:200],
+                    )
 
         if today_log:
             return {
@@ -230,6 +255,12 @@ async def manual_checkin(
         except Exception as e:
             err_str = str(e)
             if "23505" in err_str or "unique" in err_str.lower():
+                capture_event(
+                    "Race check-in duplikat tertangkap unique constraint",
+                    where="kiosk.manual_checkin.duplicate_race",
+                    level="info",
+                    user_id=user_id,
+                )
                 return {
                     "status": "success",
                     "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -240,6 +271,7 @@ async def manual_checkin(
                         "method": "manual"
                     }
                 }
+            capture_error(e, where="kiosk.manual_checkin.insert_log", user_id=user_id)
             raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
 
         return {
@@ -255,6 +287,7 @@ async def manual_checkin(
     except HTTPException:
         raise
     except Exception as e:
+        capture_error(e, where="kiosk.manual_checkin")
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.post("/register")
@@ -342,6 +375,7 @@ async def update_face(
         DBService.update_user(user_id, {"face_embedding": embedding_list})
         return {"status": "success", "message": f"Data wajah untuk '{full_name}' berhasil diperbarui!"}
     except Exception as e:
+        capture_error(e, where="kiosk.update_face", full_name=full_name)
         print("Update Face Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 

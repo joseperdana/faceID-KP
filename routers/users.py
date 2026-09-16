@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from services.db_service import DBService
 from core.security import check_admin_auth
+from core.observability import capture_error
 from schemas.user import UpdateUserDto
 
 router = APIRouter(prefix="/api/users", tags=["users"], dependencies=[Depends(check_admin_auth)])
@@ -23,6 +24,7 @@ async def get_all_users():
             
         return users_data
     except Exception as e:
+        capture_error(e, where="users.get_all_users")
         print(f"Error Get Users: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -32,6 +34,7 @@ async def get_user_history(user_id: str):
         res = DBService.get_user_history(user_id)
         return {"status": "success", "data": res}
     except Exception as e:
+        capture_error(e, where="users.get_user_history")
         print(f"Error User History: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -45,6 +48,7 @@ async def update_user(user_id: int, data: UpdateUserDto):
         })
         return {"status": "success", "data": res}
     except Exception as e:
+        capture_error(e, where="users.update_user")
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.delete("/{user_id}")
@@ -56,4 +60,5 @@ async def delete_user(user_id: int):
         DBService.soft_delete_user(user_id)
         return {"status": "success", "message": "Jemaat telah diarsipkan (data kehadiran tetap tersimpan)."}
     except Exception as e:
+        capture_error(e, where="users.delete_user")
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})

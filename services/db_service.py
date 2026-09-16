@@ -1,5 +1,6 @@
 from database import supabase
 from typing import List, Dict, Optional
+from core.observability import capture_event
 
 class DBService:
     @staticmethod
@@ -117,6 +118,15 @@ class DBService:
             err_msg = str(e)
             # If the database schema does not yet have 'method' column (PGRST204), fallback to core columns
             if "method" in err_msg or "PGRST204" in err_msg:
+                # Fallback ini menjatuhkan kolom `method`, artinya pemisahan
+                # face vs manual — syarat audit integrity — hilang diam-diam.
+                # Harus terlihat, bukan cuma jalan mulus.
+                capture_event(
+                    "Skema attendance_logs tanpa kolom 'method' — fallback aktif, audit integrity terdegradasi",
+                    where="db.insert_log.fallback",
+                    level="warning",
+                    user_id=log_data.get("user_id"),
+                )
                 fallback_data = {
                     "user_id": log_data["user_id"],
                     "status": log_data.get("status", "Hadir"),

@@ -45,6 +45,9 @@ function requestLocation() {
             },
             (error) => {
                 console.warn("GPS access error/denied:", error);
+                window.KPObs && window.KPObs.report('gps_error', error.message || 'Geolocation gagal', {
+                    context: { code: error.code, secure_context: window.isSecureContext }
+                });
                 currentUserLat = null;
                 currentUserLng = null;
                 updateStatus('warning', 'GPS Tidak Aktif', 'Harap izinkan akses lokasi (GPS) untuk absensi.');
@@ -55,6 +58,9 @@ function requestLocation() {
     } else {
         currentUserLat = null;
         currentUserLng = null;
+        window.KPObs && window.KPObs.report('gps_unsupported', 'navigator.geolocation tidak tersedia', {
+            context: { secure_context: window.isSecureContext }
+        });
         updateStatus('warning', 'GPS Tidak Didukung', 'Browser tidak mendukung deteksi lokasi.');
         camera.start();
     }
@@ -240,6 +246,9 @@ async function triggerAutoCapture() {
                 `;
             }
         } catch (err) {
+            // Sebelumnya benar-benar senyap: layar reset, orangnya disuruh coba
+            // lagi, dan tidak ada jejak apa pun yang sampai ke luar kiosk.
+            window.KPObs && window.KPObs.report('checkin_failed', err && err.message, { stack: err && err.stack });
             loadingOverlay.classList.add('hidden');
             resetScan();
         }
@@ -309,6 +318,7 @@ if (manualSearchInput) {
                     `;
                 }
             } catch (err) {
+                window.KPObs && window.KPObs.report('manual_search_failed', err && err.message, { stack: err && err.stack });
                 manualSearchResults.innerHTML = `<div class="text-center py-8 text-rose-400 font-mono text-xs">Gagal mencari data. Cek koneksi server.</div>`;
             }
         }, 250);
@@ -358,6 +368,7 @@ window.executeManualCheckin = async function(userId) {
             resetScan();
         }
     } catch (err) {
+        window.KPObs && window.KPObs.report('manual_checkin_failed', err && err.message, { stack: err && err.stack });
         loadingOverlay.classList.add('hidden');
         resetScan();
     }

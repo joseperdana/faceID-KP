@@ -10,13 +10,21 @@ import os
 
 load_dotenv()
 
+from core.observability import ENVIRONMENT, RELEASE
+
+# Sample rate diturunkan dari 1.0: dengan 70-130 check-in menumpuk di jendela
+# 16:30-17:15, perekaman 100% transaksi menghabiskan kuota Sentry dalam hitungan
+# minggu. Error tetap dikirim 100% — yang di-sample hanya data performa.
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),  # Move DSN out of source code — set in .env
-    traces_sample_rate=1.0,
-    profiles_sample_rate=1.0,
+    environment=ENVIRONMENT,
+    release=RELEASE,
+    traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+    profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1")),
+    send_default_pii=False,
 )
 
-from routers import pages, auth, kiosk, users, analytics, attendance, photobooth
+from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="KPBromoMalang API")
@@ -39,6 +47,7 @@ app.include_router(users.router)
 app.include_router(analytics.router)
 app.include_router(attendance.router)
 app.include_router(photobooth.router)
+app.include_router(observability.router)
 
 if __name__ == "__main__":
     import uvicorn
