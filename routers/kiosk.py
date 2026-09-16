@@ -10,6 +10,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from services.db_service import DBService
 from face_service import face_service
+from core.observability import capture_error, capture_event
+from core.normalize import normalize_name, name_key, to_e164, subscriber_digits
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -86,6 +88,21 @@ async def recognize_face(
     user_id = user['id']
     user_name = user['full_name']
 
+    # Kasus D: rutin absen tapi profilnya belum pernah diisi di Lark. Sistem
+    # yang mendeteksi ini, bukan pengurus yang membandingkan dua daftar manual.
+    # Kegagalan di sini tidak boleh menghentikan absensi — kehadiran lebih
+    # penting daripada ajakan melengkapi profil.
+    try:
+        link_info = await starlette.concurrency.run_in_threadpool(DBService.get_user_link_info, user_id)
+    except Exception as e:
+        capture_error(e, where="kiosk.recognize_face.link_info", user_id=user_id)
+        link_info = {}
+
+    lark_prompt = {
+        "needs_lark": link_info.get("lark_status") == "pending",
+        "phone_lark": subscriber_digits(link_info.get("phone_e164") or ""),
+    }
+
     today_start = datetime.now(timezone.utc).date().isoformat()
 
     # --- TOCTOU Fix: Use a targeted today-only query instead of fetching full history ---
@@ -120,7 +137,8 @@ async def recognize_face(
                 "name": user_name,
                 "similarity_score": round(user['similarity'], 2),
                 "total_attendance": total_attendance,
-                "last_seen": last_seen
+                "last_seen": last_seen,
+                **lark_prompt
             }
         }
 
@@ -172,7 +190,8 @@ async def recognize_face(
             "similarity_score": round(user['similarity'], 2),
             "total_attendance": total_attendance,
             "last_seen": last_seen,
-            "method": "face"
+            "method": "face",
+            **lark_prompt
         }
     }
 
@@ -297,10 +316,24 @@ async def register_user(
     phone_number: str = Form(...), 
     files: List[UploadFile] = File(...)
 ):
-    existing = DBService.get_user_by_name(full_name)
+    # Normalisasi di batas sistem: format kanonik dijamin di sini, bukan
+    # bergantung pada ketikan petugas counter.
+    full_name = normalize_name(full_name)
+    key = name_key(full_name)
+    phone_e164 = to_e164(phone_number)
+
+    existing = DBService.get_user_by_name_key(key)
     if len(existing) > 0:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "Nama sudah terdaftar!"})
-    
+        # Jangan buntu. Di depan orang yang baru pertama datang, penolakan tanpa
+        # jalan keluar adalah kesan pertama yang buruk — beri tahu siapa yang
+        # cocok dan arahkan ke Update Wajah.
+        return JSONResponse(status_code=400, content={
+            "status": "error",
+            "reason": "duplicate_name",
+            "matched_name": existing[0]["full_name"],
+            "message": f"'{existing[0]['full_name']}' sudah terdaftar. Kalau ini memang Anda, pakai tombol 'Update Wajah'. Kalau orang lain dengan nama sama, tambahkan nama belakang."
+        })
+
     valid_embeddings = []
     
     for file in files:
@@ -322,10 +355,21 @@ async def register_user(
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Wajah ini sudah terdaftar sebagai '{matched_name}'. Gunakan tombol 'Update Wajah' jika ingin memperbarui foto."})
     
     try:
+        # Kasus C: orangnya sudah pernah mengisi form Lark, hanya wajahnya yang
+        # belum terdaftar. Sistem yang memutuskan ini lewat nomor HP — dengan 16
+        # kiosk, mengandalkan petugas menanyakan hal yang sama persis di tiap
+        # perangkat adalah titik gagal yang bisa dihindari.
+        already_in_lark = await starlette.concurrency.run_in_threadpool(
+            DBService.lark_profile_exists, phone_e164
+        )
+
         user_data = {
             "full_name": full_name,
             "gender": gender,
             "phone_number": phone_number,
+            "phone_e164": phone_e164 or None,
+            "name_key": key,
+            "lark_status": "linked" if already_in_lark else "pending",
             "face_embedding": embedding_list
         }
         new_user = DBService.insert_user(user_data)
@@ -339,11 +383,20 @@ async def register_user(
         DBService.insert_log(log_data)
 
         return {
-            "status": "success", 
-            "message": f"Anggota baru '{full_name}' berhasil didaftarkan dengan kualitas wajah super (berdasarkan {len(valid_embeddings)} frame)!"
+            "status": "success",
+            "message": f"Anggota baru '{full_name}' berhasil didaftarkan dengan kualitas wajah super (berdasarkan {len(valid_embeddings)} frame)!",
+            "data": {
+                "full_name": full_name,
+                # Bentuk yang dimengerti Lark Base: tanpa kode negara dan tanpa
+                # nol depan, sama seperti 308 baris yang sudah ada di sana.
+                "phone_lark": subscriber_digits(phone_number),
+                # False = jangan tampilkan QR; profilnya sudah ada di Lark.
+                "needs_lark": not already_in_lark
+            }
         }
 
     except Exception as e:
+        capture_error(e, where="kiosk.register_user", full_name=full_name)
         print("Register Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 

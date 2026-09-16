@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, Request
 from fastapi.responses import FileResponse, RedirectResponse
-from core.security import check_admin_auth, COOKIE_NAME
+from core.security import check_admin_auth, check_register_access, COOKIE_NAME, REGISTER_COOKIE_NAME
 
 router = APIRouter(tags=["pages"])
 
@@ -17,8 +17,20 @@ def login_page():
     return FileResponse("frontend/login.html")
 
 @router.get("/register")
-def register_page(auth: bool = Depends(check_admin_auth)):
-    return FileResponse("frontend/register.html")
+def register_page(request: Request, how: str = Depends(check_register_access)):
+    response = FileResponse("frontend/register.html")
+    # Perangkat yang dibuka dengan ?t=... mengingat aksesnya, supaya panitia
+    # tidak perlu menempel link setiap kali halaman dimuat ulang. Cookie ini
+    # hanya membuka /register — dashboard tetap butuh login admin.
+    if how == "token" and request.query_params.get("t"):
+        response.set_cookie(
+            REGISTER_COOKIE_NAME,
+            request.query_params["t"],
+            httponly=True,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 2,  # cukup untuk gladi bersih + hari acara
+        )
+    return response
 
 @router.get("/dashboard")
 def dashboard_page(auth: bool = Depends(check_admin_auth)):

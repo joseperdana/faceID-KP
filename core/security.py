@@ -1,5 +1,6 @@
 import jwt
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, Request
@@ -33,3 +34,35 @@ async def check_admin_auth(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     verify_token(token)
     return True
+
+
+# --- Akses registrasi untuk kios ------------------------------------------
+# Saat acara besar, belasan perangkat (sebagian HP pribadi panitia) perlu
+# membuka halaman registrasi. Memberi mereka cookie admin berarti memberi akses
+# penuh ke dashboard — termasuk menghapus jemaat — di perangkat pinjaman.
+# Token terpisah ini hanya membuka /register dan tidak membuka apa pun yang lain.
+REGISTER_COOKIE_NAME = "faceid_register"
+
+
+def register_token_is_valid(candidate: Optional[str]) -> bool:
+    expected = os.getenv("REGISTER_TOKEN", "")
+    if not expected or not candidate:
+        return False
+    return secrets.compare_digest(candidate, expected)
+
+
+async def check_register_access(request: Request):
+    """Boleh masuk kalau admin, ATAU membawa token registrasi yang sah.
+
+    Token diterima lewat query (?t=...) saat perangkat pertama kali disiapkan,
+    lalu disimpan sebagai cookie supaya halaman bisa dimuat ulang tanpa link.
+    """
+    if register_token_is_valid(request.query_params.get("t")):
+        return "token"
+    if register_token_is_valid(request.cookies.get(REGISTER_COOKIE_NAME)):
+        return "token"
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    verify_token(token)
+    return "admin"

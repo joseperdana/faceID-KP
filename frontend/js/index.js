@@ -1,7 +1,26 @@
 // --- Konstanta AI & DOM ---
 const REQUIRED_STABLE_FRAMES = 15; 
 const MOVEMENT_THRESHOLD = 0.045; 
-const AUTO_RESET_DELAY = 3500; 
+const AUTO_RESET_DELAY = 3500;
+// Memindai QR butuh waktu lebih dari sekadar membaca nama sendiri. Hanya berlaku
+// untuk yang profilnya belum lengkap, jadi antrian umum tidak ikut melambat —
+// dan tombol "Selesai" selalu tersedia untuk yang ingin langsung lanjut.
+const LARK_NUDGE_DELAY = 15000;
+
+// Harus sama persis dengan label pertanyaan di form Lark; garis miring dan spasi
+// wajib dikodekan. Nomor disembunyikan karena dia kunci gabung antar sistem.
+const LARK_FORM_URL = 'https://x4qrxnkmlhv.sg.larksuite.com/share/base/form/shrlg0i0RM9kNlqV8wI3A2ulYph';
+const LARK_Q_NAME = 'Nama Lengkap';
+const LARK_Q_PHONE = 'No. Telp/Whatsapp';
+
+function buildLarkUrl(fullName, phoneLark) {
+    const p = ['prefill_' + encodeURIComponent(LARK_Q_NAME) + '=' + encodeURIComponent(fullName || '')];
+    if (phoneLark) {
+        p.push('prefill_' + encodeURIComponent(LARK_Q_PHONE) + '=' + encodeURIComponent(phoneLark));
+        p.push('hide_' + encodeURIComponent(LARK_Q_PHONE) + '=1');
+    }
+    return LARK_FORM_URL + '?' + p.join('&');
+}
 const SAFE_ZONE_X_MIN = 0.20; const SAFE_ZONE_X_MAX = 0.80;
 const SAFE_ZONE_Y_MIN = 0.15; const SAFE_ZONE_Y_MAX = 0.85;
 
@@ -167,22 +186,65 @@ function showSuccessModal(data, message) {
     
     const successModal = document.getElementById('success-modal');
     const successContent = document.getElementById('success-modal-content');
+
+    // Kasus D: hadir rutin, tapi profilnya belum pernah diisi di Lark. QR muncul
+    // di momen paling tepat — orangnya sedang berdiri di depan layar.
+    const delay = renderLarkNudge(data) ? LARK_NUDGE_DELAY : AUTO_RESET_DELAY;
+
+    // Bilah hitung mundur dianimasikan 3,5 detik lewat CSS. Kalau modalnya
+    // bertahan lebih lama, bilah yang habis duluan memberi sinyal yang salah.
+    const bar = successContent.querySelector('.countdown-bar');
+    if (bar) bar.style.animationDuration = (delay / 1000) + 's';
+
     successModal.classList.remove('hidden');
-    
+
     setTimeout(() => {
         successContent.classList.remove('scale-95', 'opacity-0');
         successContent.classList.add('scale-100', 'opacity-100');
     }, 10);
 
-    setTimeout(() => { 
-        successContent.classList.remove('scale-100', 'opacity-100');
-        successContent.classList.add('scale-95', 'opacity-0');
-        
-        setTimeout(() => {
-            successModal.classList.add('hidden');
-            resetScan(); 
-        }, 300);
-    }, AUTO_RESET_DELAY);
+    closeSuccessModal.timer = setTimeout(closeSuccessModal, delay);
+}
+
+function closeSuccessModal() {
+    clearTimeout(closeSuccessModal.timer);
+    clearInterval(renderLarkNudge.timer);
+    const successModal = document.getElementById('success-modal');
+    const successContent = document.getElementById('success-modal-content');
+    successContent.classList.remove('scale-100', 'opacity-100');
+    successContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        successModal.classList.add('hidden');
+        resetScan();
+    }, 300);
+}
+
+function renderLarkNudge(data) {
+    const box = document.getElementById('lark-nudge');
+    if (!box) return false;
+    box.classList.add('hidden');
+    clearInterval(renderLarkNudge.timer);
+    if (!data || !data.needs_lark) return false;
+
+    // Form diisi di kiosk ini juga, jadi layarnya yang berpindah — bukan QR.
+    const url = buildLarkUrl(data.name, data.phone_lark);
+    document.getElementById('lark-nudge-link').href = url;
+    box.classList.remove('hidden');
+
+    // Hitung mundur lebih lama daripada di halaman registrasi: di sini ada
+    // antrian di belakang, dan berpindah halaman mematikan kamera kiosk.
+    let left = LARK_NUDGE_DELAY / 1000;
+    const counter = document.getElementById('lark-nudge-count');
+    counter.innerText = left;
+    renderLarkNudge.timer = setInterval(() => {
+        left -= 1;
+        counter.innerText = Math.max(left, 0);
+        if (left <= 0) {
+            clearInterval(renderLarkNudge.timer);
+            window.location.href = url;
+        }
+    }, 1000);
+    return true;
 }
 
 async function triggerAutoCapture() {
