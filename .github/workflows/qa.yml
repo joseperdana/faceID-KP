@@ -1,6 +1,8 @@
 name: QA & E2E Verification
 
 on:
+  # Tombol "Run workflow" di tab Actions — jalur deploy manual.
+  workflow_dispatch:
   push:
     branches: [ dev, staging, main ]
   pull_request:
@@ -65,3 +67,54 @@ jobs:
             sleep 1
           done
           pytest tests/test_e2e_playwright.py -v
+
+  deploy:
+    # Hanya jalan kalau tes hijau. Deploy yang bisa mendahului tes membuat
+    # keduanya kehilangan arti.
+    needs: test
+    runs-on: ubuntu-latest
+    # Aman secara bawaan: push ke main TIDAK men-deploy sampai variabel repo
+    # AUTO_DEPLOY di-set "true". Sampai saat itu, deploy hanya lewat tombol
+    # "Run workflow" — Anda yang memutuskan kapan produksi berubah.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true')
+    environment: production
+    # Dua deploy bersamaan bisa saling menimpa di tengah git reset.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Siapkan kunci SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::Secret VPS_SSH_KEY / VPS_KNOWN_HOSTS belum diisi."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY"     > ~/.ssh/id_deploy   && chmod 600 ~/.ssh/id_deploy
+          # known_hosts disematkan, bukan StrictHostKeyChecking=no: tanpa ini,
+          # runner akan menurut pada server mana pun yang menjawab nama itu.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+
+      - name: Jalankan pembaruan di VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          # Tidak ada perintah yang dikirim: kunci ini dikunci ke satu skrip di
+          # server lewat command="..." di authorized_keys.
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$USER@$HOST" 2>&1 | tee hasil-deploy.txt
+          if grep -q "::error::" hasil-deploy.txt; then
+            echo "::error::Deploy gagal di server — lihat keluaran di atas."
+            exit 1
+          fi
+
+      - name: Bersihkan kunci
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
