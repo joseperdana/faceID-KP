@@ -24,7 +24,7 @@ sentry_sdk.init(
     send_default_pii=False,
 )
 
-from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability
+from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability, flags
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="KPBromoMalang API")
@@ -37,6 +37,20 @@ async def unauthorized_exception_handler(request: Request, exc: HTTPException):
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
     return RedirectResponse(url="/login", status_code=303)
 
+# Kode kiosk harus selalu segar. Tanpa ini, peramban memakai cache heuristik dari
+# last-modified dan bisa menjalankan JS lama berhari-hari — di 16 perangkat yang
+# pernah membuka situs sebelum deploy, itu berarti sebagian kiosk memakai versi
+# lama tanpa ada yang menyadarinya. "no-cache" tetap mengizinkan cache, hanya
+# mewajibkan validasi ulang: dengan ETag, biasanya cuma 304 yang ringan.
+@app.middleware("http")
+async def always_revalidate_frontend(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/") or response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
+
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 app.mount("/docs/diagrams", StaticFiles(directory="docs/diagrams"), name="diagrams")
 
@@ -48,6 +62,7 @@ app.include_router(analytics.router)
 app.include_router(attendance.router)
 app.include_router(photobooth.router)
 app.include_router(observability.router)
+app.include_router(flags.router)
 
 if __name__ == "__main__":
     import uvicorn

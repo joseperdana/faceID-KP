@@ -175,12 +175,15 @@ function showSuccessModal(data, message) {
 
     const badgeEl = document.getElementById('success-badge-method');
     if (badgeEl) {
+        badgeEl.classList.remove('hidden');
         if (data.method === 'manual') {
             badgeEl.innerText = "Absen Manual";
             badgeEl.className = "inline-block mb-5 text-[11px] font-bold font-mono px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20";
         } else {
-            badgeEl.innerText = "Scan Wajah";
-            badgeEl.className = "inline-block mb-5 text-[11px] font-bold font-mono px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20";
+            // Absen wajah tidak perlu diberi label — orangnya baru saja menatap
+            // kamera, jadi menyebutkannya cuma mengulang yang sudah jelas.
+            // Label "Absen Manual" tetap ada karena itu memang tidak terlihat.
+            badgeEl.classList.add('hidden');
         }
     }
     
@@ -219,6 +222,14 @@ function closeSuccessModal() {
     }, 300);
 }
 
+// Form dibuka menumpang di atas kiosk, bukan dengan berpindah halaman: kamera
+// tetap hidup dan kembalinya cukup satu ketukan "Selesai".
+function bukaFormLark(url, nama) {
+    clearTimeout(closeSuccessModal.timer);
+    clearInterval(renderLarkNudge.timer);
+    openLarkOverlay(url, nama, closeSuccessModal);
+}
+
 function renderLarkNudge(data) {
     const box = document.getElementById('lark-nudge');
     if (!box) return false;
@@ -228,7 +239,7 @@ function renderLarkNudge(data) {
 
     // Form diisi di kiosk ini juga, jadi layarnya yang berpindah — bukan QR.
     const url = buildLarkUrl(data.name, data.phone_lark);
-    document.getElementById('lark-nudge-link').href = url;
+    document.getElementById('lark-nudge-link').onclick = () => bukaFormLark(url, data.name);
     box.classList.remove('hidden');
 
     // Hitung mundur lebih lama daripada di halaman registrasi: di sini ada
@@ -241,7 +252,7 @@ function renderLarkNudge(data) {
         counter.innerText = Math.max(left, 0);
         if (left <= 0) {
             clearInterval(renderLarkNudge.timer);
-            window.location.href = url;
+            bukaFormLark(url, data.name);
         }
     }, 1000);
     return true;
@@ -455,3 +466,26 @@ window.resetScan = function() {
     updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
     progressBar.style.width = '0%';
 };
+
+// --- Saklar fitur --------------------------------------------------------
+// Menyembunyikan tombol fitur yang sedang mati. Ini murni kerapian tampilan —
+// penegakan sesungguhnya ada di server, karena menyembunyikan tombol tidak
+// menghalangi siapa pun yang hafal alamatnya.
+async function applyFeatureFlags() {
+    try {
+        const res = await fetch('/api/flags');
+        const json = await res.json();
+        const f = (json && json.data) || {};
+        const sembunyikan = (sel, aktif) => {
+            const el = document.querySelector(sel);
+            if (el && aktif === false) el.classList.add('hidden');
+        };
+        sembunyikan('a[href="/photobooth"]', f.photobooth);
+        sembunyikan('a[href="/register"]', f.registration);
+    } catch (err) {
+        // Kiosk harus tetap jalan walau daftar saklar tidak terbaca: biarkan
+        // semua tombol tampil apa adanya.
+        window.KPObs && window.KPObs.report('load_flags_failed', err && err.message);
+    }
+}
+applyFeatureFlags();

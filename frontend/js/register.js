@@ -29,10 +29,19 @@ function buildLarkUrl(fullName, phoneLark) {
 const REDIRECT_SECONDS = 3;
 let redirectTimer = null;
 
+function bukaFormLark(url, nama) {
+    clearInterval(redirectTimer);
+    openLarkOverlay(url, nama, () => {
+        document.getElementById('lark-handoff').classList.add('hidden');
+        document.getElementById('result-message').classList.add('hidden');
+        document.getElementById('full_name').focus();
+    });
+}
+
 function showLarkHandoff(fullName, phoneLark) {
     const url = buildLarkUrl(fullName, phoneLark);
     document.getElementById('handoff-name').innerText = fullName;
-    document.getElementById('handoff-link').href = url;
+    document.getElementById('handoff-link').onclick = () => bukaFormLark(url, fullName);
     document.getElementById('lark-handoff').classList.remove('hidden');
 
     let left = REDIRECT_SECONDS;
@@ -43,7 +52,7 @@ function showLarkHandoff(fullName, phoneLark) {
         counter.innerText = left;
         if (left <= 0) {
             clearInterval(redirectTimer);
-            window.location.href = url;
+            bukaFormLark(url, fullName);
         }
     }, 1000);
 }

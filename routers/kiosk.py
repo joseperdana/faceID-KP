@@ -12,6 +12,7 @@ from services.db_service import DBService
 from face_service import face_service
 from core.observability import capture_error, capture_event
 from core.normalize import normalize_name, name_key, to_e164, subscriber_digits
+from core import flags
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -28,8 +29,9 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 def check_geofence(lat: Optional[float], lng: Optional[float]) -> Optional[JSONResponse]:
-    import os
-    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
+    # Saklar dashboard menang atas .env. Kalau tabelnya tak terbaca, nilainya
+    # jatuh ke ENABLE_GEOFENCE — perilaku yang berlaku sebelum fitur ini ada.
+    is_geofence_enabled = flags.is_enabled("geofence")
     GEREJA_LAT = -7.979261
     GEREJA_LNG = 112.625760
     MAX_RADIUS_METER = 200
@@ -99,7 +101,7 @@ async def recognize_face(
         link_info = {}
 
     lark_prompt = {
-        "needs_lark": link_info.get("lark_status") == "pending",
+        "needs_lark": flags.is_enabled("lark_handoff") and link_info.get("lark_status") == "pending",
         "phone_lark": subscriber_digits(link_info.get("phone_e164") or ""),
     }
 
@@ -316,6 +318,12 @@ async def register_user(
     phone_number: str = Form(...), 
     files: List[UploadFile] = File(...)
 ):
+    if not flags.is_enabled("registration"):
+        return JSONResponse(status_code=403, content={
+            "status": "error",
+            "message": "Pendaftaran anggota baru sedang ditutup. Hubungi pengurus."
+        })
+
     # Normalisasi di batas sistem: format kanonik dijamin di sini, bukan
     # bergantung pada ketikan petugas counter.
     full_name = normalize_name(full_name)
@@ -390,8 +398,9 @@ async def register_user(
                 # Bentuk yang dimengerti Lark Base: tanpa kode negara dan tanpa
                 # nol depan, sama seperti 308 baris yang sudah ada di sana.
                 "phone_lark": subscriber_digits(phone_number),
-                # False = jangan tampilkan QR; profilnya sudah ada di Lark.
-                "needs_lark": not already_in_lark
+                # False = jangan buka form; profilnya sudah ada di Lark, atau
+                # saklar Lark sedang dimatikan karena bukan acara besar.
+                "needs_lark": flags.is_enabled("lark_handoff") and not already_in_lark
             }
         }
 

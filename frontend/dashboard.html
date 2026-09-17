@@ -103,11 +103,18 @@
                 </svg>
                 Analisa & Statistik
             </button>
+            <button onclick="switchTab('kontrol')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm font-semibold text-slate-400 hover:text-white hover:bg-obsidian-800" id="btn-kontrol">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Kontrol Fitur
+            </button>
         </nav>
 
         <!-- Footer Actions -->
         <div class="p-4 border-t border-white/[0.08] space-y-2">
-            <a href="/photobooth" target="_blank" class="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-rose-950/40 border border-rose-400/20">
+            <a href="/photobooth" target="_blank" data-feature="photobooth" class="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-rose-950/40 border border-rose-400/20">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -427,6 +434,26 @@
         </div>
     </main>
 
+        <!-- 4. TAB: KONTROL FITUR -->
+        <div id="kontrol" class="tab-content">
+            <div class="mb-6">
+                <h2 class="text-2xl font-extrabold text-white tracking-tight">Kontrol Fitur</h2>
+                <p class="text-sm text-slate-400 mt-1">Nyalakan atau matikan fitur sesuai acara, tanpa perlu menyentuh server.</p>
+            </div>
+
+            <div class="mb-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4">
+                <p class="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-300">Perubahan tidak langsung serentak</p>
+                <p class="mt-1 text-xs text-slate-300 leading-relaxed">
+                    Setiap kiosk menyimpan nilai saklar di memorinya sendiri selama 30 detik supaya absensi tidak
+                    memanggil database untuk tiap wajah. Beri jeda setengah menit sebelum menyimpulkan saklar tidak bekerja.
+                </p>
+            </div>
+
+            <div id="flags-list" class="space-y-3">
+                <p class="text-sm text-slate-500 font-mono">Memuat...</p>
+            </div>
+        </div>
+
     <!-- MODALS -->
 
     <!-- Edit User Modal -->
@@ -707,6 +734,91 @@
                 .replace(/'/g, '&#039;');
         }
 
+
+
+        // Sembunyikan pintu masuk fitur yang sedang dimatikan, di dashboard juga —
+        // bukan cuma di kiosk. Tautan yang membuka halaman 404 membuat pengurus
+        // mengira sistemnya rusak, padahal fiturnya memang sengaja dimatikan.
+        async function applyFeatureFlags() {
+            try {
+                const res = await fetch('/api/flags');
+                const json = await res.json();
+                const f = (json && json.data) || {};
+                document.querySelectorAll('[data-feature]').forEach(el => {
+                    if (f[el.dataset.feature] === false) el.classList.add('hidden');
+                });
+            } catch (err) {
+                // Dashboard tetap utuh walau daftar saklar tidak terbaca.
+                window.KPObs && window.KPObs.report('load_flags_failed', err && err.message);
+            }
+        }
+
+        // --- Kontrol Fitur ---------------------------------------------------
+        // Saklar hanya untuk fitur yang nilai benarnya berubah menurut ACARA.
+        // Penegakannya tetap di server; UI ini cuma memindahkan tuasnya.
+        async function loadFlags() {
+            const box = document.getElementById('flags-list');
+            box.innerHTML = '<p class="text-sm text-slate-500 font-mono">Memuat...</p>';
+            try {
+                const res = await fetch('/api/flags/detail');
+                const json = await res.json();
+                const items = (json.data || []);
+                if (!items.length) { box.innerHTML = '<p class="text-sm text-slate-500 font-mono">Tidak ada fitur terdaftar.</p>'; return; }
+                box.innerHTML = items.map(f => `
+                    <div class="flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-obsidian-900 p-4" id="flag-card-${f.key}">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-sm font-bold text-white">${f.label}</h3>
+                                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border ${f.enabled
+                                    ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                                    : 'text-slate-400 border-white/10 bg-obsidian-800'}" id="flag-badge-${f.key}">
+                                    ${f.enabled ? 'AKTIF' : 'MATI'}
+                                </span>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-400 leading-relaxed">${f.description}</p>
+                        </div>
+                        <label class="relative flex-none cursor-pointer mt-0.5">
+                            <input type="checkbox" class="sr-only peer" ${f.enabled ? 'checked' : ''}
+                                   onchange="toggleFlag('${f.key}', this)">
+                            <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-azure-600 transition-all
+                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white
+                                        after:rounded-full after:h-5 after:w-5 after:transition-all
+                                        peer-checked:after:translate-x-5"></div>
+                        </label>
+                    </div>`).join('');
+            } catch (err) {
+                box.innerHTML = '<p class="text-sm text-rose-400 font-mono">Gagal memuat kontrol fitur.</p>';
+                window.KPObs && window.KPObs.report('load_flags_failed', err && err.message);
+            }
+        }
+
+        async function toggleFlag(key, input) {
+            const wanted = input.checked;
+            input.disabled = true;
+            try {
+                const res = await fetch(`/api/flags/${key}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: wanted })
+                });
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'Gagal menyimpan');
+                const badge = document.getElementById(`flag-badge-${key}`);
+                badge.innerText = wanted ? 'AKTIF' : 'MATI';
+                badge.className = `text-[10px] font-mono px-1.5 py-0.5 rounded border ${wanted
+                    ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                    : 'text-slate-400 border-white/10 bg-obsidian-800'}`;
+            } catch (err) {
+                // Kembalikan saklar ke posisi semula supaya layar tidak berbohong
+                // soal keadaan sistem yang sebenarnya.
+                input.checked = !wanted;
+                alert('Gagal mengubah saklar: ' + (err && err.message));
+                window.KPObs && window.KPObs.report('toggle_flag_failed', err && err.message, { flag: key });
+            } finally {
+                input.disabled = false;
+            }
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             const target = document.getElementById(tabId);
@@ -724,6 +836,7 @@
             if (tabId === 'database') loadDatabase();
             if (tabId === 'analytics') loadAnalytics();
             if (tabId === 'overview') loadDashboardData();
+            if (tabId === 'kontrol') loadFlags();
         }
 
         async function loadDashboardData() {
@@ -1620,6 +1733,7 @@
 
         // Initialize on load
         loadDashboardData();
+        applyFeatureFlags();
     </script>
 </body>
 </html>
