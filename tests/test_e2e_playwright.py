@@ -5,6 +5,20 @@ from core.security import create_access_token, COOKIE_NAME
 
 BASE_URL = "http://127.0.0.1:8000"
 
+
+def butuh_fitur(page: Page, key: str):
+    """Lewati tes kalau fiturnya sedang dimatikan dari dashboard.
+
+    Fitur yang sengaja dimatikan pengurus bukan kegagalan — memaksa tesnya merah
+    membuat orang belajar mengabaikan suite yang merah.
+    """
+    try:
+        data = page.request.get(f"{BASE_URL}/api/flags").json().get("data", {})
+    except Exception:
+        return
+    if data.get(key) is False:
+        pytest.skip(f"Fitur '{key}' sedang dimatikan dari dashboard.")
+
 def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContext):
     """Test Kiosk root page and interactive manual search modal with geolocation granted."""
     context.grant_permissions(["geolocation"])
@@ -41,6 +55,7 @@ def test_kiosk_page_elements_and_manual_modal(page: Page, context: BrowserContex
 
 def test_photobooth_page_interactions(page: Page):
     """Test Nusantara Festive Light Photobooth UI controls, Landing Preview, 4 Layouts, 3s/5s Timers, and Stage transitions."""
+    butuh_fitur(page, "photobooth")
     page.goto(f"{BASE_URL}/photobooth")
     
     # Check Page Header
@@ -127,6 +142,7 @@ def test_photobooth_page_interactions(page: Page):
 
 def test_photobooth_retake_flow_and_timer_interval(page: Page):
     """Test timer intervals, mirror toggle on preview, and retake quota state."""
+    butuh_fitur(page, "photobooth")
     page.goto(f"{BASE_URL}/photobooth")
 
     # Verify initial mirror state
@@ -155,6 +171,7 @@ def test_photobooth_retake_flow_and_timer_interval(page: Page):
 
 def test_photobooth_full_delivery_to_result_modal(page: Page):
     """Test that photobooth completes output processing, opens result modal, renders Stitch photostrip, and updates custom caption in real-time."""
+    butuh_fitur(page, "photobooth")
     errors = []
     page.on("pageerror", lambda err: errors.append(str(err)))
     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
@@ -290,3 +307,53 @@ def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: Br
 
     # Assert 0 console errors occurred during entire dashboard session
     assert len(console_errors) == 0, f"Dashboard had console errors: {console_errors}"
+
+
+def _stub_flags(context: BrowserContext, **overrides):
+    """Paksa jawaban /api/flags supaya UI bisa diuji tanpa menyentuh tabel produksi."""
+    import json
+    data = {"geofence": False, "lark_handoff": True, "photobooth": True, "registration": True}
+    data.update(overrides)
+    context.unroute("**/api/flags")
+    context.route("**/api/flags", lambda route: route.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps({"status": "success", "data": data})))
+
+
+def test_photobooth_button_follows_its_feature_flag(page: Page, context: BrowserContext):
+    """Saklar mati harus menghilangkan pintu masuknya, bukan cuma mengunci rutenya.
+
+    Tombol yang tetap ada tapi membuka 404 membuat orang mengira sistemnya rusak,
+    padahal fiturnya memang sengaja dimatikan.
+    """
+    tombol = page.locator('a[href="/photobooth"]')
+
+    _stub_flags(context, photobooth=True)
+    page.goto(f"{BASE_URL}/")
+    expect(tombol).to_be_visible()
+
+    _stub_flags(context, photobooth=False)
+    page.goto(f"{BASE_URL}/")
+    expect(tombol).to_have_count(1)
+    expect(tombol).to_be_hidden()
+
+
+def test_registration_button_follows_its_feature_flag(page: Page, context: BrowserContext):
+    tombol = page.locator('a[href="/register"]')
+
+    _stub_flags(context, registration=False)
+    page.goto(f"{BASE_URL}/")
+    expect(tombol).to_be_hidden()
+
+
+def test_kiosk_still_shows_every_button_when_flags_cannot_be_read(page: Page, context: BrowserContext):
+    """Gagal membaca saklar tidak boleh menyembunyikan apa pun.
+
+    Kalau daftar saklar tak terbaca, kiosk harus berperilaku seperti sebelum
+    fitur saklar ada — bukan menyembunyikan fitur yang sebenarnya menyala.
+    """
+    context.unroute("**/api/flags")
+    context.route("**/api/flags", lambda route: route.abort())
+    page.goto(f"{BASE_URL}/")
+    expect(page.locator('a[href="/photobooth"]')).to_be_visible()
+    expect(page.locator('a[href="/register"]')).to_be_visible()

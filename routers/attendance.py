@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
 from services.db_service import DBService
 from core.security import check_admin_auth
+from core.observability import capture_error
 
 router = APIRouter(prefix="/api", tags=["attendance"], dependencies=[Depends(check_admin_auth)])
 
@@ -19,6 +20,7 @@ async def get_attendance_by_date(target_date: str):
         res = DBService.get_logs_from_date(start_utc, end_utc)
         return {"status": "success", "date": target_date, "data": res}
     except Exception as e:
+        capture_error(e, where="attendance.get_by_date")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.delete("/logs/{log_id}")
@@ -27,6 +29,7 @@ async def delete_log(log_id: int):
         DBService.delete_log(log_id)
         return {"status": "success"}
     except Exception as e:
+        capture_error(e, where="attendance.delete_log")
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.get("/all-logs")
@@ -35,4 +38,5 @@ async def get_all_logs():
         res = DBService.get_all_logs_with_users()
         return {"status": "success", "data": res}
     except Exception as e:
+        capture_error(e, where="attendance.get_all_logs")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

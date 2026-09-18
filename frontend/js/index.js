@@ -1,7 +1,26 @@
 // --- Konstanta AI & DOM ---
 const REQUIRED_STABLE_FRAMES = 15; 
 const MOVEMENT_THRESHOLD = 0.045; 
-const AUTO_RESET_DELAY = 3500; 
+const AUTO_RESET_DELAY = 3500;
+// Memindai QR butuh waktu lebih dari sekadar membaca nama sendiri. Hanya berlaku
+// untuk yang profilnya belum lengkap, jadi antrian umum tidak ikut melambat —
+// dan tombol "Selesai" selalu tersedia untuk yang ingin langsung lanjut.
+const LARK_NUDGE_DELAY = 15000;
+
+// Harus sama persis dengan label pertanyaan di form Lark; garis miring dan spasi
+// wajib dikodekan. Nomor disembunyikan karena dia kunci gabung antar sistem.
+const LARK_FORM_URL = 'https://x4qrxnkmlhv.sg.larksuite.com/share/base/form/shrlg0i0RM9kNlqV8wI3A2ulYph';
+const LARK_Q_NAME = 'Nama Lengkap';
+const LARK_Q_PHONE = 'No. Telp/Whatsapp';
+
+function buildLarkUrl(fullName, phoneLark) {
+    const p = ['prefill_' + encodeURIComponent(LARK_Q_NAME) + '=' + encodeURIComponent(fullName || '')];
+    if (phoneLark) {
+        p.push('prefill_' + encodeURIComponent(LARK_Q_PHONE) + '=' + encodeURIComponent(phoneLark));
+        p.push('hide_' + encodeURIComponent(LARK_Q_PHONE) + '=1');
+    }
+    return LARK_FORM_URL + '?' + p.join('&');
+}
 const SAFE_ZONE_X_MIN = 0.20; const SAFE_ZONE_X_MAX = 0.80;
 const SAFE_ZONE_Y_MIN = 0.15; const SAFE_ZONE_Y_MAX = 0.85;
 
@@ -45,18 +64,23 @@ function requestLocation() {
             },
             (error) => {
                 console.warn("GPS access error/denied:", error);
-                // Fallback for local testing or devices without GPS
-                currentUserLat = -7.979261;
-                currentUserLng = 112.625760;
-                updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
+                window.KPObs && window.KPObs.report('gps_error', error.message || 'Geolocation gagal', {
+                    context: { code: error.code, secure_context: window.isSecureContext }
+                });
+                currentUserLat = null;
+                currentUserLng = null;
+                updateStatus('warning', 'GPS Tidak Aktif', 'Harap izinkan akses lokasi (GPS) untuk absensi.');
                 camera.start();
             },
             { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
         );
     } else {
-        currentUserLat = -7.979261;
-        currentUserLng = 112.625760;
-        updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
+        currentUserLat = null;
+        currentUserLng = null;
+        window.KPObs && window.KPObs.report('gps_unsupported', 'navigator.geolocation tidak tersedia', {
+            context: { secure_context: window.isSecureContext }
+        });
+        updateStatus('warning', 'GPS Tidak Didukung', 'Browser tidak mendukung deteksi lokasi.');
         camera.start();
     }
 }
@@ -151,33 +175,87 @@ function showSuccessModal(data, message) {
 
     const badgeEl = document.getElementById('success-badge-method');
     if (badgeEl) {
+        badgeEl.classList.remove('hidden');
         if (data.method === 'manual') {
             badgeEl.innerText = "Absen Manual";
             badgeEl.className = "inline-block mb-5 text-[11px] font-bold font-mono px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20";
         } else {
-            badgeEl.innerText = "Scan Wajah";
-            badgeEl.className = "inline-block mb-5 text-[11px] font-bold font-mono px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20";
+            // Absen wajah tidak perlu diberi label — orangnya baru saja menatap
+            // kamera, jadi menyebutkannya cuma mengulang yang sudah jelas.
+            // Label "Absen Manual" tetap ada karena itu memang tidak terlihat.
+            badgeEl.classList.add('hidden');
         }
     }
     
     const successModal = document.getElementById('success-modal');
     const successContent = document.getElementById('success-modal-content');
+
+    // Kasus D: hadir rutin, tapi profilnya belum pernah diisi di Lark. QR muncul
+    // di momen paling tepat — orangnya sedang berdiri di depan layar.
+    const delay = renderLarkNudge(data) ? LARK_NUDGE_DELAY : AUTO_RESET_DELAY;
+
+    // Bilah hitung mundur dianimasikan 3,5 detik lewat CSS. Kalau modalnya
+    // bertahan lebih lama, bilah yang habis duluan memberi sinyal yang salah.
+    const bar = successContent.querySelector('.countdown-bar');
+    if (bar) bar.style.animationDuration = (delay / 1000) + 's';
+
     successModal.classList.remove('hidden');
-    
+
     setTimeout(() => {
         successContent.classList.remove('scale-95', 'opacity-0');
         successContent.classList.add('scale-100', 'opacity-100');
     }, 10);
 
-    setTimeout(() => { 
-        successContent.classList.remove('scale-100', 'opacity-100');
-        successContent.classList.add('scale-95', 'opacity-0');
-        
-        setTimeout(() => {
-            successModal.classList.add('hidden');
-            resetScan(); 
-        }, 300);
-    }, AUTO_RESET_DELAY);
+    closeSuccessModal.timer = setTimeout(closeSuccessModal, delay);
+}
+
+function closeSuccessModal() {
+    clearTimeout(closeSuccessModal.timer);
+    clearInterval(renderLarkNudge.timer);
+    const successModal = document.getElementById('success-modal');
+    const successContent = document.getElementById('success-modal-content');
+    successContent.classList.remove('scale-100', 'opacity-100');
+    successContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        successModal.classList.add('hidden');
+        resetScan();
+    }, 300);
+}
+
+// Form dibuka menumpang di atas kiosk, bukan dengan berpindah halaman: kamera
+// tetap hidup dan kembalinya cukup satu ketukan "Selesai".
+function bukaFormLark(url, nama) {
+    clearTimeout(closeSuccessModal.timer);
+    clearInterval(renderLarkNudge.timer);
+    openLarkOverlay(url, nama, closeSuccessModal);
+}
+
+function renderLarkNudge(data) {
+    const box = document.getElementById('lark-nudge');
+    if (!box) return false;
+    box.classList.add('hidden');
+    clearInterval(renderLarkNudge.timer);
+    if (!data || !data.needs_lark) return false;
+
+    // Form diisi di kiosk ini juga, jadi layarnya yang berpindah — bukan QR.
+    const url = buildLarkUrl(data.name, data.phone_lark);
+    document.getElementById('lark-nudge-link').onclick = () => bukaFormLark(url, data.name);
+    box.classList.remove('hidden');
+
+    // Hitung mundur lebih lama daripada di halaman registrasi: di sini ada
+    // antrian di belakang, dan berpindah halaman mematikan kamera kiosk.
+    let left = LARK_NUDGE_DELAY / 1000;
+    const counter = document.getElementById('lark-nudge-count');
+    counter.innerText = left;
+    renderLarkNudge.timer = setInterval(() => {
+        left -= 1;
+        counter.innerText = Math.max(left, 0);
+        if (left <= 0) {
+            clearInterval(renderLarkNudge.timer);
+            bukaFormLark(url, data.name);
+        }
+    }, 1000);
+    return true;
 }
 
 async function triggerAutoCapture() {
@@ -241,6 +319,9 @@ async function triggerAutoCapture() {
                 `;
             }
         } catch (err) {
+            // Sebelumnya benar-benar senyap: layar reset, orangnya disuruh coba
+            // lagi, dan tidak ada jejak apa pun yang sampai ke luar kiosk.
+            window.KPObs && window.KPObs.report('checkin_failed', err && err.message, { stack: err && err.stack });
             loadingOverlay.classList.add('hidden');
             resetScan();
         }
@@ -310,6 +391,7 @@ if (manualSearchInput) {
                     `;
                 }
             } catch (err) {
+                window.KPObs && window.KPObs.report('manual_search_failed', err && err.message, { stack: err && err.stack });
                 manualSearchResults.innerHTML = `<div class="text-center py-8 text-rose-400 font-mono text-xs">Gagal mencari data. Cek koneksi server.</div>`;
             }
         }, 250);
@@ -323,6 +405,10 @@ window.executeManualCheckin = async function(userId) {
     try {
         const formData = new FormData();
         formData.append('user_id', userId);
+        if (currentUserLat !== null) {
+            formData.append('lat', currentUserLat);
+            formData.append('lng', currentUserLng);
+        }
 
         const response = await fetch('/api/attendance/manual-checkin', {
             method: 'POST',
@@ -331,7 +417,17 @@ window.executeManualCheckin = async function(userId) {
         const data = await response.json();
         loadingOverlay.classList.add('hidden');
 
-        if (data.status === 'success') {
+        if (response.status === 403) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Lokasi di Luar Jangkauan',
+                text: data.message || 'Anda berada di luar area GKI Bromo.',
+                confirmButtonColor: '#f59e0b',
+                background: '#0b0d13',
+                color: '#f8fafc'
+            });
+            resetScan();
+        } else if (data.status === 'success') {
             showSuccessModal(data.data, data.message);
         } else {
             Swal.fire({
@@ -345,6 +441,7 @@ window.executeManualCheckin = async function(userId) {
             resetScan();
         }
     } catch (err) {
+        window.KPObs && window.KPObs.report('manual_checkin_failed', err && err.message, { stack: err && err.stack });
         loadingOverlay.classList.add('hidden');
         resetScan();
     }
@@ -369,3 +466,26 @@ window.resetScan = function() {
     updateStatus('idle', 'Siap Absen', 'Silakan berdiri tegap dan tatap kamera.');
     progressBar.style.width = '0%';
 };
+
+// --- Saklar fitur --------------------------------------------------------
+// Menyembunyikan tombol fitur yang sedang mati. Ini murni kerapian tampilan —
+// penegakan sesungguhnya ada di server, karena menyembunyikan tombol tidak
+// menghalangi siapa pun yang hafal alamatnya.
+async function applyFeatureFlags() {
+    try {
+        const res = await fetch('/api/flags');
+        const json = await res.json();
+        const f = (json && json.data) || {};
+        const sembunyikan = (sel, aktif) => {
+            const el = document.querySelector(sel);
+            if (el && aktif === false) el.classList.add('hidden');
+        };
+        sembunyikan('a[href="/photobooth"]', f.photobooth);
+        sembunyikan('a[href="/register"]', f.registration);
+    } catch (err) {
+        // Kiosk harus tetap jalan walau daftar saklar tidak terbaca: biarkan
+        // semua tombol tampil apa adanya.
+        window.KPObs && window.KPObs.report('load_flags_failed', err && err.message);
+    }
+}
+applyFeatureFlags();

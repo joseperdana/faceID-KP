@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 from io import BytesIO
 from services.db_service import DBService
+from core.observability import capture_event
 
 class AnalyticsService:
     @staticmethod
@@ -74,8 +75,14 @@ class AnalyticsService:
                 hour_utc = int(log['timestamp'][11:13]) 
                 hour_wib = (hour_utc + 7) % 24
                 hour_counts[f"{hour_wib:02}:00"] += 1
-            except:
-                pass
+            except Exception as e:
+                # Bare `except:` sebelumnya juga menelan KeyboardInterrupt/SystemExit.
+                capture_event(
+                    "Timestamp log gagal di-parse saat menghitung jam sibuk",
+                    where="analytics.peak_hours",
+                    timestamp_raw=str(log.get("timestamp"))[:40],
+                    error=str(e)[:200],
+                )
 
         top_users = sorted(user_attendance_count.items(), key=lambda x: x[1], reverse=True)
         peak_time_data = {k: v for k, v in hour_counts.items() if v > 0}

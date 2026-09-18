@@ -6,6 +6,66 @@ const resultMsg = document.getElementById('result-message');
 
 let isFaceValid = false;
 
+// --- Handoff ke Lark Form -----------------------------------------------
+// Nama pertanyaan harus sama persis dengan label di form Lark; garis miring dan
+// spasi wajib dikodekan. hide_ menyembunyikan pertanyaan nomor HP: nomor itu
+// kunci gabung portal <-> Lark, jadi jangan sampai diubah setelah diverifikasi
+// di counter.
+const LARK_FORM_URL = 'https://x4qrxnkmlhv.sg.larksuite.com/share/base/form/shrlg0i0RM9kNlqV8wI3A2ulYph';
+const LARK_Q_NAME = 'Nama Lengkap';
+const LARK_Q_PHONE = 'No. Telp/Whatsapp';
+
+function buildLarkUrl(fullName, phoneLark) {
+    const p = [`prefill_${encodeURIComponent(LARK_Q_NAME)}=${encodeURIComponent(fullName)}`];
+    if (phoneLark) {
+        p.push(`prefill_${encodeURIComponent(LARK_Q_PHONE)}=${encodeURIComponent(phoneLark)}`);
+        p.push(`hide_${encodeURIComponent(LARK_Q_PHONE)}=1`);
+    }
+    return `${LARK_FORM_URL}?${p.join('&')}`;
+}
+
+// Form Lark diisi di perangkat kiosk ini juga, bukan di HP jemaat. Jadi tidak
+// ada QR — layarnya langsung pindah ke form yang sudah terisi separuh.
+const REDIRECT_SECONDS = 3;
+let redirectTimer = null;
+
+function bukaFormLark(url, nama) {
+    clearInterval(redirectTimer);
+    openLarkOverlay(url, nama, () => {
+        document.getElementById('lark-handoff').classList.add('hidden');
+        document.getElementById('result-message').classList.add('hidden');
+        document.getElementById('full_name').focus();
+    });
+}
+
+function showLarkHandoff(fullName, phoneLark) {
+    const url = buildLarkUrl(fullName, phoneLark);
+    document.getElementById('handoff-name').innerText = fullName;
+    document.getElementById('handoff-link').onclick = () => bukaFormLark(url, fullName);
+    document.getElementById('lark-handoff').classList.remove('hidden');
+
+    let left = REDIRECT_SECONDS;
+    const counter = document.getElementById('handoff-count');
+    counter.innerText = left;
+    redirectTimer = setInterval(() => {
+        left -= 1;
+        counter.innerText = left;
+        if (left <= 0) {
+            clearInterval(redirectTimer);
+            bukaFormLark(url, fullName);
+        }
+    }, 1000);
+}
+
+// Jalan keluar kalau orangnya tidak sempat mengisi sekarang — perpindahan
+// halaman mematikan kamera, jadi harus selalu bisa dibatalkan.
+document.getElementById('handoff-skip').addEventListener('click', () => {
+    clearInterval(redirectTimer);
+    document.getElementById('lark-handoff').classList.add('hidden');
+    document.getElementById('result-message').classList.add('hidden');
+    document.getElementById('full_name').focus();
+});
+
 // 1. Setup Kamera & MediaPipe
 const faceDetection = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
 faceDetection.setOptions({ model: 'short', minDetectionConfidence: 0.6 });
@@ -103,8 +163,20 @@ form.addEventListener('submit', async (e) => {
         if(data.status === 'success') {
             resultMsg.className = "mt-4 p-4 rounded-2xl text-center text-xs font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20";
             resultMsg.innerHTML = `<b>Pendaftaran Berhasil!</b><br>${data.message}`;
-            form.reset(); 
-            setTimeout(() => resultMsg.classList.add('hidden'), 4000);
+            const submitted = document.getElementById('full_name').value;
+            form.reset();
+            // Jangan sembunyikan otomatis: orangnya perlu waktu memindai QR, dan
+            // petugas yang menentukan kapan lanjut ke pendaftar berikutnya.
+            // Sistem yang memutuskan perlu-tidaknya QR, bukan petugas: kalau
+            // nomornya sudah ada di Lark, menyuruh isi lagi = duplikat baru.
+            if (!isUpdate && data.data && data.data.needs_lark) {
+                showLarkHandoff(data.data.full_name || submitted, data.data.phone_lark);
+            } else {
+                if (data.data && data.data.needs_lark === false) {
+                    resultMsg.innerHTML += `<br><span class="text-slate-400">Data diri sudah lengkap di Lark — tidak perlu isi form lagi.</span>`;
+                }
+                setTimeout(() => resultMsg.classList.add('hidden'), 5000);
+            }
         } else {
             throw new Error(data.detail || data.message || "Gagal registrasi");
         }

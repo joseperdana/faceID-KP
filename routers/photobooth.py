@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
+from core.observability import capture_error
 
 router = APIRouter(tags=["photobooth"])
 
@@ -70,6 +71,9 @@ async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto
                     gf.write(gif_bytes)
                 gif_download_url = f"/static/uploads/photobooth/{gif_filename}"
             except Exception as ge:
+                # Strip JPEG tetap tersimpan, jadi ini bukan kegagalan fatal —
+                # tapi pengguna kehilangan GIF-nya tanpa tahu kenapa.
+                capture_error(ge, where="photobooth.save_gif", photo_id=photo_id)
                 print(f"Warning: Failed to save GIF: {ge}")
 
         base_host = get_lan_ip()
@@ -86,7 +90,10 @@ async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto
             "qr_url": full_qr_url,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        capture_error(e, where="photobooth.upload_strip", frame=payload.frame)
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/p/{photo_id}", response_class=HTMLResponse)

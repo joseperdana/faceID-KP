@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from services.analytics_service import AnalyticsService
 from core.security import check_admin_auth
+from core.observability import capture_error
 import time
 
 router = APIRouter(prefix="/api", tags=["analytics"], dependencies=[Depends(check_admin_auth)])
@@ -25,6 +26,7 @@ async def get_dashboard_stats():
         data["status"] = "success"
         return data
     except Exception as e:
+        capture_error(e, where="analytics.dashboard_stats")
         return {"status": "error", "message": str(e)}
 
 @router.get("/analytics")
@@ -34,6 +36,7 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30):
         data["status"] = "success"
         return data
     except Exception as e:
+        capture_error(e, where="analytics.get_analytics")
         print(f"Analytics Error: {e}") 
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -44,6 +47,7 @@ async def export_excel(filter_type: str = "30d"):
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
         return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
+        capture_error(e, where="analytics.export_excel")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/export-excel/date/{target_date}")
@@ -53,4 +57,5 @@ async def export_excel_by_date(target_date: str):
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
         return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
+        capture_error(e, where="analytics.export_excel_by_date")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

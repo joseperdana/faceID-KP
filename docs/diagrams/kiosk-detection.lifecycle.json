@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Kiosk Face Recognition Lifecycle",
+    "output": "docs/diagrams/kiosk-detection.lifecycle.html",
+    "viewBox": [980, 680],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "fast-track",
+        "label": "Face Recognition Fast Path",
+        "focus": ["idle", "tracking", "stabilizing", "matching", "confirmed"],
+        "note": "Follow standard automated check-in from face acquisition to attendance log."
+      },
+      {
+        "id": "manual-fallback",
+        "label": "Manual Fallback & Search",
+        "focus": ["matching", "unmatched", "search_failed"],
+        "note": "Inspect unregistered face handling and timeout protection."
+      },
+      {
+        "id": "stability-retry",
+        "label": "Stability & Perimeter Control",
+        "focus": ["stabilizing", "movement_drop", "geo_blocked", "confirmed", "manual_modal", "manual_logged"],
+        "note": "Examine anti-movement jitter buffering and alternate check-in confirmation."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Face Recognition Pipeline" },
+    { "id": "waiting", "label": "Stability & Verification Wait" },
+    { "id": "recovery", "label": "Manual Fallback Controller" },
+    { "id": "terminal", "label": "Terminal Outcomes" }
+  ],
+  "states": [
+    { "id": "idle", "type": "start", "label": "Idle Kiosk", "sublabel": "camera active", "lane": "main", "col": 0, "step": "01", "tag": "ready" },
+    { "id": "tracking", "type": "active", "label": "Face Tracked", "sublabel": "MediaPipe detection", "lane": "main", "col": 1, "step": "02", "tag": "tracking" },
+    { "id": "stabilizing", "type": "decision", "label": "Stability Gate", "sublabel": "15 frames delta <0.045", "lane": "main", "col": 2, "step": "03", "tag": "gate" },
+    { "id": "matching", "type": "waiting", "label": "Vector Search", "sublabel": "ArcFace match <0.42", "lane": "main", "col": 3, "step": "04", "tag": "matching" },
+    { "id": "confirmed", "type": "success", "label": "Face Confirmed", "sublabel": "attendance logged", "lane": "main", "col": 4, "step": "05", "tag": "success" },
+    { "id": "movement_drop", "type": "waiting", "label": "Movement Reset", "sublabel": "buffer recalibrates", "lane": "waiting", "col": 0, "tag": "realign" },
+    { "id": "unmatched", "type": "active", "label": "Unregistered Face", "sublabel": "manual search prompt", "lane": "recovery", "col": 1, "tag": "prompt" },
+    { "id": "manual_modal", "type": "waiting", "label": "Manual Check-In", "sublabel": "phone / name query", "lane": "waiting", "col": 2, "tag": "input" },
+    { "id": "geo_blocked", "type": "failure", "label": "Geofence Denied", "sublabel": "outside 150m perimeter", "lane": "terminal", "col": 0, "tag": "terminal" },
+    { "id": "search_failed", "type": "failure", "label": "Search Timeout", "sublabel": "session expired", "lane": "terminal", "col": 1, "tag": "terminal" },
+    { "id": "manual_logged", "type": "success", "label": "Manual Logged", "sublabel": "roster updated", "lane": "terminal", "col": 2, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "from": "stabilizing", "to": "movement_drop", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "movement_drop", "to": "geo_blocked", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "matching", "to": "unmatched", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "unmatched", "to": "search_failed", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "confirmed", "to": "manual_modal", "variant": "dashed", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "manual_modal", "to": "manual_logged", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Continuous Detection Pipeline",
+      "items": [
+        "Client MediaPipe tracks face bounding box and landmarks in real time",
+        "Stability gate enforces 15 consecutive stable frames (<0.045 movement delta)",
+        "InsightFace computes 512-d normalized embedding for cosine similarity matching"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Anti-Jitter & Recovery",
+      "items": [
+        "Micro-movements reset the frame buffer without freezing the camera feed",
+        "Unrecognized faces trigger an immediate manual search modal",
+        "Search endpoint indexes both full name and phone number with whitespace sanitization"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Security & Geofence Perimeter",
+      "items": [
+        "Geofence middleware rejects check-in attempts outside the 150m church radius",
+        "Defensive database insertion preserves backward compatibility on attendance logs"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 name: QA & E2E Verification
 
 on:
+  # Tombol "Run workflow" di tab Actions — jalur deploy manual.
+  workflow_dispatch:
   push:
     branches: [ dev, staging, main ]
   pull_request:
@@ -38,10 +40,81 @@ jobs:
 
       - name: Run Backend Unit & Integration Tests
         run: |
-          pytest tests/test_kiosk_and_attendance.py -v
+          # Seluruh direktori tests/, bukan satu file: sebelumnya
+          # test_photobooth_api.py dan test_observability.py tidak pernah
+          # dijalankan CI sehingga hijau di sini tidak berarti apa-apa.
+          pytest tests/ --ignore=tests/test_e2e_playwright.py -v
 
       - name: Start Local Uvicorn Server & Run Playwright E2E
         run: |
           python -m uvicorn main:app --port 8000 &
-          sleep 4
+          SERVER_PID=$!
+          # Tunggu /health benar-benar hijau, bukan menebak dengan sleep.
+          # Memuat model InsightFace bisa jauh lebih lama dari 4 detik di runner,
+          # dan `sleep` membuat E2E gagal secara acak tanpa sebab yang jelas.
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1; then
+              echo "Server siap setelah ${i} detik:"
+              curl -sS http://127.0.0.1:8000/health
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Server mati saat startup"; exit 1
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Server tidak pernah sehat dalam 60 detik"; exit 1
+            fi
+            sleep 1
+          done
           pytest tests/test_e2e_playwright.py -v
+
+  deploy:
+    # Hanya jalan kalau tes hijau. Deploy yang bisa mendahului tes membuat
+    # keduanya kehilangan arti.
+    needs: test
+    runs-on: ubuntu-latest
+    # Aman secara bawaan: push ke main TIDAK men-deploy sampai variabel repo
+    # AUTO_DEPLOY di-set "true". Sampai saat itu, deploy hanya lewat tombol
+    # "Run workflow" — Anda yang memutuskan kapan produksi berubah.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true')
+    environment: production
+    # Dua deploy bersamaan bisa saling menimpa di tengah git reset.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Siapkan kunci SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::Secret VPS_SSH_KEY / VPS_KNOWN_HOSTS belum diisi."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY"     > ~/.ssh/id_deploy   && chmod 600 ~/.ssh/id_deploy
+          # known_hosts disematkan, bukan StrictHostKeyChecking=no: tanpa ini,
+          # runner akan menurut pada server mana pun yang menjawab nama itu.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+
+      - name: Jalankan pembaruan di VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          # Tidak ada perintah yang dikirim: kunci ini dikunci ke satu skrip di
+          # server lewat command="..." di authorized_keys.
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$USER@$HOST" 2>&1 | tee hasil-deploy.txt
+          if grep -q "::error::" hasil-deploy.txt; then
+            echo "::error::Deploy gagal di server — lihat keluaran di atas."
+            exit 1
+          fi
+
+      - name: Bersihkan kunci
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

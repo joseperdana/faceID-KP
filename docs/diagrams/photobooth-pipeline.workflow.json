@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Photobooth Strip Delivery Workflow",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "full-journey",
+        "label": "Capture to QR Delivery",
+        "focus": ["user_start", "preset_picker", "timer_countdown", "canvas_strip", "upload_endpoint", "supabase_bucket", "qr_screen"],
+        "note": "Follow youth photobooth journey from preset selection to final QR code download."
+      },
+      {
+        "id": "canvas-composite",
+        "label": "Local Compositing Pipeline",
+        "focus": ["preset_picker", "timer_countdown", "canvas_strip"],
+        "note": "Observe client-side 4-shot burst capture and multi-frame canvas rendering."
+      },
+      {
+        "id": "cloud-distribution",
+        "label": "Cloud Upload & Distribution",
+        "focus": ["canvas_strip", "upload_endpoint", "supabase_bucket", "qr_screen"],
+        "note": "Inspect backend storage upload and mobile landing page link generation."
+      }
+    ],
+    "output": "docs/diagrams/photobooth-pipeline.workflow.html"
+  },
+  "lanes": [
+    { "id": "ui", "label": "Client Interface" },
+    { "id": "capture", "label": "Camera & Canvas Engine" },
+    { "id": "api", "label": "FastAPI Core Gateway" },
+    { "id": "cloud", "label": "Cloud Storage & Mobile" }
+  ],
+  "phases": [
+    { "id": "setup", "label": "Setup & Selection", "fromCol": 0, "toCol": 1 },
+    { "id": "capture_phase", "label": "4-Shot Burst & Composite", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "delivery_phase", "label": "Upload & QR Delivery", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "client_setup", "label": "Session setup", "lane": "ui", "fromCol": 0, "toCol": 1 },
+    { "id": "engine_burst", "label": "Burst capture loop", "lane": "capture", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "backend_gateway", "label": "API persist", "lane": "api", "fromCol": 4, "toCol": 4 },
+    { "id": "distribution_cloud", "label": "Cloud delivery", "lane": "cloud", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["user_start", "preset_picker", "timer_countdown", "canvas_strip", "upload_endpoint", "supabase_bucket", "qr_screen"],
+  "nodes": [
+    { "id": "user_start", "lane": "ui", "col": 0, "type": "external", "label": "Church Youth", "sublabel": "taps Start Photobooth", "width": 132 },
+    { "id": "preset_picker", "lane": "ui", "col": 1, "type": "frontend", "label": "Theme Selector", "sublabel": "KP45 / Nusantara / Merdeka", "width": 132 },
+    { "id": "timer_countdown", "lane": "capture", "col": 2, "type": "backend", "label": "3s Countdown", "sublabel": "visual pulse & sound", "tag": "4 poses", "width": 132 },
+    { "id": "canvas_strip", "lane": "capture", "col": 3, "type": "backend", "label": "Canvas Compositor", "sublabel": "renders 4 poses + frame", "tag": "1200x1800", "width": 132 },
+    { "id": "upload_endpoint", "lane": "api", "col": 4, "type": "backend", "label": "FastAPI Upload", "sublabel": "POST /api/photobooth/upload", "width": 132 },
+    { "id": "supabase_bucket", "lane": "cloud", "col": 5, "type": "cloud", "label": "Supabase Storage", "sublabel": "photobooth/strips/UUID.png", "width": 132 },
+    { "id": "qr_screen", "lane": "ui", "col": 5, "type": "frontend", "label": "QR Delivery Modal", "sublabel": "scan & mobile download", "width": 132 }
+  ],
+  "edges": [
+    { "id": "start-to-preset", "from": "user_start", "to": "preset_picker", "variant": "default" },
+    { "id": "preset-to-timer", "from": "preset_picker", "to": "timer_countdown", "label": "start 4-shot", "variant": "emphasis" },
+    { "id": "timer-to-canvas", "from": "timer_countdown", "to": "canvas_strip", "label": "4 frames", "variant": "emphasis" },
+    { "id": "canvas-to-upload", "from": "canvas_strip", "to": "upload_endpoint", "label": "multipart blob", "variant": "default" },
+    { "id": "upload-to-storage", "from": "upload_endpoint", "to": "supabase_bucket", "label": "persist PNG", "variant": "emphasis" },
+    { "id": "bucket-to-qr", "from": "supabase_bucket", "to": "qr_screen", "label": "public CDN URL", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Client-Side Burst Capture",
+      "items": [
+        "Interactive 3-second countdown gives subjects time to pose across 4 sequential shots",
+        "HTML5 Canvas composites raw photo frames with high-DPI Indonesian heritage borders"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "FastAPI & Supabase Storage",
+      "items": [
+        "Upload endpoint validates MIME type and assigns cryptographically unique UUIDs",
+        "Supabase Storage serves public CDN URLs for high-speed mobile downloads"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Touchless QR Distribution",
+      "items": [
+        "QRCode.js generates an instant dynamic QR code on the kiosk display",
+        "Youth scan with smartphones to open the responsive landing preview and download strip"
+      ]
+    }
+  ]
+}

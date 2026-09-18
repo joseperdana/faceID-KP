@@ -1,5 +1,6 @@
 from database import supabase
 from typing import List, Dict, Optional
+from core.observability import capture_event
 
 class DBService:
     @staticmethod
@@ -47,6 +48,42 @@ class DBService:
     def get_user_by_name(full_name: str) -> List[Dict]:
         res = supabase.table("users").select("id").eq("full_name", full_name).eq("is_deleted", False).execute()
         return res.data
+
+    @staticmethod
+    def get_user_by_name_key(key: str) -> List[Dict]:
+        """Cari duplikat lewat nama ternormalisasi, bukan pencocokan huruf-per-huruf.
+
+        Dedup lama pakai .eq("full_name", ...) sehingga bisa dilewati hanya dengan
+        mengetik spasi berbeda — 15 dari 250 baris portal punya anomali spasi.
+        """
+        res = supabase.table("users").select("id, full_name, phone_number") \
+            .eq("name_key", key).eq("is_deleted", False).execute()
+        return res.data
+
+    @staticmethod
+    def get_user_link_info(user_id: int) -> Dict:
+        """Status kelengkapan profil Lark untuk satu orang, dibaca saat absensi.
+
+        Satu select berkunci primer — sengaja dipisah dari match_faces supaya RPC
+        pencocokan wajah tidak perlu diubah menjelang acara.
+        """
+        res = supabase.table("users").select("phone_e164, lark_status") \
+            .eq("id", user_id).limit(1).execute()
+        return res.data[0] if res.data else {}
+
+    @staticmethod
+    def lark_profile_exists(phone_e164: str) -> bool:
+        """Apakah nomor ini sudah punya profil lengkap di Lark Base?
+
+        Menentukan apakah orang yang baru mendaftar wajah perlu diminta mengisi
+        form Lark, atau justru harus dilewati karena datanya sudah ada di sana.
+        Menyuruh mereka mengisi ulang akan menciptakan baris kembar di Lark.
+        """
+        if not phone_e164:
+            return False
+        res = supabase.table("lark_directory").select("phone_e164") \
+            .eq("phone_e164", phone_e164).limit(1).execute()
+        return len(res.data) > 0
 
     @staticmethod
     def get_new_users_today(date_str: str) -> List[Dict]:
@@ -117,6 +154,15 @@ class DBService:
             err_msg = str(e)
             # If the database schema does not yet have 'method' column (PGRST204), fallback to core columns
             if "method" in err_msg or "PGRST204" in err_msg:
+                # Fallback ini menjatuhkan kolom `method`, artinya pemisahan
+                # face vs manual — syarat audit integrity — hilang diam-diam.
+                # Harus terlihat, bukan cuma jalan mulus.
+                capture_event(
+                    "Skema attendance_logs tanpa kolom 'method' — fallback aktif, audit integrity terdegradasi",
+                    where="db.insert_log.fallback",
+                    level="warning",
+                    user_id=log_data.get("user_id"),
+                )
                 fallback_data = {
                     "user_id": log_data["user_id"],
                     "status": log_data.get("status", "Hadir"),

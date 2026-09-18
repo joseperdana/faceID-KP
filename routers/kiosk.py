@@ -10,6 +10,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from services.db_service import DBService
 from face_service import face_service
+from core.observability import capture_error, capture_event
+from core.normalize import normalize_name, name_key, to_e164, subscriber_digits
+from core import flags
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -25,6 +28,26 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+def check_geofence(lat: Optional[float], lng: Optional[float]) -> Optional[JSONResponse]:
+    # Saklar dashboard menang atas .env. Kalau tabelnya tak terbaca, nilainya
+    # jatuh ke ENABLE_GEOFENCE — perilaku yang berlaku sebelum fitur ini ada.
+    is_geofence_enabled = flags.is_enabled("geofence")
+    GEREJA_LAT = -7.979261
+    GEREJA_LNG = 112.625760
+    MAX_RADIUS_METER = 200
+
+    if is_geofence_enabled:
+        if lat is None or lng is None:
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib diizinkan saat absensi di gereja."})
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+    elif lat is not None and lng is not None:
+        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
+        if distance > MAX_RADIUS_METER:
+            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
+    return None
+
 @router.post("/recognize")
 @limiter.limit("30/minute")  # Abuse protection — 30 scans/min per IP is already generous for a church kiosk
 async def recognize_face(
@@ -33,25 +56,9 @@ async def recognize_face(
     lat: Optional[float] = Form(None),
     lng: Optional[float] = Form(None),
 ):
-    import os
-    is_geofence_enabled = os.getenv("ENABLE_GEOFENCE", "false").lower() in ("true", "1", "yes")
-    GEREJA_LAT = -7.979261
-    GEREJA_LNG = 112.625760
-    MAX_RADIUS_METER = 200
-
-    # Geofence check is strictly enforced in production when ENABLE_GEOFENCE=true
-    if is_geofence_enabled:
-        if lat is None or lng is None:
-            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib disertakan saat absensi di gereja."})
-        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
-        if distance > MAX_RADIUS_METER:
-            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
-    elif lat is not None and lng is not None:
-        # Informational logging for dev/staging
-        distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
-        if distance > MAX_RADIUS_METER:
-            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
-
+    geo_err = check_geofence(lat, lng)
+    if geo_err:
+        return geo_err
 
     start_time = time.time()
     content = await file.read()
@@ -60,7 +67,12 @@ async def recognize_face(
         query_vector = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
         if query_vector is None:
             raise HTTPException(status_code=400, detail="Wajah tidak terdeteksi")
+    except HTTPException:
+        raise
     except Exception as e:
+        # HTTPException tidak dilaporkan otomatis oleh integrasi Sentry, jadi
+        # kegagalan model harus dilaporkan eksplisit sebelum di-raise.
+        capture_error(e, where="kiosk.face_embedding")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
     if hasattr(query_vector, 'tolist'):
@@ -77,6 +89,21 @@ async def recognize_face(
     user = matches[0]
     user_id = user['id']
     user_name = user['full_name']
+
+    # Kasus D: rutin absen tapi profilnya belum pernah diisi di Lark. Sistem
+    # yang mendeteksi ini, bukan pengurus yang membandingkan dua daftar manual.
+    # Kegagalan di sini tidak boleh menghentikan absensi — kehadiran lebih
+    # penting daripada ajakan melengkapi profil.
+    try:
+        link_info = await starlette.concurrency.run_in_threadpool(DBService.get_user_link_info, user_id)
+    except Exception as e:
+        capture_error(e, where="kiosk.recognize_face.link_info", user_id=user_id)
+        link_info = {}
+
+    lark_prompt = {
+        "needs_lark": flags.is_enabled("lark_handoff") and link_info.get("lark_status") == "pending",
+        "phone_lark": subscriber_digits(link_info.get("phone_e164") or ""),
+    }
 
     today_start = datetime.now(timezone.utc).date().isoformat()
 
@@ -96,8 +123,13 @@ async def recognize_face(
                 last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
                 last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
                 break
-            except Exception:
-                pass
+            except Exception as e:
+                capture_event(
+                    "Timestamp log gagal di-parse saat menghitung last_seen",
+                    where="kiosk.recognize_face.last_seen",
+                    timestamp_raw=str(ts)[:40],
+                    error=str(e)[:200],
+                )
 
     if today_log:
         return {
@@ -107,7 +139,8 @@ async def recognize_face(
                 "name": user_name,
                 "similarity_score": round(user['similarity'], 2),
                 "total_attendance": total_attendance,
-                "last_seen": last_seen
+                "last_seen": last_seen,
+                **lark_prompt
             }
         }
 
@@ -126,6 +159,14 @@ async def recognize_face(
         # the second insert will be rejected here instead of creating a duplicate entry.
         err_str = str(e)
         if "23505" in err_str or "unique" in err_str.lower():
+            # Perilaku benar (TOCTOU tertangani DB), tapi tetap dicatat sebagai info:
+            # frekuensinya memberi tahu seberapa sering antrian benar-benar bertabrakan.
+            capture_event(
+                "Race check-in duplikat tertangkap unique constraint",
+                where="kiosk.recognize_face.duplicate_race",
+                level="info",
+                user_id=user_id,
+            )
             return {
                 "status": "success",
                 "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -137,6 +178,7 @@ async def recognize_face(
                     "method": "face"
                 }
             }
+        capture_error(e, where="kiosk.recognize_face.insert_log", user_id=user_id)
         raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
 
     process_time = (time.time() - start_time) * 1000
@@ -150,7 +192,8 @@ async def recognize_face(
             "similarity_score": round(user['similarity'], 2),
             "total_attendance": total_attendance,
             "last_seen": last_seen,
-            "method": "face"
+            "method": "face",
+            **lark_prompt
         }
     }
 
@@ -164,12 +207,22 @@ async def search_users(request: Request, q: str = ""):
         results = await starlette.concurrency.run_in_threadpool(DBService.search_active_users, q.strip(), 25)
         return {"status": "success", "data": results}
     except Exception as e:
+        capture_error(e, where="kiosk.search_users")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.post("/attendance/manual-checkin")
 @limiter.limit("30/minute")
-async def manual_checkin(request: Request, user_id: int = Form(...)):
+async def manual_checkin(
+    request: Request,
+    user_id: int = Form(...),
+    lat: Optional[float] = Form(None),
+    lng: Optional[float] = Form(None),
+):
     """Fast manual fallback checkin when facial recognition is unavailable."""
+    geo_err = check_geofence(lat, lng)
+    if geo_err:
+        return geo_err
+
     try:
         user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
         if not user_list:
@@ -191,8 +244,13 @@ async def manual_checkin(request: Request, user_id: int = Form(...)):
                     last_seen_date = datetime.fromisoformat(ts[:19]).replace(tzinfo=timezone.utc)
                     last_seen = (last_seen_date + timedelta(hours=7)).strftime("%d %b %Y")
                     break
-                except Exception:
-                    pass
+                except Exception as e:
+                    capture_event(
+                        "Timestamp log gagal di-parse saat menghitung last_seen",
+                        where="kiosk.manual_checkin.last_seen",
+                        timestamp_raw=str(ts)[:40],
+                        error=str(e)[:200],
+                    )
 
         if today_log:
             return {
@@ -218,6 +276,12 @@ async def manual_checkin(request: Request, user_id: int = Form(...)):
         except Exception as e:
             err_str = str(e)
             if "23505" in err_str or "unique" in err_str.lower():
+                capture_event(
+                    "Race check-in duplikat tertangkap unique constraint",
+                    where="kiosk.manual_checkin.duplicate_race",
+                    level="info",
+                    user_id=user_id,
+                )
                 return {
                     "status": "success",
                     "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -228,6 +292,7 @@ async def manual_checkin(request: Request, user_id: int = Form(...)):
                         "method": "manual"
                     }
                 }
+            capture_error(e, where="kiosk.manual_checkin.insert_log", user_id=user_id)
             raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
 
         return {
@@ -243,6 +308,7 @@ async def manual_checkin(request: Request, user_id: int = Form(...)):
     except HTTPException:
         raise
     except Exception as e:
+        capture_error(e, where="kiosk.manual_checkin")
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.post("/register")
@@ -252,10 +318,30 @@ async def register_user(
     phone_number: str = Form(...), 
     files: List[UploadFile] = File(...)
 ):
-    existing = DBService.get_user_by_name(full_name)
+    if not flags.is_enabled("registration"):
+        return JSONResponse(status_code=403, content={
+            "status": "error",
+            "message": "Pendaftaran anggota baru sedang ditutup. Hubungi pengurus."
+        })
+
+    # Normalisasi di batas sistem: format kanonik dijamin di sini, bukan
+    # bergantung pada ketikan petugas counter.
+    full_name = normalize_name(full_name)
+    key = name_key(full_name)
+    phone_e164 = to_e164(phone_number)
+
+    existing = DBService.get_user_by_name_key(key)
     if len(existing) > 0:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "Nama sudah terdaftar!"})
-    
+        # Jangan buntu. Di depan orang yang baru pertama datang, penolakan tanpa
+        # jalan keluar adalah kesan pertama yang buruk — beri tahu siapa yang
+        # cocok dan arahkan ke Update Wajah.
+        return JSONResponse(status_code=400, content={
+            "status": "error",
+            "reason": "duplicate_name",
+            "matched_name": existing[0]["full_name"],
+            "message": f"'{existing[0]['full_name']}' sudah terdaftar. Kalau ini memang Anda, pakai tombol 'Update Wajah'. Kalau orang lain dengan nama sama, tambahkan nama belakang."
+        })
+
     valid_embeddings = []
     
     for file in files:
@@ -277,10 +363,21 @@ async def register_user(
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Wajah ini sudah terdaftar sebagai '{matched_name}'. Gunakan tombol 'Update Wajah' jika ingin memperbarui foto."})
     
     try:
+        # Kasus C: orangnya sudah pernah mengisi form Lark, hanya wajahnya yang
+        # belum terdaftar. Sistem yang memutuskan ini lewat nomor HP — dengan 16
+        # kiosk, mengandalkan petugas menanyakan hal yang sama persis di tiap
+        # perangkat adalah titik gagal yang bisa dihindari.
+        already_in_lark = await starlette.concurrency.run_in_threadpool(
+            DBService.lark_profile_exists, phone_e164
+        )
+
         user_data = {
             "full_name": full_name,
             "gender": gender,
             "phone_number": phone_number,
+            "phone_e164": phone_e164 or None,
+            "name_key": key,
+            "lark_status": "linked" if already_in_lark else "pending",
             "face_embedding": embedding_list
         }
         new_user = DBService.insert_user(user_data)
@@ -294,11 +391,21 @@ async def register_user(
         DBService.insert_log(log_data)
 
         return {
-            "status": "success", 
-            "message": f"Anggota baru '{full_name}' berhasil didaftarkan dengan kualitas wajah super (berdasarkan {len(valid_embeddings)} frame)!"
+            "status": "success",
+            "message": f"Anggota baru '{full_name}' berhasil didaftarkan dengan kualitas wajah super (berdasarkan {len(valid_embeddings)} frame)!",
+            "data": {
+                "full_name": full_name,
+                # Bentuk yang dimengerti Lark Base: tanpa kode negara dan tanpa
+                # nol depan, sama seperti 308 baris yang sudah ada di sana.
+                "phone_lark": subscriber_digits(phone_number),
+                # False = jangan buka form; profilnya sudah ada di Lark, atau
+                # saklar Lark sedang dimatikan karena bukan acara besar.
+                "needs_lark": flags.is_enabled("lark_handoff") and not already_in_lark
+            }
         }
 
     except Exception as e:
+        capture_error(e, where="kiosk.register_user", full_name=full_name)
         print("Register Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
@@ -330,6 +437,7 @@ async def update_face(
         DBService.update_user(user_id, {"face_embedding": embedding_list})
         return {"status": "success", "message": f"Data wajah untuk '{full_name}' berhasil diperbarui!"}
     except Exception as e:
+        capture_error(e, where="kiosk.update_face", full_name=full_name)
         print("Update Face Error:", e)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
