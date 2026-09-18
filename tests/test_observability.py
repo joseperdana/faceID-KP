@@ -6,8 +6,19 @@ client = TestClient(app)
 
 
 def test_health_reports_ok_when_dependencies_up():
-    """Health harus melaporkan tiap dependensi secara eksplisit, bukan sekadar 200."""
-    response = client.get("/health")
+    """Health harus melaporkan tiap dependensi secara eksplisit, bukan sekadar 200.
+
+    Kedua probe di-patch, sama seperti dua tes di bawah. Tanpa itu tes ini
+    memanggil Supabase sungguhan: hijau di laptop yang punya .env berisi, merah
+    di CI yang memakai kredensial palsu. Yang diuji di sini adalah kontrak
+    pelaporan /health — bahwa probe yang sehat muncul sebagai "ok"/"loaded" dan
+    statusnya 200 — bukan apakah infrastruktur sedang hidup. Kalau tes ini ikut
+    memeriksa ketersediaan nyata, ia akan merah setiap Supabase gereja ngadat
+    dan gate deploy kehilangan arti.
+    """
+    with patch("routers.observability._check_database", return_value="ok"), \
+         patch("routers.observability._check_face_model", return_value="loaded"):
+        response = client.get("/health")
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
