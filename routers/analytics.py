@@ -7,13 +7,17 @@ import time
 
 router = APIRouter(prefix="/api", tags=["analytics"], dependencies=[Depends(check_admin_auth)])
 
+# Sengaja `def`: AnalyticsService menjalankan query DBService yang sinkron.
+# FastAPI menjalankannya di threadpool; sebagai `async def` ia membekukan event
+# loop seluruh proses (lihat routers/users.py).
+
 # --- Simple in-memory TTL cache for dashboard stats ---
 # Fires 4 DB calls per request. 30s cache eliminates redundant traffic during events.
 _stats_cache = {"data": None, "expires_at": 0}
 STATS_CACHE_TTL = 30  # seconds
 
 @router.get("/dashboard-stats")
-async def get_dashboard_stats():
+def get_dashboard_stats():
     try:
         now = time.time()
         if _stats_cache["data"] is None or now > _stats_cache["expires_at"]:
@@ -30,7 +34,7 @@ async def get_dashboard_stats():
         return {"status": "error", "message": str(e)}
 
 @router.get("/analytics")
-async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30):
+def get_analytics(filter_type: str = "30d", at_risk_days: int = 30):
     try:
         data = AnalyticsService.get_analytics_data(filter_type, at_risk_days)
         data["status"] = "success"
@@ -41,7 +45,7 @@ async def get_analytics(filter_type: str = "30d", at_risk_days: int = 30):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/export-excel")
-async def export_excel(filter_type: str = "30d"):
+def export_excel(filter_type: str = "30d"):
     try:
         output, filename = AnalyticsService.generate_excel_report(filter_type)
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
@@ -51,7 +55,7 @@ async def export_excel(filter_type: str = "30d"):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/export-excel/date/{target_date}")
-async def export_excel_by_date(target_date: str):
+def export_excel_by_date(target_date: str):
     try:
         output, filename = AnalyticsService.generate_daily_excel_report(target_date)
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}

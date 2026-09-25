@@ -192,3 +192,28 @@ def test_event_token_does_not_unlock_the_dashboard(monkeypatch):
         c.cookies.set("faceid_register", "gibbor-2026")
         assert c.get("/dashboard", follow_redirects=False).status_code != 200
         assert c.get("/api/users", follow_redirects=False).status_code == 401
+
+
+def test_registration_attendance_is_tagged_as_registration():
+    """Kehadiran dari pendaftaran wajib dibedakan dari check-in wajah dan manual.
+
+    Tanpa `method`, baris "Hadir (Baru)" jatuh ke celah audit: tidak bisa
+    dihitung sebagai face maupun manual, dan tidak terlihat bahwa orang itu
+    tercatat hadir karena mendaftar, bukan karena dipindai.
+    """
+    with patch("services.db_service.DBService.get_user_by_name_key", return_value=[]), \
+         patch("services.db_service.DBService.lark_profile_exists", return_value=False), \
+         patch("services.db_service.DBService.insert_user", return_value={"id": 101}), \
+         patch("services.db_service.DBService.insert_log", return_value=None) as insert_log, \
+         patch("services.db_service.DBService.match_faces", return_value=[]), \
+         patch("face_service.face_service.get_embedding", return_value=[0.1] * 512):
+        res = client.post("/api/register", data={
+            "full_name": "Pendaftar Audit",
+            "gender": "Pria",
+            "phone_number": "081222333444",
+        }, files=_photo())
+
+    assert res.status_code == 200
+    log_data = insert_log.call_args.args[0]
+    assert log_data["method"] == "registration"
+    assert log_data["status"] == "Hadir (Baru)"

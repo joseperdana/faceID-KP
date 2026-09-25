@@ -262,10 +262,17 @@ async function triggerAutoCapture() {
     isProcessing = true;
     loadingOverlay.classList.remove('hidden');
     
+    // Sisi terpanjang maks 960px, JPEG 0.85 (dulu resolusi kamera penuh, 0.95).
+    // Masih jauh di atas yang dipakai model (deteksi 640px, embedding 112x112),
+    // dan unggahnya jauh lebih ringan di jaringan venue yang dipakai 16 kiosk
+    // bersamaan.
+    const UPLOAD_MAX_SIDE = 960;
+    const UPLOAD_JPEG_QUALITY = 0.85;
+    const scale = Math.min(1, UPLOAD_MAX_SIDE / Math.max(videoElement.videoWidth, videoElement.videoHeight));
     const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = videoElement.videoWidth;
-    captureCanvas.height = videoElement.videoHeight;
-    captureCanvas.getContext('2d').drawImage(videoElement, 0, 0);
+    captureCanvas.width = Math.round(videoElement.videoWidth * scale);
+    captureCanvas.height = Math.round(videoElement.videoHeight * scale);
+    captureCanvas.getContext('2d').drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
 
     captureCanvas.toBlob(async (blob) => {
         const formData = new FormData();
@@ -325,7 +332,7 @@ async function triggerAutoCapture() {
             loadingOverlay.classList.add('hidden');
             resetScan();
         }
-    }, 'image/jpeg', 0.95);
+    }, 'image/jpeg', UPLOAD_JPEG_QUALITY);
 }
 
 // --- Fast Manual Search Fallback Flow ---

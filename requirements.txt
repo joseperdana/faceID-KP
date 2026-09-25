@@ -2,7 +2,12 @@ fastapi
 uvicorn[standard]
 python-multipart
 python-dotenv
-supabase
+# database.py memberi supabase client HTTP sendiri (HTTP/1.1, timeout 10 s)
+# lewat ClientOptions(httpx_client=...). Versi lama bisa tidak mengenal opsi
+# itu dan aplikasi gagal start. Batas bawah memaksa pip memperbarui versi yang
+# sudah terpasang di server; batas atas mencegah lompatan major diam-diam.
+supabase>=2.28.0,<3
+httpx>=0.28.1,<0.29
 insightface
 onnxruntime
 opencv-python-headless
