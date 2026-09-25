@@ -1,5 +1,7 @@
 import time
 import math
+import logging
+from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 import numpy as np
 from typing import List, Optional
@@ -10,13 +12,87 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from services.db_service import DBService
 from face_service import face_service
-from core.observability import capture_error, capture_event
+from core.observability import capture_error, capture_event, safe_span, set_tag
+from core.logging_setup import log_event
 from core.normalize import normalize_name, name_key, to_e164, subscriber_digits
 from core import flags
 
 limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api", tags=["kiosk"])
+
+checkin_logger = logging.getLogger("kp.checkin")
+geofence_logger = logging.getLogger("kp.geofence")
+register_logger = logging.getLogger("kp.register")
+
+
+class CheckinTrace:
+    """Rincian waktu per tahap satu check-in, ditutup dengan satu baris `kp.checkin`.
+
+    Menggantikan `print(... ms)` lama. H3 dari Gibbor (±5 query Supabase
+    berurutan per check-in) hanya bisa dibuktikan kalau tiap tahap diukur
+    terpisah — di log untuk agregasi p95, di span Sentry untuk melihat satu
+    trace. Nama, nomor HP, foto, dan koordinat GPS tidak pernah ikut dicatat.
+    """
+
+    _logger = checkin_logger
+    _event = "checkin"
+    _outcome_tag = "checkin_outcome"
+
+    def __init__(self, method: str):
+        self.method = method
+        self.started = time.perf_counter()
+        self.stage_ms = {}
+        self.user_id = None
+        self.similarity = None
+        self.fields = {}
+        self.done = False
+
+    @contextmanager
+    def stage(self, name: str, op: str):
+        t0 = time.perf_counter()
+        try:
+            with safe_span(op, name):
+                yield
+        except BaseException:
+            self.fields["failed_stage"] = name
+            raise
+        finally:
+            self.stage_ms[name] = round((time.perf_counter() - t0) * 1000, 1)
+
+    def finish(self, outcome: str, **fields) -> None:
+        if self.done:
+            return
+        self.done = True
+        try:
+            self.stage_ms["total"] = round((time.perf_counter() - self.started) * 1000, 1)
+            payload = {"method": self.method, "outcome": outcome, "stage_ms": self.stage_ms}
+            if self.user_id is not None:
+                payload["user_id"] = self.user_id
+            if self.similarity is not None:
+                payload["similarity"] = round(float(self.similarity), 3)
+            payload.update(self.fields)
+            payload.update(fields)
+            level = logging.ERROR if outcome == "error" else logging.INFO
+            log_event(self._logger, level, self._event, **payload)
+            set_tag(self._outcome_tag, outcome)
+        except Exception:
+            pass
+
+
+class RegisterTrace(CheckinTrace):
+    """Satu baris `kp.register` per pendaftaran atau update wajah.
+
+    Saat Gibbor ada 309 respons 400 dari /api/register yang tak bisa dijelaskan:
+    nama kembar, wajah tak terdeteksi, dan wajah kembar sama-sama menjawab 400
+    tanpa meninggalkan jejak. `outcome` memisahkan ketiganya, `stage_ms`
+    menunjukkan tahap mana yang lambat, dan `upload_kb` membuktikan apakah
+    foto dari HP memang sudah mengecil.
+    """
+
+    _logger = register_logger
+    _event = "register"
+    _outcome_tag = "register_outcome"
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000
@@ -29,6 +105,15 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 def check_geofence(lat: Optional[float], lng: Optional[float]) -> Optional[JSONResponse]:
+    return _geofence_decision(lat, lng)[0]
+
+
+def _geofence_decision(lat: Optional[float], lng: Optional[float]):
+    """Sama dengan check_geofence, ditambah jarak (meter, int) untuk log.
+
+    Jarak dikembalikan terpisah supaya pemanggil bisa mencatat penolakan tanpa
+    pernah menulis koordinat mentah ke log.
+    """
     # Saklar dashboard menang atas .env. Kalau tabelnya tak terbaca, nilainya
     # jatuh ke ENABLE_GEOFENCE — perilaku yang berlaku sebelum fitur ini ada.
     is_geofence_enabled = flags.is_enabled("geofence")
@@ -38,15 +123,29 @@ def check_geofence(lat: Optional[float], lng: Optional[float]) -> Optional[JSONR
 
     if is_geofence_enabled:
         if lat is None or lng is None:
-            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib diizinkan saat absensi di gereja."})
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Koordinat GPS wajib diizinkan saat absensi di gereja."}), None
         distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
         if distance > MAX_RADIUS_METER:
-            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."})
+            return JSONResponse(status_code=403, content={"status": "error", "message": f"Akses ditolak. Anda berada {int(distance)}m dari gereja."}), int(distance)
     elif lat is not None and lng is not None:
         distance = calculate_distance(GEREJA_LAT, GEREJA_LNG, lat, lng)
         if distance > MAX_RADIUS_METER:
-            print(f"[Dev Note] Scan received from outside church radius ({int(distance)}m), allowed because ENABLE_GEOFENCE=false.")
-    return None
+            # Saat geofence dimatikan, scan dari luar radius tetap diterima. Dicatat
+            # supaya kelihatan seberapa sering itu terjadi sebelum saklar dinyalakan.
+            log_event(
+                geofence_logger, logging.INFO, "outside_radius_allowed",
+                geofence_distance_m=int(distance),
+            )
+    return None, None
+
+
+def _geofence_rejected(trace: "CheckinTrace", response: JSONResponse, distance_m: Optional[int]) -> JSONResponse:
+    trace.finish(
+        "geofence_rejected",
+        geofence_distance_m=distance_m,
+        geofence_reason="outside_radius" if distance_m is not None else "no_gps",
+    )
+    return response
 
 @router.post("/recognize")
 @limiter.limit("30/minute")  # Abuse protection — 30 scans/min per IP is already generous for a church kiosk
@@ -56,16 +155,31 @@ async def recognize_face(
     lat: Optional[float] = Form(None),
     lng: Optional[float] = Form(None),
 ):
-    geo_err = check_geofence(lat, lng)
-    if geo_err:
-        return geo_err
+    # Isi handler dipindah ke _recognize_face apa adanya. Pembungkus ini hanya
+    # menjamin setiap jalan keluar — termasuk exception yang tak tertangkap —
+    # meninggalkan tepat satu baris kp.checkin.
+    trace = CheckinTrace("face")
+    try:
+        return await _recognize_face(trace, file, lat, lng)
+    except Exception as e:
+        trace.finish("error", error_type=type(e).__name__, status=getattr(e, "status_code", 500))
+        raise
+    finally:
+        trace.finish("error")
 
-    start_time = time.time()
+
+async def _recognize_face(trace: CheckinTrace, file: UploadFile, lat: Optional[float], lng: Optional[float]):
+    geo_err, geo_distance = _geofence_decision(lat, lng)
+    if geo_err:
+        return _geofence_rejected(trace, geo_err, geo_distance)
+
     content = await file.read()
     
     try:
-        query_vector = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
+        with trace.stage("embedding", "face.embedding"):
+            query_vector = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
         if query_vector is None:
+            trace.finish("no_face")
             raise HTTPException(status_code=400, detail="Wajah tidak terdeteksi")
     except HTTPException:
         raise
@@ -81,21 +195,26 @@ async def recognize_face(
     # All DB calls are wrapped in run_in_threadpool — supabase-py is a synchronous library.
     # Calling it directly in an async route blocks the entire event loop.
     # run_in_threadpool offloads each call to a thread, keeping the event loop free.
-    matches = await starlette.concurrency.run_in_threadpool(DBService.match_faces, query_vector)
+    with trace.stage("match", "face.match"):
+        matches = await starlette.concurrency.run_in_threadpool(DBService.match_faces, query_vector)
 
     if not matches:
+        trace.finish("unknown_face")
         return {"status": "unknown", "message": "Wajah tidak dikenali."}
 
     user = matches[0]
     user_id = user['id']
     user_name = user['full_name']
+    trace.user_id = user_id
+    trace.similarity = user.get('similarity')
 
     # Kasus D: rutin absen tapi profilnya belum pernah diisi di Lark. Sistem
     # yang mendeteksi ini, bukan pengurus yang membandingkan dua daftar manual.
     # Kegagalan di sini tidak boleh menghentikan absensi — kehadiran lebih
     # penting daripada ajakan melengkapi profil.
     try:
-        link_info = await starlette.concurrency.run_in_threadpool(DBService.get_user_link_info, user_id)
+        with trace.stage("link_info", "db.link_info"):
+            link_info = await starlette.concurrency.run_in_threadpool(DBService.get_user_link_info, user_id)
     except Exception as e:
         capture_error(e, where="kiosk.recognize_face.link_info", user_id=user_id)
         link_info = {}
@@ -108,10 +227,12 @@ async def recognize_face(
     today_start = datetime.now(timezone.utc).date().isoformat()
 
     # --- TOCTOU Fix: Use a targeted today-only query instead of fetching full history ---
-    today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
+    with trace.stage("check_today", "db.check_today"):
+        today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
 
     # Separately fetch full history only for the stats we still need (count + last_seen)
-    history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
+    with trace.stage("history", "db.history"):
+        history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
     total_attendance = len(history)
 
 
@@ -132,6 +253,7 @@ async def recognize_face(
                 )
 
     if today_log:
+        trace.finish("already_checked_in")
         return {
             "status": "success",
             "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -151,7 +273,8 @@ async def recognize_face(
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     try:
-        await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
+        with trace.stage("insert", "db.insert"):
+            await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
         total_attendance += 1
     except Exception as e:
         # Catches DB-level UNIQUE constraint violation (Postgres code 23505 — unique_user_per_day).
@@ -167,6 +290,7 @@ async def recognize_face(
                 level="info",
                 user_id=user_id,
             )
+            trace.finish("duplicate_race")
             return {
                 "status": "success",
                 "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -181,8 +305,7 @@ async def recognize_face(
         capture_error(e, where="kiosk.recognize_face.insert_log", user_id=user_id)
         raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
 
-    process_time = (time.time() - start_time) * 1000
-    print(f"⚡ [MLOps] Waktu Pengenalan Wajah: {process_time:.2f} ms")
+    trace.finish("success")
 
     return {
         "status": "success",
@@ -219,21 +342,37 @@ async def manual_checkin(
     lng: Optional[float] = Form(None),
 ):
     """Fast manual fallback checkin when facial recognition is unavailable."""
-    geo_err = check_geofence(lat, lng)
+    trace = CheckinTrace("manual")
+    trace.user_id = user_id
+    try:
+        return await _manual_checkin(trace, user_id, lat, lng)
+    except Exception as e:
+        trace.finish("error", error_type=type(e).__name__, status=getattr(e, "status_code", 500))
+        raise
+    finally:
+        trace.finish("error")
+
+
+async def _manual_checkin(trace: CheckinTrace, user_id: int, lat: Optional[float], lng: Optional[float]):
+    geo_err, geo_distance = _geofence_decision(lat, lng)
     if geo_err:
-        return geo_err
+        return _geofence_rejected(trace, geo_err, geo_distance)
 
     try:
-        user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
+        with trace.stage("get_user", "db.get_user"):
+            user_list = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_id, user_id)
         if not user_list:
+            trace.finish("user_not_found")
             return JSONResponse(status_code=404, content={"status": "error", "message": "Jemaat tidak ditemukan."})
         
         user = user_list[0]
         user_name = user["full_name"]
         today_start = datetime.now(timezone.utc).date().isoformat()
 
-        today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
-        history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
+        with trace.stage("check_today", "db.check_today"):
+            today_log = await starlette.concurrency.run_in_threadpool(DBService.check_user_log_today, user_id, today_start)
+        with trace.stage("history", "db.history"):
+            history = await starlette.concurrency.run_in_threadpool(DBService.get_user_history, user_id)
         total_attendance = len(history)
 
         last_seen = "Baru Pertama"
@@ -253,6 +392,7 @@ async def manual_checkin(
                     )
 
         if today_log:
+            trace.finish("already_checked_in")
             return {
                 "status": "success",
                 "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -271,7 +411,8 @@ async def manual_checkin(
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         try:
-            await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
+            with trace.stage("insert", "db.insert"):
+                await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
             total_attendance += 1
         except Exception as e:
             err_str = str(e)
@@ -282,6 +423,7 @@ async def manual_checkin(
                     level="info",
                     user_id=user_id,
                 )
+                trace.finish("duplicate_race")
                 return {
                     "status": "success",
                     "message": f"Halo {user_name}, kamu sudah absen hari ini!",
@@ -295,6 +437,7 @@ async def manual_checkin(
             capture_error(e, where="kiosk.manual_checkin.insert_log", user_id=user_id)
             raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
 
+        trace.finish("success")
         return {
             "status": "success",
             "message": f"Absen manual berhasil! Halo, {user_name}.",
@@ -318,7 +461,37 @@ async def register_user(
     phone_number: str = Form(...), 
     files: List[UploadFile] = File(...)
 ):
+    trace = RegisterTrace("register")
+    try:
+        return await _register_user(trace, full_name, gender, phone_number, files)
+    except Exception as e:
+        trace.finish("error", error_type=type(e).__name__, status=getattr(e, "status_code", 500))
+        raise
+    finally:
+        trace.finish("error")
+
+
+async def _read_embeddings(trace: CheckinTrace, files: List[UploadFile]) -> list:
+    valid_embeddings = []
+    upload_bytes = 0
+    with trace.stage("embedding", "face.embedding"):
+        for file in files:
+            content = await file.read()
+            upload_bytes += len(content)
+            embedding = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
+            if embedding is not None:
+                valid_embeddings.append(embedding)
+    trace.fields.update(
+        frames=len(files),
+        valid_frames=len(valid_embeddings),
+        upload_kb=round(upload_bytes / 1024, 1),
+    )
+    return valid_embeddings
+
+
+async def _register_user(trace: RegisterTrace, full_name: str, gender: str, phone_number: str, files: List[UploadFile]):
     if not flags.is_enabled("registration"):
+        trace.finish("registration_closed")
         return JSONResponse(status_code=403, content={
             "status": "error",
             "message": "Pendaftaran anggota baru sedang ditutup. Hubungi pengurus."
@@ -330,8 +503,13 @@ async def register_user(
     key = name_key(full_name)
     phone_e164 = to_e164(phone_number)
 
-    existing = DBService.get_user_by_name_key(key)
+    # Setiap panggilan DBService lewat run_in_threadpool: supabase-py sinkron,
+    # dan dipanggil langsung di sini ia membekukan seluruh proses — termasuk
+    # scan di 15 kiosk lain — selama round-trip ke Supabase.
+    with trace.stage("dup_name", "db.dup_name"):
+        existing = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_name_key, key)
     if len(existing) > 0:
+        trace.finish("duplicate_name")
         # Jangan buntu. Di depan orang yang baru pertama datang, penolakan tanpa
         # jalan keluar adalah kesan pertama yang buruk — beri tahu siapa yang
         # cocok dan arahkan ke Update Wajah.
@@ -342,23 +520,21 @@ async def register_user(
             "message": f"'{existing[0]['full_name']}' sudah terdaftar. Kalau ini memang Anda, pakai tombol 'Update Wajah'. Kalau orang lain dengan nama sama, tambahkan nama belakang."
         })
 
-    valid_embeddings = []
-    
-    for file in files:
-        content = await file.read()
-        embedding = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
-        if embedding is not None:
-            valid_embeddings.append(embedding)
+    valid_embeddings = await _read_embeddings(trace, files)
     
     if len(valid_embeddings) == 0:
+        trace.finish("no_face")
         return JSONResponse(status_code=400, content={"status": "error", "message": "Wajah tidak terdeteksi jelas di semua frame. Ulangi foto."})
     
     average_embedding = np.mean(valid_embeddings, axis=0)
     embedding_list = average_embedding.tolist()
     
     # [PHASE C] Check for face duplication
-    matches = DBService.match_faces(embedding_list, threshold=0.5)
+    with trace.stage("dup_face", "face.match"):
+        matches = await starlette.concurrency.run_in_threadpool(DBService.match_faces, embedding_list, threshold=0.5)
     if matches:
+        trace.similarity = matches[0].get('similarity')
+        trace.finish("duplicate_face", matched_user_id=matches[0].get('id'))
         matched_name = matches[0]['full_name']
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Wajah ini sudah terdaftar sebagai '{matched_name}'. Gunakan tombol 'Update Wajah' jika ingin memperbarui foto."})
     
@@ -367,9 +543,10 @@ async def register_user(
         # belum terdaftar. Sistem yang memutuskan ini lewat nomor HP — dengan 16
         # kiosk, mengandalkan petugas menanyakan hal yang sama persis di tiap
         # perangkat adalah titik gagal yang bisa dihindari.
-        already_in_lark = await starlette.concurrency.run_in_threadpool(
-            DBService.lark_profile_exists, phone_e164
-        )
+        with trace.stage("lark_lookup", "db.lark_lookup"):
+            already_in_lark = await starlette.concurrency.run_in_threadpool(
+                DBService.lark_profile_exists, phone_e164
+            )
 
         user_data = {
             "full_name": full_name,
@@ -380,17 +557,20 @@ async def register_user(
             "lark_status": "linked" if already_in_lark else "pending",
             "face_embedding": embedding_list
         }
-        new_user = DBService.insert_user(user_data)
+        with trace.stage("insert_user", "db.insert_user"):
+            new_user = await starlette.concurrency.run_in_threadpool(DBService.insert_user, user_data)
         new_user_id = new_user['id']
+        trace.user_id = new_user_id
 
         log_data = {
             "user_id": new_user_id,
             "status": "Hadir (Baru)",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        DBService.insert_log(log_data)
+        with trace.stage("insert_log", "db.insert"):
+            await starlette.concurrency.run_in_threadpool(DBService.insert_log, log_data)
 
-        return {
+        response = {
             "status": "success",
             "message": f"Anggota baru '{full_name}' berhasil didaftarkan dengan kualitas wajah super (berdasarkan {len(valid_embeddings)} frame)!",
             "data": {
@@ -403,10 +583,13 @@ async def register_user(
                 "needs_lark": flags.is_enabled("lark_handoff") and not already_in_lark
             }
         }
+        trace.finish("success")
+        return response
 
     except Exception as e:
         capture_error(e, where="kiosk.register_user", full_name=full_name)
         print("Register Error:", e)
+        trace.finish("error", error_type=type(e).__name__, status=500)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.post("/update-face")
@@ -414,30 +597,42 @@ async def update_face(
     full_name: str = Form(...), 
     files: List[UploadFile] = File(...)
 ):
-    existing = DBService.get_user_by_name(full_name)
+    trace = RegisterTrace("update_face")
+    try:
+        return await _update_face(trace, full_name, files)
+    except Exception as e:
+        trace.finish("error", error_type=type(e).__name__, status=getattr(e, "status_code", 500))
+        raise
+    finally:
+        trace.finish("error")
+
+
+async def _update_face(trace: RegisterTrace, full_name: str, files: List[UploadFile]):
+    with trace.stage("find_user", "db.find_user"):
+        existing = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_name, full_name)
     if not existing:
+        trace.finish("not_found")
         return JSONResponse(status_code=404, content={"status": "error", "message": "Nama tidak ditemukan di database!"})
         
     user_id = existing[0]['id']
+    trace.user_id = user_id
     
-    valid_embeddings = []
-    for file in files:
-        content = await file.read()
-        embedding = await starlette.concurrency.run_in_threadpool(face_service.get_embedding, content)
-        if embedding is not None:
-            valid_embeddings.append(embedding)
+    valid_embeddings = await _read_embeddings(trace, files)
             
     if len(valid_embeddings) == 0:
+        trace.finish("no_face")
         return JSONResponse(status_code=400, content={"status": "error", "message": "Wajah tidak terdeteksi jelas. Ulangi foto."})
         
     average_embedding = np.mean(valid_embeddings, axis=0)
     embedding_list = average_embedding.tolist()
     
     try:
-        DBService.update_user(user_id, {"face_embedding": embedding_list})
+        with trace.stage("update_user", "db.update_user"):
+            await starlette.concurrency.run_in_threadpool(DBService.update_user, user_id, {"face_embedding": embedding_list})
+        trace.finish("success")
         return {"status": "success", "message": f"Data wajah untuk '{full_name}' berhasil diperbarui!"}
     except Exception as e:
         capture_error(e, where="kiosk.update_face", full_name=full_name)
         print("Update Face Error:", e)
+        trace.finish("error", error_type=type(e).__name__, status=500)
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
-

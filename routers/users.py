@@ -7,8 +7,14 @@ from schemas.user import UpdateUserDto
 
 router = APIRouter(prefix="/api/users", tags=["users"], dependencies=[Depends(check_admin_auth)])
 
+# Handler di file ini sengaja `def`, bukan `async def`: DBService memanggil
+# supabase-py yang sinkron. Di dalam `async def`, setiap query membekukan event
+# loop — seluruh proses, termasuk kiosk dan halaman `/` — selama round-trip ke
+# Supabase. Itu akar macetnya server saat Gibbor (19 Sep 2026). FastAPI
+# menjalankan handler `def` di threadpool, jadi yang menunggu hanya thread-nya.
+
 @router.get("")
-async def get_all_users():
+def get_all_users():
     try:
         # Fetches users with their logs count nested as: [{'count': X}]
         users_data = DBService.get_all_users()
@@ -29,7 +35,7 @@ async def get_all_users():
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/{user_id}/history")
-async def get_user_history(user_id: str):
+def get_user_history(user_id: str):
     try:
         res = DBService.get_user_history(user_id)
         return {"status": "success", "data": res}
@@ -39,7 +45,7 @@ async def get_user_history(user_id: str):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.put("/{user_id}")
-async def update_user(user_id: int, data: UpdateUserDto):
+def update_user(user_id: int, data: UpdateUserDto):
     try:
         res = DBService.update_user(user_id, {
             "full_name": data.full_name,
@@ -52,7 +58,7 @@ async def update_user(user_id: int, data: UpdateUserDto):
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.delete("/{user_id}")
-async def delete_user(user_id: int):
+def delete_user(user_id: int):
     try:
         # Soft delete: preserves the user's attendance history in the database.
         # The user disappears from all UI queries (is_deleted=true filter).
