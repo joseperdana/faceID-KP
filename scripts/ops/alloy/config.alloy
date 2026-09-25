@@ -1,0 +1,216 @@
+// Grafana Alloy untuk VPS KP: metrik host + log aplikasi -> Grafana Cloud (free tier).
+// Dipasang ke /etc/alloy/config.alloy oleh scripts/ops/setup_alloy.sh.
+//
+// Tujuannya menjawab dua pertanyaan yang tidak bisa dijawab saat Gibbor:
+//   1. Apakah server kehabisan memori / swap saat itu? (metrik host, H1)
+//   2. Apa yang terjadi di aplikasi menit per menit? (log JSON faceid, H2-H5)
+//
+// Semua kredensial datang dari environment (/etc/alloy/grafana-cloud.env, dibaca
+// systemd lewat drop-in), tidak ada satu pun yang ditulis di berkas ini — berkas
+// ini boleh masuk git.
+//
+// Sintaks diverifikasi terhadap dokumentasi resmi (September 2026):
+//   https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.exporter.unix/
+//   https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.scrape/
+//   https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.remote_write/
+//   https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.journal/
+//   https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.file/
+//   https://grafana.com/docs/alloy/latest/reference/components/local/local.file_match/
+//   https://grafana.com/docs/alloy/latest/reference/components/loki/loki.relabel/
+//   https://grafana.com/docs/alloy/latest/reference/components/loki/loki.process/
+//   https://grafana.com/docs/alloy/latest/reference/components/loki/loki.write/
+//   https://grafana.com/docs/alloy/latest/reference/stdlib/sys/
+
+// ===========================================================================
+// METRIK HOST
+// ===========================================================================
+
+// Daftar collector sengaja dipersempit dari bawaan (~45 collector). Tiap
+// collector menambah time series, dan free tier dibatasi 10 ribu series aktif.
+// Yang tersisa adalah yang benar-benar dipakai dashboard "Hari Ibadah":
+//   meminfo   RAM terpakai/tersedia, swap
+//   vmstat    swap-in/out per detik dan jumlah OOM kill (node_vmstat_oom_kill)
+//   pressure  PSI: berapa lama proses MENUNGGU memori/CPU/IO. Ini sinyal
+//             paling jujur untuk "server terasa lambat karena swap" — RAM
+//             penuh belum tentu lambat, PSI memori tinggi pasti lambat.
+//   cpu, loadavg, stat, diskstats, filesystem, netdev, uname, time
+prometheus.exporter.unix "host" {
+	set_collectors = [
+		"cpu",
+		"diskstats",
+		"filesystem",
+		"loadavg",
+		"meminfo",
+		"netdev",
+		"pressure",
+		"stat",
+		"time",
+		"uname",
+		"vmstat",
+	]
+
+	filesystem {
+		// Bawaan ditambah tmpfs, /run, /snap, /boot/efi: tidak ada gunanya
+		// memantau puluhan mount squashfs snap di dashboard.
+		fs_types_exclude     = "^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|tmpfs)$"
+		mount_points_exclude = "^/(dev|proc|run|sys|snap|boot/efi|var/lib/docker/.+)($|/)"
+	}
+
+	netdev {
+		device_exclude = "^(lo|veth.*|docker.*|br-.*)$"
+	}
+}
+
+// 60 detik = 1 data point per menit per series, persis kuota yang termasuk di
+// Grafana Cloud. Interval 15 detik akan menghitung 4x lipat. Resolusi per menit
+// sudah cukup untuk jendela ibadah 16:30-17:15.
+prometheus.scrape "host" {
+	targets         = prometheus.exporter.unix.host.targets
+	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+	job_name        = "kp-host"
+	scrape_interval = "60s"
+}
+
+prometheus.remote_write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GCLOUD_PROM_URL")
+
+		basic_auth {
+			username = sys.env("GCLOUD_PROM_USER")
+			password = sys.env("GCLOUD_RW_TOKEN")
+		}
+	}
+
+	external_labels = {
+		host = "kp-vps",
+	}
+}
+
+// ===========================================================================
+// LOG
+// ===========================================================================
+//
+// Soal label (penting untuk Loki): setiap kombinasi nilai label menjadi satu
+// "stream" terpisah di Loki. Label yang nilainya berbeda-beda per request —
+// request_id, device, user_id, client_ip, path — akan meledakkan jumlah stream,
+// membuat query lambat, dan bisa menabrak batas free tier. Karena itu yang
+// dijadikan label hanya yang nilainya sedikit dan tetap:
+//   job, unit, priority, logger (kp.request/kp.checkin/...), level.
+// Field lain tetap ada di isi baris dan bisa difilter saat query dengan
+//   {job="faceid"} | json | device="kiosk-01"
+
+// Terjemahkan field internal journal menjadi label biasa.
+// __journal__systemd_unit memakai DUA garis bawah (sesuai dokumentasi).
+loki.relabel "journal" {
+	forward_to = []
+
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		target_label  = "unit"
+	}
+
+	rule {
+		source_labels = ["__journal_priority_keyword"]
+		target_label  = "priority"
+	}
+}
+
+// Log aplikasi. Satu `matches` = satu syarat; beberapa syarat di-AND-kan dan
+// "+" (OR) tidak didukung, jadi tiap sumber punya komponennya sendiri.
+// max_age bawaan 7 jam: saat Alloy pertama kali jalan, ia hanya mengirim 7 jam
+// terakhir, bukan seluruh isi journal.
+loki.source.journal "faceid" {
+	matches       = "_SYSTEMD_UNIT=faceid.service"
+	labels        = {job = "faceid"}
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.process.faceid.receiver]
+}
+
+// Pesan systemd TENTANG faceid (Started, Stopped, Main process exited,
+// Scheduled restart job). Dikirim oleh PID 1, jadi _SYSTEMD_UNIT-nya bukan
+// faceid.service — perlu sumber terpisah dengan field UNIT=.
+loki.source.journal "faceid_lifecycle" {
+	matches       = "UNIT=faceid.service"
+	labels        = {job = "faceid-systemd"}
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.write.grafana_cloud.receiver]
+}
+
+// Kernel: OOM killer (H1). Tanpa sumber ini, "proses dibunuh karena kehabisan
+// memori" hanya tersimpan di VPS.
+loki.source.journal "kernel" {
+	matches       = "_TRANSPORT=kernel"
+	labels        = {job = "kernel"}
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.process.kernel.receiver]
+}
+
+loki.process "faceid" {
+	forward_to = [loki.write.grafana_cloud.receiver]
+
+	// Hanya baris yang diawali "{" yang dicoba sebagai JSON. uvicorn/gunicorn dan
+	// traceback Python tetap menulis baris teks biasa; baris itu lewat apa adanya
+	// tanpa label logger/level. (stage.json sendiri juga meneruskan baris
+	// non-JSON, tapi menyaringnya di sini menghindari kerja parsing yang sia-sia.)
+	// "[{]" dipakai alih-alih "\{" supaya tidak perlu escape berlapis.
+	stage.match {
+		selector = "{job=\"faceid\"} |~ \"^[{]\""
+
+		stage.json {
+			expressions = {
+				logger = "",
+				level  = "",
+			}
+		}
+
+		stage.labels {
+			values = {
+				logger = "",
+				level  = "",
+			}
+		}
+	}
+}
+
+loki.process "kernel" {
+	forward_to = [loki.write.grafana_cloud.receiver]
+
+	// UFW mencatat setiap paket yang diblokir ke log kernel. Di VPS publik ini
+	// bisa ribuan baris per hari dan menenggelamkan baris OOM yang kita cari.
+	stage.drop {
+		expression          = "\\[UFW (BLOCK|ALLOW|AUDIT)\\]"
+		drop_counter_reason = "ufw_noise"
+	}
+}
+
+// Log akses dan error nginx. Hanya berkas aktif (bukan .1/.gz) — Alloy mengikuti
+// rotasi sendiri. tail_from_end: saat pertama jalan, mulai dari ujung berkas,
+// tidak mengirim ulang isi lama. Butuh user alloy di grup adm (setup_alloy.sh).
+// 502/504/499 hanya tercatat di sini: saat aplikasi macet, nginx-lah yang menjawab.
+local.file_match "nginx" {
+	path_targets = [
+		{"__path__" = "/var/log/nginx/access.log", "job" = "nginx", "log" = "access"},
+		{"__path__" = "/var/log/nginx/error.log", "job" = "nginx", "log" = "error"},
+	]
+}
+
+loki.source.file "nginx" {
+	targets       = local.file_match.nginx.targets
+	forward_to    = [loki.write.grafana_cloud.receiver]
+	tail_from_end = true
+}
+
+loki.write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GCLOUD_LOKI_URL")
+
+		basic_auth {
+			username = sys.env("GCLOUD_LOKI_USER")
+			password = sys.env("GCLOUD_RW_TOKEN")
+		}
+	}
+
+	external_labels = {
+		host = "kp-vps",
+	}
+}
