@@ -26,7 +26,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          # Sama dengan server produksi (venv di VPS memakai Python 3.12).
+          # Tes yang hijau di versi lain belum tentu berperilaku sama di sana.
+          python-version-file: '.python-version'
           cache: 'pip'
 
       - name: Install Dependencies

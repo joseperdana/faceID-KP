@@ -230,56 +230,55 @@ Subagent menyusun urutan 1–7 di `scripts/ops/README.md`. Untuk orang yang baru
 
 `collect_incident.sh` untuk Gibbor tidak lagi mendesak karena log mentahnya sudah Anda amankan di `/root/gibbor-2026-09-19`. Tetap jalankan sebelum 3 Oktober untuk mendapat `SUMMARY.txt` lengkap.
 
-### Perlu diubah (belum dikerjakan, menunggu persetujuan)
-1. **Script deploy yang tidak cocok dengan server.**
-   - `scripts/deploy_vps.sh` membuat 2 worker gunicorn di `/var/www` dan menimpa konfigurasi HTTPS nginx. Script ini **berbahaya** kalau dijalankan di server sekarang. Saran: tulis ulang agar sesuai kondisi nyata (1 proses uvicorn di `/home/adminKPBromo/faceID-KP`), atau tandai jelas sebagai "hanya untuk server baru".
-   - `scripts/remote_update.sh`: ganti jalur bawaannya, lalu tambahkan **penjaga jendela ibadah**. Script menolak deploy Sabtu 15:00–19:30 WIB, kecuali dipaksa dengan flag khusus.
-2. **Versi dependency tidak dikunci.** `requirements.txt` tidak mencantumkan versi. Server bisa memakai versi Supabase yang berbeda dari laptop dan CI. Perbaikan client Supabase membutuhkan `ClientOptions(httpx_client=...)`, yang tersedia di supabase 2.28 (versi di laptop). Kalau versi di server lebih lama, aplikasi bisa gagal start. Saran: kunci versi (`supabase==2.28.0`, `httpx==0.28.1`, dan seterusnya).
-3. **Versi Python berbeda di tiga tempat.** Laptop 3.9, CI 3.10, server 3.12. Tes yang lolos di CI belum tentu berperilaku sama di server. Saran: CI dan laptop ikut 3.12.
-4. **Dashboard 25 panel terlalu banyak untuk awal.** Setelah Sabtu pertama berjalan, pilih 6 panel yang benar-benar dilihat (RAM, CPU/load, request per status, p95 check-in, hasil check-in, error), lalu pindahkan sisanya ke baris yang dilipat.
-5. **Pendaftaran menyimpan kehadiran tanpa `method`.** Ini melanggar aturan `checkin_method` di CLAUDE.md dan sudah terjadi sejak sebelum Fase 0. Perlu keputusan Anda: apakah kehadiran dari pendaftaran dicatat `'face'`, atau perlu nilai ketiga seperti `'registration'`?
+### Sudah diperbaiki (27 September 2026)
+1. **Script deploy disamakan dengan server.**
+   - `scripts/remote_update.sh` kini mencari aplikasi di `$HOME/faceID-KP`. Script ini juga **menolak deploy Sabtu 15:00–19:30 WIB**, dan menolak deploy kapan pun file `/etc/faceid/deploy-freeze` ada. File itu dipakai untuk membekukan deploy selama retret atau Natal. Perbaikan darurat bisa melewati penjaga dengan `FORCE_DEPLOY=1`, dijalankan langsung di server.
+   - `scripts/deploy_vps.sh` kini khusus untuk server kosong. Script **menolak berjalan** kalau layanan `faceid` atau site Nginx `faceid` sudah ada. Isinya disamakan dengan produksi: satu proses uvicorn di `$HOME/faceID-KP`, tanpa gunicorn.
+2. **Versi library yang menjadi tumpuan perbaikan dikunci.** `requirements.txt` kini berisi `supabase>=2.28.0,<3` dan `httpx>=0.28.1,<0.29`. Karena ada batas bawah, `pip install -r requirements.txt` otomatis memperbarui versi lama di server. Batas atas mencegah lompatan versi mayor diam-diam. Library lain belum dikunci; langkah berikutnya adalah membuat file constraints dari `pip freeze` server (lihat Fase 1).
+3. **CI memakai Python 3.12**, sama dengan server, lewat file `.python-version`. Laptop masih 3.9 dan perlu dibuat ulang manual (lihat §7).
+4. **Kehadiran dari pendaftaran dicatat `method = 'registration'`.** Migrasi `scripts/2026-09-27_attendance_method_registration.sql` melebarkan CHECK constraint kalau ada.
 
 ### Ditunda ke Fase 1
 - Uji beban skenario acara besar.
 - Antrean prioritas: check-in didahulukan, pendaftaran menunggu giliran CPU.
 - Evaluasi model wajah yang lebih ringan.
 - Paginasi `/api/all-logs`.
-- Menghidupkan deploy lewat GitHub Actions. Sebelum itu, `remote_update.sh` perlu diperbaiki, lalu satu uji coba di malam hari kerja.
+- Menghidupkan deploy lewat GitHub Actions: memasang kunci deploy dengan `command=` di `authorized_keys`, aturan sudoers untuk `systemctl restart faceid`, mengisi secret repo, lalu satu uji coba di malam hari kerja.
+- File constraints dari `pip freeze` server, supaya semua library (termasuk insightface dan onnxruntime) terkunci.
 
 ---
 
 ## 7. Deploy branch ini (manual, cara yang sudah Anda kenal)
 
-Lakukan di **malam hari kerja**, bukan Sabtu.
+Lakukan di **malam hari kerja**, bukan Sabtu. Branch ini perlu digabung ke `main` dulu, karena server menarik dari `main`.
+
+**Di Supabase SQL Editor**, jalankan dua migrasi berikut. Tanpa keduanya aplikasi tetap aman, tetapi data RUM tidak tersimpan, dan `method` pendaftaran bisa jatuh ke fallback.
+- `scripts/2026-09-26_client_perf.sql`
+- `scripts/2026-09-27_attendance_method_registration.sql`
+
+**Di server:**
 
 ```bash
-# 0. Di Supabase SQL Editor: jalankan isi scripts/2026-09-26_client_perf.sql
-#    (tanpa ini RUM tetap aman, tetapi datanya tidak tersimpan)
-
-# 1. Masuk server dan cek versi library yang terpasang
 ssh <user>@<ip-vps>
 cd /home/adminKPBromo/faceID-KP
-./venv/bin/pip show supabase httpx | grep -E "Name|Version"
+git log --oneline -1                          # catat commit sekarang untuk jaga-jaga
 
-# 2. Ambil kode dan samakan dependency
 git pull
-./venv/bin/pip install -r requirements.txt
-./venv/bin/pip install "supabase==2.28.0" "httpx==0.28.1"    # jika langkah 1 menunjukkan versi lebih lama
+./venv/bin/pip install -r requirements.txt    # ikut memperbarui supabase/httpx bila versinya lama
+./venv/bin/pip show supabase httpx | grep -E "Name|Version"   # harus >= 2.28.0 dan 0.28.x
 
-# 3. Restart dan tunggu sehat
 sudo systemctl restart faceid
 sleep 20; curl -s http://127.0.0.1:8000/health; echo
-
-# 4. Pastikan log JSON muncul
-sudo journalctl -u faceid -n 20 --no-pager
+sudo journalctl -u faceid -n 20 --no-pager    # baris JSON {"ts": ..., "logger": ...} harus muncul
 ```
+
+Mulai sekarang, alternatif dari empat perintah di tengah (dari `git pull` sampai menunggu sehat) adalah `bash scripts/remote_update.sh`. Script itu mengerjakan hal yang sama, lalu otomatis kembali ke versi sebelumnya kalau `/health` tidak hijau dalam 90 detik.
 
 Jika `/health` tidak menjawab setelah 60 detik:
 
 ```bash
 sudo journalctl -u faceid -n 80 --no-pager    # baca errornya
-git log --oneline -2                          # catat commit sebelumnya
-git checkout <commit-sebelumnya> && sudo systemctl restart faceid
+git reset --hard <commit-yang-dicatat> && sudo systemctl restart faceid
 ```
 
 Setelah itu, buka kiosk dengan `?device=kiosk-uji`, lakukan satu check-in, lalu cari barisnya:
@@ -287,3 +286,14 @@ Setelah itu, buka kiosk dengan `?device=kiosk-uji`, lakukan satu check-in, lalu 
 ```bash
 sudo journalctl -u faceid --since "5 min ago" --no-pager | grep kp.checkin
 ```
+
+**Laptop (sekali saja).** Venv di laptop masih Python 3.9, dan `venv/bin/pip` rusak karena venv pernah dipindah dari folder lain. Buat ulang dengan Python 3.12:
+
+```bash
+brew install python@3.12
+mv venv venv-lama-3.9
+python3.12 -m venv venv
+./venv/bin/pip install -r requirements.txt
+```
+
+Setelah tes lolos dengan venv baru, `venv-lama-3.9` boleh dihapus.
