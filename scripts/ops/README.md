@@ -27,7 +27,7 @@ ssh <user>@<ip-vps>
 cd /tmp/kp-ops
 ```
 
-Setelah di-merge ke `main` dan ter-deploy, berkasnya ada di direktori aplikasi di server, yaitu `/home/adminKPBromo/faceID-KP` (bukan `/var/www/faceID-KP` seperti di `deploy_vps.sh`). Jalankan dari sana: `cd /home/adminKPBromo/faceID-KP`, lalu pakai path `scripts/ops/...`.
+Setelah di-merge ke `main` dan ter-deploy, berkasnya ada di direktori aplikasi di server, yaitu `/home/adminKPBromo/faceID-KP` (`$HOME/faceID-KP`, bukan `/var/www/faceID-KP`). Jalankan dari sana: `cd /home/adminKPBromo/faceID-KP`, lalu pakai path `scripts/ops/...`.
 
 Perintah di bawah memakai path repo. Kalau memakai salinan di `/tmp/kp-ops`, buang awalan `scripts/ops/`.
 
@@ -73,7 +73,7 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo tail -n 3 /var/log/nginx/access.log     # baris baru berakhiran rt=... urt=...
 ```
 
-Jangan pernah memakai `scripts/deploy_vps.sh` untuk ini. Skrip itu menimpa konfigurasi HTTPS.
+Jangan pernah memakai `scripts/deploy_vps.sh` untuk ini. Skrip itu khusus server kosong: ia menolak berjalan di server yang sudah terpasang, karena akan menimpa konfigurasi HTTPS.
 
 ### 4. Grafana Cloud + Alloy (30 menit)
 

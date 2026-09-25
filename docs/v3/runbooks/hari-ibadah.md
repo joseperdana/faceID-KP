@@ -15,7 +15,7 @@ Tautan yang perlu dibuka (isi sekali, simpan sebagai bookmark):
 - [ ] **Health hijau.** Buka `/health` dari HP pakai **data seluler**. Harus `"status":"ok"`. Kalau `degraded`, lihat bagian `checks` lalu hubungi Jose sekarang, jangan tunggu 16:45.
 - [ ] **Uptime hijau** di Sentry Monitors.
 - [ ] **Dashboard Grafana terbuka** di laptop multimedia: rentang *Last 3 hours*, refresh 30 detik.
-- [ ] **Tidak ada deploy** sejak Sabtu 12:00. Kalau ada yang ingin deploy, tunda sampai 19:00.
+- [ ] **Tidak ada deploy** sejak Sabtu 12:00. `remote_update.sh` menolak sendiri Sabtu 15:00–19:30. Untuk acara di luar Sabtu (retret, Natal), bekukan deploy sehari sebelumnya: `echo "<nama acara>" | sudo tee /etc/faceid/deploy-freeze` (buat dulu foldernya dengan `sudo mkdir -p /etc/faceid`), lalu hapus setelah acara.
 - [ ] **Label perangkat.** Tiap HP kiosk dibuka sekali dengan `https://<domain>/?device=kiosk-01`, `kiosk-02`, dan seterusnya. Tempel label yang sama di HP-nya (selotip kertas). Label tersimpan di browser, jadi pembukaan berikutnya tidak perlu parameter lagi. Mode penyamaran tidak menyimpan label, jadi jangan pakai mode itu.
 - [ ] **Saklar fitur** di dashboard, tab *Kontrol Fitur*, sesuai acara:
   - `geofence`: ON di gereja, OFF untuk acara di luar lokasi
