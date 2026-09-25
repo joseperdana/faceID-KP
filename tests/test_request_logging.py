@@ -334,12 +334,23 @@ def test_logging_failure_never_breaks_a_checkin():
     def boom(*a, **k):
         raise RuntimeError("logging broken")
 
+    class ExplodingSentry:
+        """Setiap pemakaian Sentry DARI KODE KITA meledak.
+
+        Sengaja mengganti nama `sentry_sdk` di core.observability saja, bukan
+        mem-patch atribut modul sentry_sdk global. Sejak sentry-sdk 2.70,
+        integrasi httpx-nya ikut membungkus TestClient dan memanggil
+        sentry_sdk.start_span — patch global membuat klien uji itu sendiri yang
+        meledak, bukan aplikasi yang sedang diuji.
+        """
+        def __getattr__(self, name):
+            raise RuntimeError(f"sentry broken: {name}")
+
     with patch.object(JsonFormatter, "format", boom), \
          patch.object(logging.getLogger("kp.checkin"), "log", boom), \
          patch.object(logging.getLogger("kp.request"), "log", boom), \
          patch("main.resolve_request_id", boom), \
-         patch("core.observability.sentry_sdk.set_tag", boom), \
-         patch("core.observability.sentry_sdk.start_span", boom), \
+         patch("core.observability.sentry_sdk", ExplodingSentry()), \
          patch("logging.raiseExceptions", False), \
          face_db():
         response = _recognize()

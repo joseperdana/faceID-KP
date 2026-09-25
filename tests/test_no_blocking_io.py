@@ -191,11 +191,23 @@ PATH_PARAMS = {
 }
 
 
-def _app_routes():
-    for route in app.routes:
+def _walk(routes):
+    for route in routes:
         if isinstance(route, APIRoute):
-            for method in sorted(route.methods - {"HEAD", "OPTIONS"}):
-                yield method, route.path
+            yield route
+        # FastAPI >= 0.14x tidak lagi menyalin rute router ke app.routes; tiap
+        # include_router menjadi satu pembungkus yang menyimpan router aslinya.
+        # Versi lama tetap menyalin, jadi cabang ini tidak pernah aktif di sana.
+        # Aman karena main.py meng-include tanpa prefix tambahan: path di
+        # router asli sudah lengkap.
+        elif hasattr(route, "original_router"):
+            yield from _walk(route.original_router.routes)
+
+
+def _app_routes():
+    for route in _walk(app.routes):
+        for method in sorted(route.methods - {"HEAD", "OPTIONS"}):
+            yield method, route.path
 
 
 def test_every_route_has_a_recipe():
