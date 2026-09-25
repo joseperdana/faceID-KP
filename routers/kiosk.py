@@ -562,9 +562,13 @@ async def _register_user(trace: RegisterTrace, full_name: str, gender: str, phon
         new_user_id = new_user['id']
         trace.user_id = new_user_id
 
+        # 'registration', bukan 'face': orang ini tercatat hadir karena baru
+        # mendaftar, bukan karena wajahnya dikenali. Audit harus bisa memisahkan
+        # ketiganya.
         log_data = {
             "user_id": new_user_id,
             "status": "Hadir (Baru)",
+            "method": "registration",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         with trace.stage("insert_log", "db.insert"):
