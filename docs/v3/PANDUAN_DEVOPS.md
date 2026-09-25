@@ -156,7 +156,7 @@ Jangan pasang lebih dari itu dulu. Alert yang terlalu sering berbunyi akan diaba
 `.github/workflows/qa.yml` sudah menjalankan tes di setiap push ke `dev`, `staging`, dan `main`, serta di setiap pull request. Tes backend berjalan dulu, lalu server dinyalakan dan diuji dengan Playwright (browser sungguhan).
 
 Dua tes baru dari Fase 0 layak dipahami karena mencegah Gibbor terulang:
-- **`tests/test_no_blocking_io.py`** memanggil **semua 35 endpoint** dan gagal jika ada yang menyentuh database dari event loop. Tes ini juga gagal kalau ada endpoint baru yang belum masuk daftar ujinya. Jadi kesalahan yang menyebabkan Gibbor tidak bisa masuk lagi tanpa ketahuan.
+- **`tests/test_no_blocking_io.py`** memanggil **semua 34 rute** dan gagal jika ada yang menyentuh database dari event loop. Tes ini juga gagal kalau ada endpoint baru yang belum masuk daftar ujinya. Jadi kesalahan yang menyebabkan Gibbor tidak bisa masuk lagi tanpa ketahuan.
 - **`tests/test_db_client.py`** memastikan client Supabase memakai HTTP/1.1, batas waktu 10 detik, dan aturan coba-ulang yang aman.
 
 ### 3.8 CD: deploy
