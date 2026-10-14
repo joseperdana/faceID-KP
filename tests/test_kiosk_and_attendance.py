@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from main import app
@@ -99,7 +98,7 @@ def test_db_service_insert_log_resilience():
         mock_supabase.table.return_value.insert.return_value = mock_execute
         
         log_data = {"user_id": 1, "status": "Hadir", "method": "manual", "timestamp": "2026-08-22T00:00:00Z"}
-        res = DBService.insert_log(log_data)
+        DBService.insert_log(log_data)
         
         assert mock_supabase.table.return_value.insert.call_count == 2
         # Verify fallback insert did not include 'method'

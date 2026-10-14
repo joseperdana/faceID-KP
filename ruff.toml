@@ -1,0 +1,61 @@
+# Konfigurasi ruff (linter Python) untuk gerbang kualitas & keamanan di CI.
+# Sengaja ruff.toml, bukan pyproject.toml: proyek ini aplikasi, bukan paket
+# yang dipublikasikan, dan pyproject.toml memberi kesan sebaliknya.
+#
+# Versi ruff dikunci di .github/workflows/security.yml. Kalau versinya
+# dinaikkan, jalankan `ruff check .` di laptop dulu: aturan baru bisa
+# membuat CI merah tanpa ada kode yang berubah.
+
+# Sama dengan Python di VPS (.python-version).
+target-version = "py312"
+
+# venv, .git, __pycache__ dsb. sudah dikecualikan bawaan ruff.
+# dev_brain dan global_brain adalah symlink ke catatan pribadi di luar repo;
+# .agents dan .claude berisi skill/konfigurasi alat, bukan kode aplikasi.
+extend-exclude = [".claude", ".agents", "dev_brain", "global_brain"]
+
+[lint]
+# E9 : error sintaks/IO — file yang bahkan tidak bisa di-parse.
+# F  : pyflakes — import/variabel tak terpakai, nama tak terdefinisi.
+# S  : aturan keamanan bandit (password tertulis di kode, request tanpa
+#      timeout, subprocess, bind 0.0.0.0, dll.).
+# B  : bugbear — pola yang hampir selalu bug (mis. `raise` di dalam
+#      `except` tanpa `from`, variabel loop tak terpakai).
+# Gaya penulisan (panjang baris, urutan import) sengaja TIDAK diperiksa:
+# gerbang ini untuk bug dan keamanan, bukan selera format.
+select = ["E9", "F", "S", "B"]
+
+# Tidak ada `ignore` global untuk aturan S. Setiap pengecualian harus sempit:
+# per file di bawah, atau `# noqa: KODE — alasan` di baris yang bersangkutan.
+
+[lint.flake8-bugbear]
+# B008 melarang pemanggilan fungsi di default argumen. Untuk FastAPI itu
+# justru cara resmi mendeklarasikan parameter (`file: UploadFile = File(...)`):
+# objeknya hanya penanda, tidak pernah dimutasi antar-request.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]
+
+[lint.per-file-ignores]
+# pytest memakai `assert` biasa sebagai cara memeriksa hasil. S101 hanya
+# relevan di kode aplikasi, tempat `python -O` diam-diam membuang assert.
+"tests/**" = ["S101"]
+# test_api.py adalah skrip uji manual terhadap server lokal, bukan kode produksi.
+"test_api.py" = ["S101"]
+
+# Modul observability: menelan exception di sini adalah tujuannya, bukan
+# kelalaian. Logging/Sentry/penerima laporan browser yang gagal tidak boleh
+# ikut menggagalkan check-in — dan mencatat kegagalan logging lewat logging
+# yang sama hanya akan gagal lagi. Di file lain, `try/except/pass` tetap
+# ditandai dan harus diberi alasan per baris.
+"core/observability.py" = ["S110"]
+"core/logging_setup.py" = ["S110"]
+"routers/observability.py" = ["S110"]

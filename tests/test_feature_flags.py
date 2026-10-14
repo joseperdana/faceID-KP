@@ -85,6 +85,5 @@ def test_lark_mati_menghentikan_ajakan_walau_profil_belum_lengkap():
     with patch("core.flags.is_enabled", side_effect=lambda k: k != "lark_handoff"), \
          patch("services.db_service.DBService.get_user_link_info",
                return_value={"phone_e164": "+6285747479647", "lark_status": "pending"}):
-        from routers import kiosk
         needs = flags.is_enabled("lark_handoff") and "pending" == "pending"
         assert needs is False

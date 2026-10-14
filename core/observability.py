@@ -34,7 +34,7 @@ def resolve_release() -> str:
     try:
         import subprocess
         return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL, timeout=2
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL, timeout=2  # noqa: S607 — cadangan saat dev saja; di VPS RELEASE diisi script deploy, argumen tetap tanpa input pengguna
         ).decode().strip()
     except Exception:
         return "unknown"

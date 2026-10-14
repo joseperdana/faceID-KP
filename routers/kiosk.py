@@ -76,7 +76,7 @@ class CheckinTrace:
             level = logging.ERROR if outcome == "error" else logging.INFO
             log_event(self._logger, level, self._event, **payload)
             set_tag(self._outcome_tag, outcome)
-        except Exception:
+        except Exception:  # noqa: S110 — jejak observability gagal tidak boleh menggagalkan check-in
             pass
 
 
@@ -187,7 +187,7 @@ async def _recognize_face(trace: CheckinTrace, file: UploadFile, lat: Optional[f
         # HTTPException tidak dilaporkan otomatis oleh integrasi Sentry, jadi
         # kegagalan model harus dilaporkan eksplisit sebelum di-raise.
         capture_error(e, where="kiosk.face_embedding")
-        raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}") from e
 
     if hasattr(query_vector, 'tolist'):
         query_vector = query_vector.tolist()
@@ -303,7 +303,7 @@ async def _recognize_face(trace: CheckinTrace, file: UploadFile, lat: Optional[f
                 }
             }
         capture_error(e, where="kiosk.recognize_face.insert_log", user_id=user_id)
-        raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}")
+        raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi: {err_str}") from e
 
     trace.finish("success")
 
@@ -435,7 +435,7 @@ async def _manual_checkin(trace: CheckinTrace, user_id: int, lat: Optional[float
                     }
                 }
             capture_error(e, where="kiosk.manual_checkin.insert_log", user_id=user_id)
-            raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}")
+            raise HTTPException(status_code=500, detail=f"Gagal menyimpan absensi manual: {err_str}") from e
 
         trace.finish("success")
         return {
