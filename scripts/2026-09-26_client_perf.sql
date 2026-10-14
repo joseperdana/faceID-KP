@@ -71,22 +71,17 @@ comment on table client_perf is
 create index if not exists client_perf_created_at_idx on client_perf (created_at);
 create index if not exists client_perf_device_created_at_idx on client_perf (device, created_at);
 
--- RLS: server memakai kunci anon, dan kunci itu hanya hidup di VPS — tidak
--- pernah dikirim ke peramban jemaat. Alasannya sama dengan
--- scripts/2026-09-18_feature_flags_rls.sql: tanpa policy, PostgREST diam-diam
--- menolak insert/select. Tidak ada policy update/delete: data ini hanya
--- ditambah; pembersihan dilakukan manual dari SQL Editor (lihat retensi di bawah).
+-- RLS menyala TANPA policy: anon dan publishable key tidak bisa membaca
+-- maupun menulis apa pun di tabel ini. Server memakai secret key
+-- (lihat scripts/2026-10-15_rls_lockdown.sql), yang melewati RLS.
+--
+-- Versi awal skrip ini membuka insert/select untuk anon dengan alasan "kunci
+-- anon hanya hidup di VPS". Alasan itu gugur: kunci anon lama ikut bocor di
+-- riwayat git repo publik (commit c3b7558d, Februari 2026). Tabel baru tidak
+-- boleh mengulang pola itu.
 alter table client_perf enable row level security;
-
 drop policy if exists client_perf_insert on client_perf;
-create policy client_perf_insert
-  on client_perf for insert
-  with check (true);
-
 drop policy if exists client_perf_read on client_perf;
-create policy client_perf_read
-  on client_perf for select
-  using (true);
 
 -- ---------------------------------------------------------------------------
 -- Contoh query: p75 LCP dan long task per perangkat, Sabtu terakhir

@@ -1,3 +1,7 @@
+-- DIGANTIKAN oleh scripts/2026-10-15_attendance_method_column.sql. Skrip ini
+-- mengira kolom `method` sudah ada, padahal di produksi kolom itu tidak pernah
+-- dibuat. Jangan dijalankan; disimpan sebagai jejak.
+--
 -- Nilai ketiga untuk attendance_logs.method: 'registration'.
 --
 -- Kehadiran dari pendaftaran anggota baru dulu disimpan tanpa `method` sama
