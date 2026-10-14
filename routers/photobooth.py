@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import base64
 import socket
@@ -100,14 +101,22 @@ def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto):
         capture_error(e, where="photobooth.upload_strip", frame=payload.frame)
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+# Bentuk ID yang dibuat upload_strip: uuid4().hex[:8]. Apa pun selain itu tidak
+# pernah ada, jadi ditolak sebelum dipakai menyusun path atau disisipkan ke HTML
+# (CodeQL: py/path-injection, py/reflective-xss).
+PHOTO_ID_RE = re.compile(r"[0-9a-f]{8}")
+
+
 @router.get("/p/{photo_id}", response_class=HTMLResponse)
 def view_photobooth_photo(photo_id: str):
+    if not PHOTO_ID_RE.fullmatch(photo_id):
+        photo_id = ""
     filename = f"{photo_id}.jpg"
     file_path = UPLOAD_DIR / filename
     gif_filename = f"{photo_id}.gif"
     gif_path = UPLOAD_DIR / gif_filename
     
-    if not file_path.exists():
+    if not photo_id or not file_path.exists():
         return HTMLResponse(
             status_code=404,
             content="""
