@@ -1,0 +1,36 @@
+# Konfigurasi gitleaks (pemindai secret) untuk job `secrets` di
+# .github/workflows/security.yml. Dipakai juga kalau gitleaks dijalankan
+# manual dari root repo.
+#
+# Prinsip: aturan bawaan gitleaks dipakai utuh. Pengecualian hanya untuk
+# nilai yang PASTI palsu, dikunci ke file DAN teks persisnya — bukan ke
+# seluruh file atau seluruh aturan. Secret asli yang kebetulan ditaruh di
+# file yang sama tetap tertangkap.
+
+# Format [[allowlists]] butuh gitleaks baru; versi ini yang diuji dan
+# disematkan di workflow (GITLEAKS_VERSION).
+minVersion = "8.30.1"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Nilai cadangan palsu untuk CI di qa.yml (dipakai saat secret repo kosong, mis. PR dari fork)"
+# AND: harus di qa.yml SEKALIGUS nilainya salah satu nilai palsu di bawah.
+condition = "AND"
+# Wajib dibatasi ke aturan tertentu. Tanpa targetRules, gitleaks 8.30.1
+# memperlakukan `paths` sebagai pengecualian seluruh file (terukur: token
+# berformat GitHub yang ditaruh di qa.yml ikut lolos). Dengan targetRules,
+# pengecualian dinilai per temuan dan kondisi AND benar-benar berlaku.
+targetRules = ["generic-api-key"]
+# Diawali (^|/) agar cocok baik di mode git (path relatif) maupun saat
+# memindai folder (path absolut).
+paths = ['''(^|/)\.github/workflows/qa\.yml$''']
+# Dicocokkan ke nilai secret yang ditemukan (bawaan gitleaks), dan harus sama
+# persis dari awal sampai akhir (^...$). Nilai lain di qa.yml tetap tertangkap.
+regexes = [
+    '''^fake-key-for-testing$''',
+    '''^admin123$''',
+    '''^test-secret-key-123456789$''',
+    '''^test-jwt-secret-123456789$''',
+]

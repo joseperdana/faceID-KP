@@ -1,0 +1,34 @@
+# Dependabot: PR otomatis untuk memperbarui dependensi.
+#
+# Jadwal di bawah hanya untuk pembaruan RUTIN. Pembaruan KEAMANAN (saat ada
+# CVE di paket yang dipakai) datang sendiri begitu Dependabot alerts dan
+# security updates aktif di Settings repo — tidak menunggu jadwal bulanan ini
+# dan tidak dihitung dalam open-pull-requests-limit.
+version: 2
+updates:
+  # Versi action di .github/workflows/*.yml (checkout, setup-python,
+  # gitleaks-action, ...). Action lama lama-lama berhenti didukung runner.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # Satu PR berisi semua pembaruan action, bukan satu PR per action.
+      actions:
+        patterns: ['*']
+
+  # Paket Python di requirements.txt.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    # Pengembang tunggal: lebih dari 3 PR terbuka sekaligus cenderung
+    # diabaikan semuanya.
+    open-pull-requests-limit: 3
+    groups:
+      # Minor/patch digabung jadi satu PR yang diuji qa.yml sekaligus.
+      # Major (mis. FastAPI 1.x, numpy 3.x) tetap PR terpisah karena
+      # bisa mengubah perilaku dan perlu dicoba manual.
+      pip-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
