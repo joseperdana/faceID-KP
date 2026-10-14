@@ -1,9 +1,17 @@
+import os
 import re
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+from urllib.parse import urlsplit
+
 import pytest
 from playwright.sync_api import Page, BrowserContext, expect
 from core.security import create_access_token, COOKIE_NAME
 
-BASE_URL = "http://127.0.0.1:8000"
+# Bisa diarahkan ke port lain saat menjalankan E2E di laptop yang port 8000-nya
+# sedang dipakai server pengembangan.
+BASE_URL = os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000")
 
 
 def butuh_fitur(page: Page, key: str):
@@ -233,8 +241,100 @@ def test_protected_routes_redirect_to_login(page: Page):
     page.goto(f"{BASE_URL}/dashboard")
     expect(page).to_have_url(f"{BASE_URL}/login")
 
+# --- Data dashboard tanpa database sungguhan ---------------------------------
+# CI tidak punya Supabase (kredensialnya palsu), jadi semua endpoint data
+# dashboard membalas 500 dan tes ini tidak pernah bisa hijau di sana. Mengarahkan
+# CI ke database produksi bukan pilihan: tes jangan pernah menyentuh data jemaat.
+#
+# Jawaban API di sini TIDAK ditulis tangan. Request dari browser diteruskan ke
+# handler FastAPI yang asli, dijalankan di proses tes dengan DBService diganti
+# data contoh. Jadi bentuk JSON-nya selalu sama dengan yang dihasilkan kode
+# produksi (lihat pelajaran #2 di tasks/lessons.md), sementara HTML dan JS
+# dashboard tetap datang dari server sungguhan.
+
+DASHBOARD_DATA_ROUTES = (
+    "**/api/dashboard-stats",
+    "**/api/users",
+    "**/api/users/*/history",
+    "**/api/analytics*",
+    "**/api/all-logs",
+    "**/api/attendance/date/*",
+)
+
+
+def _sample_db():
+    now = datetime.now(timezone.utc)
+    iso = lambda days=0, hours=0: (now - timedelta(days=days, hours=hours)).isoformat()
+    people = [
+        {"id": 1, "full_name": "Contoh Satu", "gender": "Pria", "phone_number": "081200000001"},
+        {"id": 2, "full_name": "Contoh Dua", "gender": "Wanita", "phone_number": "081200000002"},
+        {"id": 3, "full_name": "Contoh Tiga", "gender": "Wanita", "phone_number": "081200000003"},
+    ]
+    users = [{**p, "created_at": iso(days=40 - p["id"]), "is_deleted": False,
+              "lark_status": "linked", "attendance_logs": [{"count": 4 - p["id"]}]} for p in people]
+    new_today = [{**people[2], "created_at": iso(hours=1)}]
+    logs = [
+        {"id": 10 + i, "timestamp": iso(days=d, hours=h), "status": "Hadir", "user_id": p["id"],
+         "users": {"full_name": p["full_name"], "gender": p["gender"], "phone_number": p["phone_number"]}}
+        for i, (p, d, h) in enumerate([(people[0], 0, 1), (people[1], 0, 2), (people[0], 7, 1), (people[2], 14, 1)])
+    ]
+    return {
+        "get_users_with_count": lambda *a, **k: len(users),
+        "get_all_users": lambda *a, **k: users,
+        "get_users_by_gender": lambda *a, **k: [{"gender": u["gender"]} for u in users],
+        "get_new_users_today": lambda *a, **k: new_today,
+        "get_logs_from_date": lambda *a, **k: logs,
+        "get_logs_desc": lambda *a, **k: logs,
+        "get_recent_logs": lambda *a, **k: logs,
+        "get_all_logs_with_users": lambda *a, **k: logs,
+        "get_all_logs_from_date_paginated": lambda *a, **k: [
+            {"timestamp": l["timestamp"], "user_id": l["user_id"]} for l in logs],
+        "get_users_last_seen": lambda *a, **k: [
+            {**p, "attendance_logs": [{"timestamp": l["timestamp"]} for l in logs if l["user_id"] == p["id"]]}
+            for p in people],
+        "get_user_history": lambda *a, **k: [{"timestamp": l["timestamp"], "status": l["status"]} for l in logs[:2]],
+    }
+
+
+@contextmanager
+def dashboard_api_from_real_handlers(context: BrowserContext):
+    from fastapi.testclient import TestClient
+    from main import app
+
+    with patch.multiple("services.db_service.DBService", **_sample_db()):
+        client = TestClient(app)
+
+        def forward(route):
+            req = route.request
+            url = urlsplit(req.url)
+            target = url.path + (f"?{url.query}" if url.query else "")
+            resp = client.request(
+                req.method, target,
+                headers={"cookie": req.headers.get("cookie", "")},
+                content=req.post_data_buffer,
+            )
+            route.fulfill(
+                status=resp.status_code,
+                headers={"content-type": resp.headers.get("content-type", "application/json")},
+                body=resp.content,
+            )
+
+        for pattern in DASHBOARD_DATA_ROUTES:
+            context.route(pattern, forward)
+        try:
+            yield
+        finally:
+            for pattern in DASHBOARD_DATA_ROUTES:
+                context.unroute(pattern)
+
+
 def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: BrowserContext):
-    """E2E Test ensuring dashboard loads all live data, stats, graphs, and handles tabs with 0 console errors."""
+    """Dashboard memuat statistik, grafik, dan tab tanpa satu pun error konsol."""
+    with dashboard_api_from_real_handlers(context):
+        _run_dashboard_lifecycle(page, context)
+
+
+def _run_dashboard_lifecycle(page: Page, context: BrowserContext):
     console_errors = []
     page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
 
@@ -260,6 +360,8 @@ def test_admin_dashboard_full_lifecycle_and_data_loading(page: Page, context: Br
     stat_new = page.locator("#stat-new-today").inner_text()
 
     assert stat_total != "", "stat-total-users should not be empty"
+    # Bukti data benar-benar mengalir dari handler asli: _sample_db berisi 3 anggota.
+    assert re.sub(r"\D", "", stat_total) == "3", f"stat-total-users = {stat_total!r}"
     assert stat_present != "", "stat-present-today should not be empty"
     assert stat_new != "", "stat-new-today should not be empty"
 

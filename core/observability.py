@@ -12,6 +12,11 @@ kegagalan observability tidak boleh menjatuhkan request absensi.
 """
 
 import os
+import threading
+import time
+from contextlib import contextmanager
+from typing import Dict, Iterator, Tuple
+
 import sentry_sdk
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -74,3 +79,80 @@ def capture_event(message: str, *, where: str, level: str = "warning", **context
             sentry_sdk.capture_message(message, level=level)
     except Exception:
         pass
+
+
+def set_request_tags(request_id: str, device: str) -> None:
+    """Tandai scope request ini supaya event Sentry bisa dicocokkan ke baris log.
+
+    Tag dipasang di isolation scope (satu per request di integrasi ASGI Sentry),
+    jadi ikut terbawa ke error maupun trace dari request yang sama.
+    """
+    try:
+        sentry_sdk.set_tag("request_id", request_id)
+        sentry_sdk.set_tag("device", device)
+    except Exception:
+        pass
+
+
+def set_tag(key: str, value: str) -> None:
+    try:
+        sentry_sdk.set_tag(key, value)
+    except Exception:
+        pass
+
+
+@contextmanager
+def safe_span(op: str, name: str) -> Iterator[None]:
+    """`sentry_sdk.start_span` yang tidak bisa menjatuhkan request.
+
+    Kegagalan membuka atau menutup span ditelan; exception dari kode di dalam
+    blok tetap naik apa adanya.
+    """
+    span = None
+    try:
+        span = sentry_sdk.start_span(op=op, name=name)
+        span.__enter__()
+    except Exception:
+        span = None
+    exc_info: Tuple = (None, None, None)
+    try:
+        yield
+    except BaseException as e:
+        exc_info = (type(e), e, e.__traceback__)
+        raise
+    finally:
+        if span is not None:
+            try:
+                span.__exit__(*exc_info)
+            except Exception:
+                pass
+
+
+# key -> (waktu kirim terakhir, jumlah yang ditahan sejak itu). Per proses: dengan
+# 2 worker gunicorn, batas efektifnya dua event per jendela.
+_throttle_lock = threading.Lock()
+_throttle_state: Dict[str, Tuple[float, int]] = {}
+
+
+def capture_event_throttled(
+    message: str, *, key: str, interval_s: float = 60.0, where: str, level: str = "warning", **context
+) -> bool:
+    """`capture_event` yang dibatasi maksimal sekali per `key` per `interval_s`.
+
+    Untuk kejadian yang datang bergelombang (429 saat 16 kiosk berebut jatah
+    rate limit): satu event sudah cukup menandai insiden, ratusan event hanya
+    menghabiskan kuota Sentry. Jumlah yang ditahan ikut dikirim di event
+    berikutnya supaya besarnya gelombang tetap terbaca. Log tetap mencatat semua.
+    """
+    try:
+        now = time.monotonic()
+        with _throttle_lock:
+            last_sent, suppressed = _throttle_state.get(key, (None, 0))
+            if last_sent is not None and now - last_sent < interval_s:
+                _throttle_state[key] = (last_sent, suppressed + 1)
+                return False
+            _throttle_state[key] = (now, 0)
+        capture_event(message, where=where, level=level, suppressed_since_last=suppressed, **context)
+        return True
+    except Exception:
+        return False

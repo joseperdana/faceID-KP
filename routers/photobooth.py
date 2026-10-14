@@ -12,6 +12,10 @@ from core.observability import capture_error
 
 router = APIRouter(tags=["photobooth"])
 
+# Sengaja `def`: decode base64 dan menulis file ber-MB ke disk sama-sama
+# sinkron. FastAPI menjalankannya di threadpool; sebagai `async def` ia
+# membekukan event loop seluruh proses (lihat routers/users.py).
+
 UPLOAD_DIR = Path("frontend/uploads/photobooth")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -38,7 +42,7 @@ def get_lan_ip() -> str:
         return "http://localhost:8000"
 
 @router.post("/api/photobooth/upload")
-async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto):
+def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto):
     try:
         raw_data = payload.image
         if "," in raw_data:
@@ -97,7 +101,7 @@ async def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.get("/p/{photo_id}", response_class=HTMLResponse)
-async def view_photobooth_photo(photo_id: str):
+def view_photobooth_photo(photo_id: str):
     filename = f"{photo_id}.jpg"
     file_path = UPLOAD_DIR / filename
     gif_filename = f"{photo_id}.gif"

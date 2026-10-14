@@ -126,13 +126,22 @@ form.addEventListener('submit', async (e) => {
         formData.append('phone_number', document.getElementById('phone_number').value);
     }
 
+    // Tiap frame dikecilkan ke sisi terpanjang 960px, JPEG 0.85. Server
+    // mendeteksi wajah di 640px lalu meluruskannya ke 112x112, jadi piksel di
+    // atas itu hanya menambah waktu unggah lewat seluler dan waktu decode di
+    // server — tiga kali per pendaftaran, di 16 HP sekaligus saat Gibbor.
+    const UPLOAD_MAX_SIDE = 960;
+    const UPLOAD_JPEG_QUALITY = 0.85;
     const captureFrame = () => {
         return new Promise((resolve) => {
+            const w = videoElement.videoWidth;
+            const h = videoElement.videoHeight;
+            const scale = Math.min(1, UPLOAD_MAX_SIDE / Math.max(w, h));
             const captureCanvas = document.createElement('canvas');
-            captureCanvas.width = videoElement.videoWidth;
-            captureCanvas.height = videoElement.videoHeight;
-            captureCanvas.getContext('2d').drawImage(videoElement, 0, 0);
-            captureCanvas.toBlob(resolve, 'image/jpeg', 0.95);
+            captureCanvas.width = Math.round(w * scale);
+            captureCanvas.height = Math.round(h * scale);
+            captureCanvas.getContext('2d').drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
+            captureCanvas.toBlob(resolve, 'image/jpeg', UPLOAD_JPEG_QUALITY);
         });
     };
 

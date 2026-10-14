@@ -7,8 +7,12 @@ from core.observability import capture_error
 
 router = APIRouter(prefix="/api", tags=["attendance"], dependencies=[Depends(check_admin_auth)])
 
+# Sengaja `def`: query DBService sinkron. FastAPI menjalankannya di threadpool;
+# sebagai `async def` ia membekukan event loop seluruh proses (lihat
+# routers/users.py).
+
 @router.get("/attendance/date/{target_date}")
-async def get_attendance_by_date(target_date: str):
+def get_attendance_by_date(target_date: str):
     try:
         wib_tz = timezone(timedelta(hours=7))
         start_wib = datetime.strptime(f"{target_date} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib_tz)
@@ -24,7 +28,7 @@ async def get_attendance_by_date(target_date: str):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.delete("/logs/{log_id}")
-async def delete_log(log_id: int):
+def delete_log(log_id: int):
     try:
         DBService.delete_log(log_id)
         return {"status": "success"}
@@ -33,7 +37,7 @@ async def delete_log(log_id: int):
         return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
 
 @router.get("/all-logs")
-async def get_all_logs():
+def get_all_logs():
     try:
         res = DBService.get_all_logs_with_users()
         return {"status": "success", "data": res}

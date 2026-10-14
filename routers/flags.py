@@ -8,13 +8,17 @@ from core.observability import capture_error, capture_event
 
 router = APIRouter(prefix="/api/flags", tags=["flags"])
 
+# Sengaja `def`: tabel feature_flags dibaca/ditulis lewat supabase-py yang
+# sinkron. FastAPI menjalankannya di threadpool; sebagai `async def` ia
+# membekukan event loop seluruh proses (lihat routers/users.py).
+
 
 class ToggleDto(BaseModel):
     enabled: bool
 
 
 @router.get("")
-async def public_flags():
+def public_flags():
     """Dibaca kiosk untuk menyembunyikan tombol fitur yang sedang mati.
 
     Tanpa auth: isinya hanya keadaan tampilan, dan kiosk memang halaman publik.
@@ -30,12 +34,12 @@ async def public_flags():
 
 
 @router.get("/detail", dependencies=[Depends(check_admin_auth)])
-async def flag_detail():
+def flag_detail():
     return {"status": "success", "data": flags.describe()}
 
 
 @router.put("/{key}", dependencies=[Depends(check_admin_auth)])
-async def toggle_flag(key: str, body: ToggleDto):
+def toggle_flag(key: str, body: ToggleDto):
     try:
         value = flags.set_flag(key, body.enabled)
         capture_event(

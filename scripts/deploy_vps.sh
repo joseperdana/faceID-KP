@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
-set -e
+# PEMASANGAN AWAL di VPS Ubuntu yang MASIH KOSONG. Bukan untuk memperbarui.
+#
+# Skrip ini menulis ulang unit systemd dan konfigurasi Nginx dengan versi HTTP
+# polos. Di server yang sudah berjalan, itu mematikan HTTPS — dan tanpa HTTPS
+# peramban menolak akses kamera, jadi semua kiosk mati. Untuk memperbarui kode
+# di server yang sudah hidup, pakai scripts/remote_update.sh.
+#
+# Isinya disamakan dengan produksi per September 2026: SATU proses uvicorn di
+# $HOME/faceID-KP. Bukan gunicorn dengan 2 worker: server KP hanya 1 vCPU, dan
+# worker kedua berarti salinan model wajah kedua (~1 GB RAM) tanpa tambahan
+# prosesor. Penyebab macet saat Gibbor bukan kurang worker, melainkan event
+# loop yang terblokir (lihat docs/v3/postmortem-gibbor-2026.md).
+set -euo pipefail
 
-echo "🚀 Starting Production Deployment for FaceID-KP..."
+if [ -f /etc/systemd/system/faceid.service ] || [ -f /etc/nginx/sites-available/faceid ]; then
+    echo "Server ini sudah terpasang (unit faceid atau site Nginx faceid sudah ada)."
+    echo "Skrip ini hanya untuk server kosong dan akan menimpa konfigurasi HTTPS."
+    echo "Untuk memperbarui kode: scripts/remote_update.sh"
+    exit 1
+fi
+
+PROJECT_DIR="${PROJECT_DIR:-$HOME/faceID-KP}"
+RUN_USER="$(id -un)"
+
+echo "Memasang FaceID-KP di $PROJECT_DIR sebagai pengguna $RUN_USER..."
 
 # 1. Update system packages
 echo "📦 Updating system packages..."
@@ -21,11 +43,8 @@ else
 fi
 
 # 3. Setup Project Directory
-PROJECT_DIR="/var/www/faceID-KP"
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "📂 Cloning repository to $PROJECT_DIR..."
-    sudo mkdir -p /var/www
-    sudo chown -R $USER:$USER /var/www
     git clone https://github.com/joseperdana/faceID-KP.git "$PROJECT_DIR"
 fi
 
@@ -45,7 +64,6 @@ echo "📦 Installing Python dependencies..."
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install gunicorn uvicorn[standard]
 
 # 5. Setup Systemd Service
 echo "⚙️ Configuring systemd service (faceid.service)..."
@@ -55,10 +73,10 @@ Description=FaceID KP Attendance & Photobooth Service
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/var/www/faceID-KP
-Environment=\"PATH=/var/www/faceID-KP/venv/bin\"
-ExecStart=/var/www/faceID-KP/venv/bin/gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000 --access-logfile - --error-logfile -
+User=$RUN_USER
+WorkingDirectory=$PROJECT_DIR
+Environment=\"PATH=$PROJECT_DIR/venv/bin\"
+ExecStart=$PROJECT_DIR/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
 
@@ -102,3 +120,9 @@ echo "✅ Nginx reverse proxy reloaded!"
 echo ""
 echo "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!"
 echo "📍 App is live at: http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip')"
+echo ""
+echo "Langkah wajib berikutnya: pasang HTTPS. Tanpa HTTPS peramban menolak kamera."
+echo "  sudo apt install -y certbot python3-certbot-nginx"
+echo "  sudo certbot --nginx -d <domain-anda>"
+echo "Lalu: journald (scripts/ops/journald-retention.conf) dan pemantau uptime"
+echo "(docs/v3/runbooks/uptime-monitoring.md)."

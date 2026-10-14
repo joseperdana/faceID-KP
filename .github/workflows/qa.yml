@@ -26,7 +26,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          # Sama dengan server produksi (venv di VPS memakai Python 3.12).
+          # Tes yang hijau di versi lain belum tentu berperilaku sama di sana.
+          python-version-file: '.python-version'
           cache: 'pip'
 
       - name: Install Dependencies
@@ -49,11 +51,16 @@ jobs:
         run: |
           python -m uvicorn main:app --port 8000 &
           SERVER_PID=$!
-          # Tunggu /health benar-benar hijau, bukan menebak dengan sleep.
+          # Tunggu server benar-benar siap, bukan menebak dengan sleep.
           # Memuat model InsightFace bisa jauh lebih lama dari 4 detik di runner,
           # dan `sleep` membuat E2E gagal secara acak tanpa sebab yang jelas.
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1; then
+            # Siap = proses menjawab DAN model wajah termuat. Status database
+            # sengaja tidak ikut: CI memakai kredensial Supabase palsu, jadi
+            # /health selalu 503 "degraded" di sini. Menunggu 200 membuat
+            # langkah ini gagal di setiap run sejak dibuat, dan E2E tidak
+            # pernah benar-benar dijalankan.
+            if curl -sS http://127.0.0.1:8000/health 2>/dev/null | grep -q '"face_model":"loaded"'; then
               echo "Server siap setelah ${i} detik:"
               curl -sS http://127.0.0.1:8000/health
               break
