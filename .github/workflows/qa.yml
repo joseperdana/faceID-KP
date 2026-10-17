@@ -8,6 +8,13 @@ on:
   pull_request:
     branches: [ dev, staging, main ]
 
+# Token GitHub bawaan hanya boleh membaca isi repo. Tidak ada job di sini yang
+# perlu menulis apa pun ke GitHub; deploy ke VPS memakai kunci SSH sendiri.
+# Tanpa baris ini token mewarisi hak bawaan repo yang lebih luas
+# (CodeQL: actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

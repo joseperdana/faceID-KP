@@ -137,7 +137,7 @@ def generate_4k_quad_collection(
     })
 
     # Scene 2-5: Solo Fullscreen Scenes (Scale 2.0 to fill 3840x2160)
-    for idx, cam in enumerate(cams):
+    for cam in cams:
         scene_uuid = make_uuid()
         scenes.append({
             "name": f"Solo - {cam['name']}",

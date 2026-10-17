@@ -1,6 +1,5 @@
 import json
 import uuid
-import os
 from pathlib import Path
 
 def make_uuid():
@@ -99,7 +98,7 @@ def generate_4cam_scene_collection(
     scenes = []
 
     # Scene A: 4 Solo Scenes
-    for idx, cam in enumerate(cams):
+    for cam in cams:
         scene_uuid = make_uuid()
         scenes.append({
             "name": f"Solo - {cam['name']}",

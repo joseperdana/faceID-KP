@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import base64
 import socket
@@ -100,40 +101,46 @@ def upload_photobooth_strip(request: Request, payload: PhotoboothUploadDto):
         capture_error(e, where="photobooth.upload_strip", frame=payload.frame)
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+# Bentuk ID yang dibuat upload_strip: uuid4().hex[:8]. Apa pun selain itu tidak
+# pernah ada, jadi ditolak sebelum dipakai menyusun path atau disisipkan ke HTML
+# (CodeQL: py/path-injection, py/reflective-xss).
+PHOTO_ID_RE = re.compile(r"[0-9a-f]{8}")
+
+
+def _photo_file(photo_id: str, ext: str) -> Optional[Path]:
+    """Path berkas foto, atau None bila ID tidak sah atau keluar dari UPLOAD_DIR.
+
+    Regex saja sudah cukup secara logika, tapi pemeriksaan kedua — normalisasi
+    path lalu memastikan hasilnya tetap di dalam folder upload — adalah pola
+    yang dikenali CodeQL sebagai pembersih, dan menjaga dari perubahan regex di
+    kemudian hari.
+    """
+    if not PHOTO_ID_RE.fullmatch(photo_id):
+        return None
+    base = os.path.realpath(UPLOAD_DIR)
+    candidate = os.path.realpath(os.path.join(base, photo_id + ext))
+    if not candidate.startswith(base + os.sep):
+        return None
+    return Path(candidate)
+
+
 @router.get("/p/{photo_id}", response_class=HTMLResponse)
 def view_photobooth_photo(photo_id: str):
-    filename = f"{photo_id}.jpg"
-    file_path = UPLOAD_DIR / filename
+    file_path = _photo_file(photo_id, ".jpg")
+    if file_path is None or not file_path.exists():
+        return _photo_not_found()
+
+    # Dari sini ID diambil dari nama berkas yang sudah tervalidasi, bukan lagi
+    # dari URL.
+    photo_id = file_path.stem
+    filename = file_path.name
+    gif_path = _photo_file(photo_id, ".gif")
     gif_filename = f"{photo_id}.gif"
-    gif_path = UPLOAD_DIR / gif_filename
-    
-    if not file_path.exists():
-        return HTMLResponse(
-            status_code=404,
-            content="""
-            <!DOCTYPE html>
-            <html lang="id">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Foto Tidak Ditemukan — KP Bromo</title>
-                <script src="https://cdn.tailwindcss.com"></script>
-            </head>
-            <body class="bg-[#fff8f1] text-[#211b0b] min-h-screen flex items-center justify-center p-6 text-center">
-                <div class="max-w-md bg-white p-8 rounded-3xl border-[3px] border-[#1d3557] shadow-[4px_4px_0px_#1d3557]">
-                    <h1 class="text-xl font-bold text-[#b7102a] mb-2">Foto Tidak Ditemukan</h1>
-                    <p class="text-sm text-slate-600 mb-6">Foto mungkin sudah kedaluwarsa atau tautan salah.</p>
-                    <a href="/photobooth" class="inline-block px-6 py-2.5 bg-[#b7102a] hover:bg-[#e63946] rounded-full text-xs font-bold text-white shadow-[2px_2px_0px_#1d3557] border-2 border-[#1d3557]">Buka Photobooth</a>
-                </div>
-            </body>
-            </html>
-            """
-        )
 
     image_src = f"/static/uploads/photobooth/{filename}"
-    has_gif = gif_path.exists()
+    has_gif = gif_path is not None and gif_path.exists()
     gif_src = f"/static/uploads/photobooth/{gif_filename}" if has_gif else ""
-    
+
     return HTMLResponse(
         content=f"""<!DOCTYPE html>
 <html lang="id">
@@ -277,4 +284,28 @@ def view_photobooth_photo(photo_id: str):
 </body>
 </html>
         """
+    )
+
+
+def _photo_not_found() -> HTMLResponse:
+    return HTMLResponse(
+        status_code=404,
+        content="""
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Foto Tidak Ditemukan — KP Bromo</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="bg-[#fff8f1] text-[#211b0b] min-h-screen flex items-center justify-center p-6 text-center">
+                <div class="max-w-md bg-white p-8 rounded-3xl border-[3px] border-[#1d3557] shadow-[4px_4px_0px_#1d3557]">
+                    <h1 class="text-xl font-bold text-[#b7102a] mb-2">Foto Tidak Ditemukan</h1>
+                    <p class="text-sm text-slate-600 mb-6">Foto mungkin sudah kedaluwarsa atau tautan salah.</p>
+                    <a href="/photobooth" class="inline-block px-6 py-2.5 bg-[#b7102a] hover:bg-[#e63946] rounded-full text-xs font-bold text-white shadow-[2px_2px_0px_#1d3557] border-2 border-[#1d3557]">Buka Photobooth</a>
+                </div>
+            </body>
+            </html>
+            """
     )

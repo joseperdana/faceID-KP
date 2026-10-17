@@ -4,6 +4,7 @@ OBS Director CLI & Automation Script for KPBromo Multi-Camera Setup.
 Controls OBS Studio via OBS WebSocket v5 protocol.
 """
 
+import os
 import sys
 import time
 import argparse
@@ -11,7 +12,12 @@ import obsws_python as obs
 
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 4455
-DEFAULT_PASS = "Nss3uVFS8VlhhfgD"
+# Password dibaca dari env, bukan ditulis di kode. Nilai lama pernah ter-commit
+# di repo publik ini, jadi sudah bocor: ganti password WebSocket di OBS
+# (Tools -> WebSocket Server Settings), lalu `export OBS_WS_PASSWORD=...` di
+# shell sebelum menjalankan skrip ini (skrip ini tidak membaca .env).
+# Jangan kembalikan nilai apa pun ke sini.
+DEFAULT_PASS = os.getenv("OBS_WS_PASSWORD", "")
 
 def get_client(host=DEFAULT_HOST, port=DEFAULT_PORT, password=DEFAULT_PASS):
     try:
@@ -22,7 +28,8 @@ def get_client(host=DEFAULT_HOST, port=DEFAULT_PORT, password=DEFAULT_PASS):
         print("\n💡 Pastikan:")
         print("   1. OBS Studio sedang terbuka di Mac.")
         print("   2. WebSocket Server aktif di OBS: Menu 'Tools' -> 'WebSocket Server Settings' -> Centang 'Enable WebSocket server'.")
-        print(f"   3. Server Port: {port}, Password: {password}")
+        # Password sengaja tidak dicetak: keluaran terminal sering ikut di-screenshot.
+        print(f"   3. Server Port: {port}, password sama dengan yang diisi di OBS_WS_PASSWORD.")
         sys.exit(1)
 
 def list_scenes(client):
@@ -84,7 +91,8 @@ def main():
     parser = argparse.ArgumentParser(description="OBS Studio Controller for 4-Cam VDO.Ninja Setup")
     parser.add_argument("--host", default=DEFAULT_HOST, help="OBS WebSocket host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="OBS WebSocket port")
-    parser.add_argument("--password", default=DEFAULT_PASS, help="OBS WebSocket password")
+    parser.add_argument("--password", default=DEFAULT_PASS,
+                        help="OBS WebSocket password (bawaan: env OBS_WS_PASSWORD)")
     
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
@@ -106,6 +114,12 @@ def main():
         parser.print_help()
         sys.exit(0)
         
+    if not args.password:
+        print("OBS_WS_PASSWORD belum diisi.")
+        print("   Jalankan dulu: export OBS_WS_PASSWORD=...  (atau pakai --password).")
+        print("   Password ada di OBS: Tools -> WebSocket Server Settings -> Show Connect Info.")
+        sys.exit(1)
+
     client = get_client(args.host, args.port, args.password)
     
     if args.command == "list":

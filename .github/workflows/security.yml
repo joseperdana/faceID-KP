@@ -1,0 +1,88 @@
+name: Security & Lint
+
+# Gerbang cepat di SETIAP push dan PR, terpisah dari qa.yml yang berat
+# (install InsightFace, Playwright). Dua job ini tidak memasang
+# requirements.txt sama sekali, jadi selesai dalam hitungan detik dan
+# memberi sinyal sebelum tes panjang selesai.
+on:
+  push:
+    # Semua cabang, tapi bukan tag: push tag tidak membawa commit baru.
+    branches: ['**']
+  pull_request:
+  # SENGAJA tanpa workflow_dispatch/schedule: pada dua event itu
+  # gitleaks-action memindai SELURUH riwayat git, dan riwayat repo ini masih
+  # memuat .env yang bocor Feb 2026 (kredensialnya sudah dirotasi). Job
+  # secrets akan merah selamanya tanpa ada yang bisa diperbaiki di kode.
+
+# Token bawaan hanya bisa membaca, kecuali job yang memang perlu lebih.
+permissions:
+  contents: read
+
+# Push beruntun ke cabang yang sama: hasil run lama tidak berguna lagi.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Ruff (bug & keamanan Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          # Sama dengan VPS dan qa.yml.
+          python-version-file: '.python-version'
+
+      - name: Pasang ruff
+        # Versi dikunci: rilis ruff baru kadang menambah aturan, dan CI tidak
+        # boleh merah hanya karena alatnya berubah. Naikkan versi dengan sadar
+        # setelah `ruff check .` hijau di laptop.
+        run: pip install ruff==0.16.9
+
+      - name: ruff check
+        # Aturan dan pengecualian ada di ruff.toml.
+        # Format github: temuan muncul sebagai anotasi di baris kode pada PR.
+        run: ruff check . --output-format=github
+
+  secrets:
+    name: Gitleaks (secret di commit baru)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Untuk komentar di baris PR yang memuat temuan.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Riwayat lengkap diperlukan agar rentang commit yang dipindai
+          # (commit pertama^..terakhir dari push/PR) ada di runner. Ini hanya
+          # soal apa yang DIUNDUH; yang DIPINDAI tetap commit baru saja:
+          #   push         -> commit di push itu (--log-opts first^..last, atau -1)
+          #   pull_request -> commit milik PR (diambil lewat API GitHub)
+          # Push tanpa commit baru (mis. membuat cabang dari main) dilewati.
+          # Catatan: riwayat lama memuat venv Windows yang pernah ter-commit
+          # (~250 MB), jadi checkout ini beberapa detik lebih lama dari biasa.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          # GITHUB_TOKEN dipakai untuk membaca daftar commit PR dan menulis
+          # komentar. GITLEAKS_LICENSE tidak diperlukan: README action
+          # menyatakan repo milik akun pribadi tidak butuh license key
+          # (yang wajib hanya repo milik organisasi). Kalau repo ini pindah
+          # ke organisasi GitHub, job ini akan gagal sampai license diisi.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Dikunci ke versi yang diuji bersama .gitleaks.toml (format
+          # [[allowlists]] butuh versi baru; bawaan action lebih lama).
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Ringkasan di halaman run sudah cukup. Laporan SARIF sebagai
+          # artifact tidak perlu disebar di repo publik.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'

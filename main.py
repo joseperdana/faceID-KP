@@ -95,7 +95,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             device=device,
             limit=limit,
         )
-    except Exception:
+    except Exception:  # noqa: S110 — laporan Sentry hanya pelengkap; respons 429 wajib tetap terkirim
         pass
     return response
 
@@ -150,7 +150,7 @@ class RequestLoggingMiddleware:
             device = sanitize_device(headers.get("x-kp-device"))
             tokens = bind_request_context(request_id, device)
             set_request_tags(request_id, device)
-        except Exception:
+        except Exception:  # noqa: S110 — header rusak tidak boleh menggagalkan request; jalan terus tanpa request id
             pass
 
         response_status = {"code": None}
@@ -164,7 +164,7 @@ class RequestLoggingMiddleware:
                         message["headers"] = list(message.get("headers", [])) + [
                             (b"x-request-id", request_id.encode("latin-1"))
                         ]
-                    except Exception:
+                    except Exception:  # noqa: S110 — x-request-id hanya bantuan debug; respons asli tetap dikirim
                         pass
             await send(message)
 
@@ -198,7 +198,7 @@ class RequestLoggingMiddleware:
                 duration_ms=round((time.perf_counter() - start) * 1000, 1),
                 client_ip=_client_ip(scope),
             )
-        except Exception:
+        except Exception:  # noqa: S110 — log akses gagal tidak boleh mengubah respons; mencatat di sini bisa gagal lagi
             pass
 
 
@@ -222,4 +222,4 @@ app.include_router(flags.router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # noqa: S104 — hanya untuk `python main.py` saat dev; produksi dijalankan systemd (scripts/deploy_vps.sh), bukan blok ini
