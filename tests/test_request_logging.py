@@ -288,6 +288,26 @@ def test_face_checkin_unknown_face(logs):
     [line] = logs.lines("kp.checkin")
     assert line["outcome"] == "unknown_face"
     assert "user_id" not in line
+    assert "nearest_similarity" not in line
+
+
+def test_face_checkin_below_threshold_logs_nearest_similarity(logs):
+    # Kandidat terdekat di bawah ambang: tetap ditolak, tapi angkanya tercatat.
+    with face_db(match=[{"id": 352, "full_name": "Budi", "similarity": 0.381}]):
+        response = _recognize()
+    assert response.json()["status"] == "unknown"
+    [line] = logs.lines("kp.checkin")
+    assert line["outcome"] == "unknown_face"
+    assert line["nearest_similarity"] == 0.381
+    assert line["nearest_user_id"] == 352
+    assert "user_id" not in line
+    assert "Budi" not in "\n".join(logs.raw)
+
+
+def test_face_checkin_asks_rpc_for_nearest_candidate():
+    with face_db() as _, patch("services.db_service.DBService.match_faces", return_value=list(MATCH)) as m:
+        _recognize()
+    assert m.call_args.kwargs["threshold"] == -1.0
 
 
 def test_face_checkin_no_face(logs):
@@ -358,3 +378,36 @@ def test_logging_failure_never_breaks_a_checkin():
     body = response.json()
     assert body["status"] == "success"
     assert body["data"]["method"] == "face"
+
+
+# --- kp.register: update-face -------------------------------------------------
+
+def _update_face(full_name):
+    return client.post(
+        "/api/update-face",
+        data={"full_name": full_name},
+        files=[("files", (f"f{i}.jpg", b"img", "image/jpeg")) for i in range(3)],
+    )
+
+
+def test_update_face_finds_member_despite_case_and_spacing(logs):
+    found = [{"id": 353, "full_name": "Graciella Joshua Agoni", "phone_number": "0812"}]
+    with patch("routers.kiosk.face_service.get_embedding", return_value=FAKE_VECTOR), \
+         patch("services.db_service.DBService.get_user_by_name_key", return_value=found) as lookup, \
+         patch("services.db_service.DBService.update_user", return_value=[]) as update:
+        response = _update_face("  graciella   joshua agoni ")
+    assert response.status_code == 200
+    assert lookup.call_args.args[0] == "graciella joshua agoni"
+    assert update.call_args.args[0] == 353
+
+
+def test_update_face_refuses_ambiguous_name(logs):
+    twins = [{"id": 1, "full_name": "Andi"}, {"id": 2, "full_name": "Andi"}]
+    with patch("routers.kiosk.face_service.get_embedding", return_value=FAKE_VECTOR), \
+         patch("services.db_service.DBService.get_user_by_name_key", return_value=twins), \
+         patch("services.db_service.DBService.update_user") as update:
+        response = _update_face("Andi")
+    assert response.status_code == 409
+    update.assert_not_called()
+    [line] = logs.lines("kp.register")
+    assert line["outcome"] == "ambiguous_name"

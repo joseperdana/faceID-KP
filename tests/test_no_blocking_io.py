@@ -71,7 +71,10 @@ class FakeSupabase:
             body = self.match_result
         elif request.method == "POST":
             body = [{"id": 1, "user_id": 1}]
-        elif request.method == "GET" and path.endswith("/users") and "name_key" not in query:
+        elif request.method == "GET" and path.endswith("/users") and (
+                "name_key" not in query or "name_key=eq.anggota" in query):
+            # name_key "pendaftar uji" (register) tetap kosong = nama baru;
+            # "anggota uji" (update-face) menemukan anggota yang sudah ada.
             # Satu anggota supaya manual-checkin / update-face berjalan sampai insert.
             body = [{"id": 1, "full_name": "Anggota Uji", "gender": "Pria",
                      "phone_number": "081234567890", "attendance_logs": []}]
