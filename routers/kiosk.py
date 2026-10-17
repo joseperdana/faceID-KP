@@ -19,6 +19,9 @@ from core import flags
 
 limiter = Limiter(key_func=get_remote_address)
 
+# Sama dengan bawaan DBService.match_faces yang dipakai /recognize sebelumnya.
+RECOGNITION_THRESHOLD = 0.42
+
 router = APIRouter(prefix="/api", tags=["kiosk"])
 
 checkin_logger = logging.getLogger("kp.checkin")
@@ -195,14 +198,27 @@ async def _recognize_face(trace: CheckinTrace, file: UploadFile, lat: Optional[f
     # All DB calls are wrapped in run_in_threadpool — supabase-py is a synchronous library.
     # Calling it directly in an async route blocks the entire event loop.
     # run_in_threadpool offloads each call to a thread, keeping the event loop free.
+    # Ambang diterapkan di sini, bukan di RPC: RPC diminta selalu mengembalikan
+    # kandidat terdekat, supaya scan yang ditolak tetap meninggalkan angka
+    # kemiripannya di log. Tanpa angka itu, laporan "anggota baru tidak
+    # dikenali" (Okt 2026) tidak bisa dibedakan antara wajah yang nyaris lolos
+    # dan wajah yang memang tidak mirip siapa pun. Tetap satu query.
     with trace.stage("match", "face.match"):
-        matches = await starlette.concurrency.run_in_threadpool(DBService.match_faces, query_vector)
+        matches = await starlette.concurrency.run_in_threadpool(
+            DBService.match_faces, query_vector, threshold=-1.0
+        )
 
-    if not matches:
+    nearest = matches[0] if matches else None
+    if nearest is None or float(nearest.get('similarity') or 0) <= RECOGNITION_THRESHOLD:
+        if nearest is not None:
+            trace.fields.update(
+                nearest_user_id=nearest.get('id'),
+                nearest_similarity=round(float(nearest.get('similarity') or 0), 3),
+            )
         trace.finish("unknown_face")
         return {"status": "unknown", "message": "Wajah tidak dikenali."}
 
-    user = matches[0]
+    user = nearest
     user_id = user['id']
     user_name = user['full_name']
     trace.user_id = user_id
@@ -612,12 +628,26 @@ async def update_face(
 
 
 async def _update_face(trace: RegisterTrace, full_name: str, files: List[UploadFile]):
+    # Cari lewat name_key, sama seperti dedup di /register. Pencocokan
+    # huruf-per-huruf lama gagal kalau petugas mengetik "graciella" untuk
+    # "Graciella" — padahal Update Wajah justru jalan keluar untuk anggota baru
+    # yang wajahnya tidak dikenali kiosk.
     with trace.stage("find_user", "db.find_user"):
-        existing = await starlette.concurrency.run_in_threadpool(DBService.get_user_by_name, full_name)
+        existing = await starlette.concurrency.run_in_threadpool(
+            DBService.get_user_by_name_key, name_key(normalize_name(full_name))
+        )
     if not existing:
         trace.finish("not_found")
         return JSONResponse(status_code=404, content={"status": "error", "message": "Nama tidak ditemukan di database!"})
-        
+    if len(existing) > 1:
+        # Dua orang bernama sama: menebak salah satunya berarti menimpa wajah
+        # orang lain, dan orang itu ganti tidak bisa absen.
+        trace.finish("ambiguous_name", candidates=len(existing))
+        return JSONResponse(status_code=409, content={
+            "status": "error",
+            "message": f"Ada {len(existing)} anggota bernama '{existing[0]['full_name']}'. Hubungi pengurus untuk memperbarui wajahnya."
+        })
+
     user_id = existing[0]['id']
     trace.user_id = user_id
     
