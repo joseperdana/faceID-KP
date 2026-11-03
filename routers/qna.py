@@ -5,7 +5,7 @@ from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from core import flags, qna_bus
 from core.observability import capture_error
 from core.security import check_admin_auth
-from services import qna_service
+from services import qna_service, tts_service
 from services.qna_service import QnaError
 
 router = APIRouter(tags=["qna"])
@@ -175,3 +175,19 @@ async def admin_stream(request: Request, max_seconds: int = Query(600, ge=0, le=
         # X-Accel-Buffering: tanpa ini nginx menahan event sampai buffer penuh.
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class TtsDto(BaseModel):
+    text: str = Field(..., min_length=1, max_length=400)
+
+
+@router.post("/api/qna/admin/tts", dependencies=[Depends(check_admin_auth)])
+def admin_tts(payload: TtsDto):
+    try:
+        audio = tts_service.synthesize(payload.text)
+    except tts_service.TtsUnavailable:
+        # Display menganggap ini tanda untuk memakai suara browser.
+        return JSONResponse(status_code=503, content={
+            "status": "error", "code": "tts_unavailable", "message": "Suara cloud tidak tersedia.",
+        })
+    return Response(content=audio, media_type="audio/mpeg")

@@ -7,6 +7,7 @@ from core import flags, qna_bus
 from core.security import COOKIE_NAME, create_access_token
 from main import app
 from routers import qna as qna_router
+from services import tts_service
 from services.qna_service import QnaError
 
 client = TestClient(app)
@@ -185,3 +186,25 @@ def test_event_stream_forwards_published_kind_and_pings():
     assert hello.startswith("retry: 2000\nevent: hello")
     assert changed == 'event: changed\ndata: {"kind": "display"}\n\n'
     assert ping == ": ping\n\n"
+
+
+def test_tts_returns_mp3(monkeypatch):
+    monkeypatch.setattr(qna_router.tts_service, "synthesize", lambda text: b"ID3-mp3")
+    res = admin_client().post("/api/qna/admin/tts", json={"text": "Seseorang bertanya!"})
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "audio/mpeg"
+    assert res.content == b"ID3-mp3"
+
+
+def test_tts_unavailable_is_503_without_leaking_details(monkeypatch):
+    def fail(text):
+        raise tts_service.TtsUnavailable("detail-internal-rahasia")
+    monkeypatch.setattr(qna_router.tts_service, "synthesize", fail)
+    res = admin_client().post("/api/qna/admin/tts", json={"text": "Halo"})
+    assert res.status_code == 503
+    assert res.json()["code"] == "tts_unavailable"
+    assert "rahasia" not in res.text
+
+
+def test_tts_needs_login():
+    assert client.post("/api/qna/admin/tts", json={"text": "Halo"}).status_code == 401

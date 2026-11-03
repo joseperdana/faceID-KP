@@ -114,6 +114,8 @@ def fake_db(monkeypatch, tmp_path):
     # Upload photobooth jangan sampai menulis ke frontend/uploads sungguhan.
     monkeypatch.setattr("routers.photobooth.UPLOAD_DIR", tmp_path)
     monkeypatch.setattr("face_service.face_service.get_embedding", lambda _content: [0.1] * 512)
+    # /api/qna/admin/tts tidak boleh menembak Google sungguhan dari tes.
+    monkeypatch.delenv("GOOGLE_TTS_API_KEY", raising=False)
 
     yield fake
 
@@ -200,6 +202,7 @@ RECIPES: Dict[tuple, Recipe] = {
     ("POST", "/api/qna/admin/screen/{screen_action}"): Recipe(admin=True),
     ("PATCH", "/api/qna/admin/settings"): Recipe(lambda: {"json": {"session_open": True}}, admin=True),
     ("GET", "/api/qna/admin/stream"): Recipe(lambda: {"params": {"max_seconds": 0}}, admin=True),
+    ("POST", "/api/qna/admin/tts"): Recipe(lambda: {"json": {"text": "uji"}}, admin=True),
 }
 
 PATH_PARAMS = {
