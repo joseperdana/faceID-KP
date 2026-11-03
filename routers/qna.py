@@ -5,7 +5,7 @@ from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -43,6 +43,11 @@ class VoteDto(BaseModel):
 def require_qna_enabled():
     if not flags.is_enabled("qna"):
         raise HTTPException(status_code=404, detail="Sesi tanya jawab sedang tidak aktif.")
+
+
+@router.get("/tanya", dependencies=[Depends(require_qna_enabled)])
+def jemaat_page():
+    return FileResponse("frontend/qna/tanya.html")
 
 
 def _error(e: QnaError) -> JSONResponse:

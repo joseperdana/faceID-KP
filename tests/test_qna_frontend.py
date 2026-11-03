@@ -143,3 +143,52 @@ def backend(page: Page):
 
     page.route(f"{BASE}/**", handler)
     return fake
+
+
+def test_jemaat_sends_question_then_cools_down(page: Page, backend):
+    page.goto(f"{BASE}/tanya")
+    page.fill("#body", "Gimana cara tahu panggilan hidup?")
+    expect(page.locator("#count")).to_have_text("33/300")
+    page.click("#send")
+    expect(page.locator("#msg")).to_contain_text("Terkirim")
+    expect(page.locator("#send")).to_be_disabled()
+    expect(page.locator("#send")).to_contain_text("Tunggu")
+    assert backend.submitted[0]["body"] == "Gimana cara tahu panggilan hidup?"
+    assert re.fullmatch(r"[0-9a-f-]{36}", backend.submitted[0]["device_id"])
+
+
+def test_jemaat_sees_closed_notice(page: Page, backend):
+    backend.settings["session_open"] = False
+    page.goto(f"{BASE}/tanya")
+    expect(page.locator("#closed")).to_be_visible()
+    expect(page.locator("#form")).to_be_hidden()
+
+
+def test_tabs_hidden_in_hiasan_mode(page: Page, backend):
+    page.goto(f"{BASE}/tanya")
+    expect(page.locator("#form")).to_be_visible()
+    expect(page.locator("#tabs")).to_be_hidden()
+
+
+def test_upvote_lists_only_approved_and_toggles_vote(page: Page, backend):
+    backend.settings["points_mode"] = "upvote"
+    backend.add("Masih menunggu", "masuk")
+    backend.add("Sudah disetujui", "disetujui")
+    page.goto(f"{BASE}/tanya")
+    page.click("[data-tab=daftar]")
+    expect(page.locator(".qitem")).to_have_count(1)
+    expect(page.locator(".qitem")).to_contain_text("Sudah disetujui")
+    page.click(".vote")
+    expect(page.locator(".vote span")).to_have_text("1")
+    expect(page.locator(".vote")).to_have_class(re.compile(r"\bon\b"))
+    page.click(".vote")
+    expect(page.locator(".vote span")).to_have_text("0")
+
+
+def test_question_text_is_escaped(page: Page, backend):
+    backend.settings["points_mode"] = "upvote"
+    backend.add('<img src=x onerror="window.__xss=1">', "disetujui")
+    page.goto(f"{BASE}/tanya")
+    page.click("[data-tab=daftar]")
+    expect(page.locator(".qitem")).to_contain_text("<img src=x")
+    assert page.evaluate("window.__xss") is None

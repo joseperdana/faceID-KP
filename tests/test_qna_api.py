@@ -211,3 +211,13 @@ def test_tts_unavailable_is_503_without_leaking_details(monkeypatch):
 
 def test_tts_needs_login():
     assert client.post("/api/qna/admin/tts", json={"text": "Halo"}).status_code == 401
+
+
+def test_jemaat_page_404_while_flag_off_and_served_when_on(monkeypatch):
+    monkeypatch.setattr(flags, "_cache", {})
+    assert client.get("/tanya").status_code == 404
+    monkeypatch.setattr(flags, "_refresh", lambda: {**flags._defaults(), "qna": True})
+    monkeypatch.setattr(flags, "_cache", {})
+    res = client.get("/tanya")
+    assert res.status_code == 200
+    assert "Tanya narasumber" in res.text
