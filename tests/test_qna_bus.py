@@ -41,5 +41,17 @@ def test_slow_client_is_dropped_not_blocking():
     assert asyncio.run(scenario()) == qna_bus.MAX_QUEUE
 
 
+def test_publish_prunes_subscriber_of_closed_loop():
+    # Loop yang sudah ditutup (mis. koneksi SSE dari proses tes sebelumnya)
+    # tidak boleh membuat publish gagal, dan entrinya harus dibuang.
+    async def sub():
+        return qna_bus.subscribe()
+
+    q = asyncio.run(sub())  # loop sudah tertutup saat ini kembali
+    qna_bus.publish("questions")
+    assert all(entry[1] is not q for entry in qna_bus._subscribers)
+
+
 def test_publish_without_subscribers_is_noop():
+    assert not qna_bus._subscribers  # mendeteksi subscriber yang bocor
     qna_bus.publish("settings")
