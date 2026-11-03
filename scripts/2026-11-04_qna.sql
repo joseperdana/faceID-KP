@@ -1,5 +1,5 @@
 -- Modul tanya jawab live podcast (spec: PODCAST 14 NOV 26/docs/superpowers/specs/
--- 2026-11-03-podcast-qna-design.md). Dijalankan lewat Supabase SQL Editor. Aman diulang.
+-- 2026-11-03-podcast-qna-design.md). Dijalankan lewat Supabase SQL Editor. Aman diulang — tapi menjalankannya ulang menutup kembali jalur cadangan (anon dicabut).
 --
 -- Semua aturan bisnis sengaja ada di fungsi qna_* di sini, bukan di Python:
 -- jalur cadangan (situs statis tanpa web KP) memanggil fungsi yang sama
@@ -86,6 +86,8 @@ begin
     raise exception 'session_closed';
   end if;
   if p_device is null then raise exception 'invalid_device'; end if;
+  -- Dua ketukan cepat dari HP yang sama tidak boleh lolos jeda bersamaan.
+  perform pg_advisory_xact_lock(hashtextextended(p_device::text, 0));
   if char_length(v_body) < 3 or char_length(v_body) > 300 then
     raise exception 'invalid_body';
   end if;
@@ -173,6 +175,9 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare v_status text;
 begin
   if not qna__is_admin(p_pin) then raise exception 'forbidden'; end if;
+  -- Dua admin menekan tombol bersamaan: antre di baris pengaturan supaya
+  -- indeks "satu tampil" tidak berujung error 23505 mentah.
+  perform 1 from qna_settings where id = 1 for update;
   select status into v_status from qna_questions where id = p_id for update;
   if v_status is null then raise exception 'not_found'; end if;
 
@@ -201,6 +206,9 @@ create or replace function qna_admin_screen(p_pin text, p_action text) returns j
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not qna__is_admin(p_pin) then raise exception 'forbidden'; end if;
+  -- Dua admin menekan tombol bersamaan: antre di baris pengaturan supaya
+  -- indeks "satu tampil" tidak berujung error 23505 mentah.
+  perform 1 from qna_settings where id = 1 for update;
   if p_action = 'hide' then
     update qna_settings set hidden = true, show_nonce = show_nonce + 1, updated_at = now() where id = 1;
   elsif p_action = 'replay' then

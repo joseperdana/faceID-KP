@@ -123,6 +123,46 @@ begin
   perform pg_temp.check(not has_function_privilege('anon', 'qna_admin_list(text)', 'execute'), 'anon tidak bisa qna_admin_list');
   perform pg_temp.check(not has_table_privilege('anon', 'qna_questions', 'select'), 'anon tidak bisa baca tabel');
 
+  -- Saklar jalur cadangan: skrip on/off harus menyentuh tepat 9 fungsi itu.
+  declare
+    fns constant text[] := array[
+      'qna_state()', 'qna_submit(text, uuid)', 'qna_public_list(uuid)',
+      'qna_vote(uuid, uuid, boolean)', 'qna_display()', 'qna_admin_list(text)',
+      'qna_admin_act(text, uuid, text)', 'qna_admin_screen(text, text)',
+      'qna_admin_settings(text, boolean, text, text)'];
+    f text;
+  begin
+    foreach f in array fns loop
+      perform pg_temp.check(has_function_privilege('service_role', f, 'execute'), 'service_role tidak punya execute: ' || f);
+      perform pg_temp.check(not has_function_privilege('anon', f, 'execute'), 'anon sudah punya execute sebelum on: ' || f);
+    end loop;
+
+    -- Salinan persis dari qna_fallback_on.sql
+    grant execute on function
+      qna_state(), qna_submit(text, uuid), qna_public_list(uuid),
+      qna_vote(uuid, uuid, boolean), qna_display(), qna_admin_list(text),
+      qna_admin_act(text, uuid, text), qna_admin_screen(text, text),
+      qna_admin_settings(text, boolean, text, text)
+      to anon;
+
+    foreach f in array fns loop
+      perform pg_temp.check(has_function_privilege('anon', f, 'execute'), 'fallback_on tidak memberi execute ke anon: ' || f);
+    end loop;
+    perform pg_temp.check(not has_function_privilege('anon', 'qna__is_admin(text)', 'execute'), 'qna__is_admin terbuka untuk anon');
+
+    -- Salinan persis dari qna_fallback_off.sql
+    revoke execute on function
+      qna_state(), qna_submit(text, uuid), qna_public_list(uuid),
+      qna_vote(uuid, uuid, boolean), qna_display(), qna_admin_list(text),
+      qna_admin_act(text, uuid, text), qna_admin_screen(text, text),
+      qna_admin_settings(text, boolean, text, text)
+      from anon;
+
+    foreach f in array fns loop
+      perform pg_temp.check(not has_function_privilege('anon', f, 'execute'), 'fallback_off belum mencabut execute anon: ' || f);
+    end loop;
+  end;
+
   raise notice 'qna_selftest: semua lulus';
 end $$;
 
