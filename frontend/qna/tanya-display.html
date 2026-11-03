@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layar Tanya Jawab · KP GKI Bromo</title>
+  <link rel="stylesheet" href="/static/qna/qna.css">
+</head>
+<body class="display">
+  <section id="setup" class="card setup">
+    <h1>Layar tanya jawab</h1>
+    <p class="muted">Mode: <b id="modeLabel"></b>. Tambahkan <code>?mode=overlay</code> di URL untuk Browser Source OBS.</p>
+    <label for="voice">Suara browser</label>
+    <select id="voice"></select>
+    <button id="test" type="button">Uji suara</button>
+    <button id="start" type="button" class="primary">Aktifkan suara &amp; mulai</button>
+  </section>
+
+  <div id="stage" class="stage" hidden>
+    <article id="alert" class="alert" hidden aria-live="polite">
+      <p id="points" class="points"></p>
+      <p id="qbody" class="qbody"></p>
+    </article>
+  </div>
+  <span id="conn" class="conn" title="Status koneksi"></span>
+
+  <script src="/static/qna/config.js"></script>
+  <script src="/static/qna/qna-common.js"></script>
+  <script src="/static/qna/qna-api-kp.js"></script>
+  <script src="/static/qna/qna-api-supabase.js"></script>
+  <script src="/static/qna/display.js"></script>
+</body>
+</html>

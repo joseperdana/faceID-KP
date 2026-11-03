@@ -55,6 +55,11 @@ def admin_page():
     return FileResponse("frontend/qna/tanya-admin.html")
 
 
+@router.get("/tanya/display", dependencies=[Depends(check_admin_auth)])
+def display_page():
+    return FileResponse("frontend/qna/tanya-display.html")
+
+
 def _error(e: QnaError) -> JSONResponse:
     return JSONResponse(status_code=e.status, content={
         "status": "error", "code": e.code, "message": e.message, "retry_after": e.retry_after,

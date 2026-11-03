@@ -254,3 +254,27 @@ def test_admin_recovers_when_a_request_hangs(page: Page, backend):
     page.route(f"{BASE}/api/qna/admin/questions", hang_first)
     page.goto(f"{BASE}/tanya/admin")
     expect(page.locator("#col-masuk .qitem")).to_contain_text("Pertanyaan setelah macet", timeout=10000)
+
+
+def test_display_announces_shown_question_and_hides(page: Page, backend):
+    qid = backend.add("Apa rasanya jadi pemuda di gereja?", "disetujui")
+    page.goto(f"{BASE}/tanya/display?mode=overlay")
+    expect(page.locator("body")).to_have_class(re.compile(r"\bmode-overlay\b"))
+    page.click("#start")
+    expect(page.locator("#setup")).to_be_hidden()
+    expect(page.locator("#alert")).to_be_hidden()
+    backend.act(qid, "show")
+    # Bunyi notifikasi 1,2 detik + jeda polling/SSE.
+    expect(page.locator("#qbody")).to_have_text("Apa rasanya jadi pemuda di gereja?", timeout=10000)
+    expect(page.locator("#points")).to_have_text("Seseorang memberikan 50 poin!")
+    backend.screen("hide")
+    expect(page.locator("#alert")).to_be_hidden(timeout=10000)
+
+
+def test_display_shows_current_question_silently_on_load(page: Page, backend):
+    qid = backend.add("Sudah tampil sebelum laptop dinyalakan", "disetujui")
+    backend.act(qid, "show")
+    page.goto(f"{BASE}/tanya/display")
+    expect(page.locator("body")).to_have_class(re.compile(r"\bmode-full\b"))
+    page.click("#start")
+    expect(page.locator("#qbody")).to_have_text("Sudah tampil sebelum laptop dinyalakan", timeout=5000)

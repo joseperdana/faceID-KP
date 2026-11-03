@@ -227,3 +227,9 @@ def test_admin_page_needs_login():
     res = client.get("/tanya/admin", follow_redirects=False)
     assert res.status_code == 303 and res.headers["location"] == "/login"
     assert admin_client().get("/tanya/admin").status_code == 200
+
+
+def test_display_page_needs_login():
+    res = client.get("/tanya/display", follow_redirects=False)
+    assert res.status_code == 303 and res.headers["location"] == "/login"
+    assert admin_client().get("/tanya/display").status_code == 200
