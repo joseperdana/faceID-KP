@@ -30,6 +30,23 @@ def test_success_decodes_audio_and_keeps_key_out_of_url(monkeypatch):
     assert seen["timeout"] == tts_service.TIMEOUT_S
 
 
+def test_failure_report_carries_no_key_or_traceback(monkeypatch):
+    monkeypatch.setenv("GOOGLE_TTS_API_KEY", "AIzaKUNCIRAHASIA123")
+
+    def fail(url, **_):
+        raise httpx.ReadTimeout("lambat")
+
+    monkeypatch.setattr(tts_service.httpx, "post", fail)
+    reported = []
+    monkeypatch.setattr(tts_service, "capture_error", lambda e, **kw: reported.append(e))
+    with pytest.raises(tts_service.TtsUnavailable) as exc:
+        tts_service.synthesize("Halo")
+    assert len(reported) == 1
+    assert reported[0].__traceback__ is None
+    assert "AIzaKUNCIRAHASIA123" not in repr(reported[0])
+    assert exc.value.__cause__ is None and exc.value.__suppress_context__
+
+
 @pytest.mark.parametrize("failure", [
     lambda url, **_: httpx.Response(403, json={}, request=httpx.Request("POST", url)),
     lambda url, **_: (_ for _ in ()).throw(httpx.ReadTimeout("lambat")),

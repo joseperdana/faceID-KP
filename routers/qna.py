@@ -189,5 +189,6 @@ def admin_tts(payload: TtsDto):
         # Display menganggap ini tanda untuk memakai suara browser.
         return JSONResponse(status_code=503, content={
             "status": "error", "code": "tts_unavailable", "message": "Suara cloud tidak tersedia.",
+            "retry_after": None,
         })
     return Response(content=audio, media_type="audio/mpeg")

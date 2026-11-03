@@ -202,7 +202,10 @@ def test_tts_unavailable_is_503_without_leaking_details(monkeypatch):
     monkeypatch.setattr(qna_router.tts_service, "synthesize", fail)
     res = admin_client().post("/api/qna/admin/tts", json={"text": "Halo"})
     assert res.status_code == 503
-    assert res.json()["code"] == "tts_unavailable"
+    assert res.json() == {
+        "status": "error", "code": "tts_unavailable",
+        "message": "Suara cloud tidak tersedia.", "retry_after": None,
+    }
     assert "rahasia" not in res.text
 
 
