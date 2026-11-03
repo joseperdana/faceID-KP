@@ -139,6 +139,7 @@ class Recipe:
 
 
 KNOWN_FACE = [{"id": 1, "full_name": "Anggota Uji", "similarity": 0.9}]
+QNA_DEVICE = "11111111-1111-4111-8111-111111111111"
 
 # (METHOD, template path) -> cara memanggilnya dengan input minimal yang sah.
 RECIPES: Dict[tuple, Recipe] = {
@@ -186,11 +187,17 @@ RECIPES: Dict[tuple, Recipe] = {
     ("GET", "/api/flags"): Recipe(),
     ("GET", "/api/flags/detail"): Recipe(admin=True),
     ("PUT", "/api/flags/{key}"): Recipe(lambda: {"json": {"enabled": True}}, admin=True),
+    ("GET", "/api/qna/state"): Recipe(),
+    ("POST", "/api/qna/questions"): Recipe(lambda: {"json": {"body": "Pertanyaan uji", "device_id": QNA_DEVICE}}),
+    ("GET", "/api/qna/questions/public"): Recipe(lambda: {"params": {"device_id": QNA_DEVICE}}),
+    ("POST", "/api/qna/questions/{question_id}/vote"): Recipe(lambda: {"json": {"device_id": QNA_DEVICE, "on": True}}),
+    ("GET", "/api/qna/display"): Recipe(),
 }
 
 PATH_PARAMS = {
     "user_id": "1", "target_date": "2026-09-19", "log_id": "1",
     "photo_id": "tidakada", "key": "photobooth",
+    "question_id": "22222222-2222-4222-8222-222222222222", "action": "approve", "screen_action": "hide",
 }
 
 

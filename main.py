@@ -35,7 +35,7 @@ sentry_sdk.init(
     send_default_pii=False,
 )
 
-from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability, flags
+from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability, flags, qna
 
 
 
@@ -219,6 +219,7 @@ app.include_router(attendance.router)
 app.include_router(photobooth.router)
 app.include_router(observability.router)
 app.include_router(flags.router)
+app.include_router(qna.router)
 
 if __name__ == "__main__":
     import uvicorn
