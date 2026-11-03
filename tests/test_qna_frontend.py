@@ -350,3 +350,78 @@ def test_display_ignores_out_of_order_responses(page: Page, backend):
     page.wait_for_timeout(4000)  # jendela pengamatan: jawaban lama tiba di sini
     # Satu chime saja. Respons lama yang mengumumkan ulang menambah 3 oscillator lagi.
     assert page.evaluate("window.__oscillators") == 3
+
+
+SB = "https://sb.test"
+FALLBACK_CONFIG = f"""window.QNA_CONFIG = {{
+  backend: "supabase", supabaseUrl: "{SB}", supabaseKey: "sb_publishable_uji",
+  pages: {{ jemaat: "/", admin: "/admin.html", display: "/display.html" }},
+}};"""
+
+
+@pytest.fixture
+def fallback(page: Page):
+    """Halaman yang sama, tapi config.js menunjuk adapter Supabase."""
+    calls = []
+    state = {"session_open": True, "points_mode": "hiasan", "tts_engine": "browser", "hidden": False, "show_nonce": 0}
+    questions = []
+
+    def site(route: Route):
+        path = urlsplit(route.request.url).path
+        if path == "/static/qna/config.js":
+            route.fulfill(content_type="application/javascript", body=FALLBACK_CONFIG)
+        elif not serve_static(route, {"/": "/tanya", "/admin.html": "/tanya/admin"}.get(path, path)):
+            route.fulfill(status=404, body="")
+
+    def rpc(route: Route):
+        fn = urlsplit(route.request.url).path.rsplit("/", 1)[-1]
+        args = json.loads(route.request.post_data or "{}")
+        calls.append((fn, args, route.request.headers.get("apikey")))
+        if fn.startswith("qna_admin") and args.get("p_pin") != "pin-uji-panjang":
+            return route.fulfill(status=400, content_type="application/json",
+                                 body=json.dumps({"code": "P0001", "message": "forbidden"}))
+        if fn == "qna_state":
+            body = {k: state[k] for k in ("session_open", "points_mode")}
+        elif fn == "qna_submit":
+            if any(a.get("p_device") == args["p_device"] for f, a, _ in calls[:-1] if f == "qna_submit"):
+                return route.fulfill(status=400, content_type="application/json",
+                                     body=json.dumps({"code": "P0001", "message": "cooldown:17"}))
+            questions.append(args["p_body"])
+            body = {"id": "00000000-0000-4000-8000-000000000001"}
+        elif fn == "qna_admin_list":
+            body = {"settings": state, "questions": [
+                {"id": "00000000-0000-4000-8000-000000000001", "body": b, "status": "masuk",
+                 "created_at": "2026-11-14T10:00:00+00:00", "shown_at": None, "votes": 0} for b in questions]}
+        else:
+            body = {}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+    page.route(f"{BASE}/**", site)
+    page.route(f"{SB}/rest/v1/rpc/**", rpc)
+    return calls
+
+
+def test_fallback_jemaat_submits_via_rpc_and_maps_cooldown(page: Page, fallback):
+    page.goto(f"{BASE}/")
+    page.fill("#body", "Pertanyaan lewat jalur cadangan")
+    page.click("#send")
+    expect(page.locator("#msg")).to_contain_text("Terkirim")
+    fn, args, apikey = next(c for c in fallback if c[0] == "qna_submit")
+    assert args["p_body"] == "Pertanyaan lewat jalur cadangan"
+    assert apikey == "sb_publishable_uji"
+    page.reload()  # device_id tetap sama (localStorage), jadi jeda harus terpicu
+    page.fill("#body", "Kedua kalinya")
+    page.click("#send")
+    expect(page.locator("#send")).to_contain_text("Tunggu")
+
+
+def test_fallback_admin_requires_pin(page: Page, fallback):
+    page.goto(f"{BASE}/admin.html")
+    expect(page.locator("#login")).to_be_visible()
+    page.fill("#pin", "salah")
+    page.click("#login button")
+    expect(page.locator("#loginMsg")).to_have_text("PIN salah.")
+    page.fill("#pin", "pin-uji-panjang")
+    page.click("#login button")
+    expect(page.locator("#app")).to_be_visible()
+    expect(page.locator("#linkOverlay")).to_have_attribute("href", "/display.html?mode=overlay")
