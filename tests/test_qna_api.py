@@ -96,4 +96,8 @@ def test_unexpected_error_is_500_without_internal_details(qna_on, monkeypatch):
     monkeypatch.setattr(qna_router.qna_service, "get_state", boom)
     res = client.get("/api/qna/state")
     assert res.status_code == 500
+    assert res.json() == {
+        "status": "error", "code": "server",
+        "message": "Terjadi kesalahan di server.", "retry_after": None,
+    }
     assert "rahasia" not in res.text

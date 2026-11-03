@@ -56,6 +56,7 @@ def _call(where: str, fn, *args, **kwargs):
         capture_error(e, where=f"qna.{where}")
         return JSONResponse(status_code=500, content={
             "status": "error", "code": "server", "message": "Terjadi kesalahan di server.",
+            "retry_after": None,
         })
 
 

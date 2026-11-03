@@ -69,6 +69,9 @@ class FakeSupabase:
         query = str(request.url.query)
         if "/rpc/" in path:
             body = self.match_result
+        elif request.method == "GET" and path.endswith("/feature_flags"):
+            # agar rute qna yang dikunci flag benar-benar memanggil qna_service di tes ini
+            body = [{"key": "qna", "enabled": True}]
         elif request.method == "POST":
             body = [{"id": 1, "user_id": 1}]
         elif request.method == "GET" and path.endswith("/users") and (
