@@ -59,5 +59,15 @@
     ));
   }
 
-  window.Qna = { deviceId, MESSAGES, QnaError, parseServerMessage, escapeHtml };
+  // Fetch tanpa batas waktu bisa menggantung selamanya di WiFi gereja yang
+  // putus-sambung; halaman lalu membeku karena menunggu jawaban yang tak datang.
+  function requestTimeoutMs() { return window.QNA_REQUEST_TIMEOUT_MS || 10000; }
+  async function fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), requestTimeoutMs());
+    try { return await fetch(url, { ...options, signal: controller.signal }); }
+    finally { clearTimeout(timer); }
+  }
+
+  window.Qna = { deviceId, MESSAGES, QnaError, parseServerMessage, escapeHtml, fetchWithTimeout };
 })();

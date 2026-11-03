@@ -238,3 +238,19 @@ def test_admin_screen_buttons(page: Page, backend):
     with page.expect_response("**/api/qna/admin/screen/replay"):
         page.click("#replay")
     assert backend.settings["hidden"] is False
+
+
+def test_admin_recovers_when_a_request_hangs(page: Page, backend):
+    backend.add("Pertanyaan setelah macet", "masuk")
+    page.add_init_script("window.QNA_REQUEST_TIMEOUT_MS = 300")
+    hung = []
+
+    def hang_first(route):
+        if not hung:
+            hung.append(route)  # sengaja tidak dijawab: meniru koneksi menggantung
+            return
+        route.fallback()
+
+    page.route(f"{BASE}/api/qna/admin/questions", hang_first)
+    page.goto(f"{BASE}/tanya/admin")
+    expect(page.locator("#col-masuk .qitem")).to_contain_text("Pertanyaan setelah macet", timeout=10000)

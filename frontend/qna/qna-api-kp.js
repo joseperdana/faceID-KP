@@ -6,7 +6,7 @@
   async function request(method, url, body) {
     let res;
     try {
-      res = await fetch(url, {
+      res = await window.Qna.fetchWithTimeout(url, {
         method,
         credentials: "same-origin",
         headers: body ? { "Content-Type": "application/json" } : undefined,
