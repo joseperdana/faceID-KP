@@ -10,18 +10,40 @@ set -euo pipefail
 OUT="${1:?folder keluaran}"
 URL="${2:?SUPABASE_URL}"
 KEY="${3:?publishable key}"
+MARKER=".qna-standalone-build"
 
-case "$KEY" in
-  sb_secret_*) echo "Itu secret key. Pakai publishable key (sb_publishable_...)." >&2; exit 1 ;;
-esac
+# Semua validasi dilakukan sebelum menyentuh filesystem (rm -rf, mkdir).
+# config.js ditulis ke halaman publik, jadi hanya nilai yang pasti aman yang lolos.
+URL="${URL%/}" # buang satu garis miring di akhir
+URL_RE='^https://[A-Za-z0-9.-]+$'
+KEY_RE='^sb_publishable_[A-Za-z0-9_-]+$'
 
-# rm -rf hanya untuk folder kosong atau hasil build sebelumnya.
-if [ -e "$OUT" ] && [ -n "$(ls -A "$OUT")" ] && [ ! -f "$OUT/static/qna/qna-api-supabase.js" ]; then
-  echo "Folder $OUT berisi file lain; pilih folder kosong." >&2
+if ! [[ $KEY =~ $KEY_RE ]]; then
+  echo "Pakai publishable key (sb_publishable_...). Kunci lain bisa jadi rahasia dan akan terbuka untuk semua orang." >&2
+  exit 1
+fi
+
+if ! [[ $URL =~ $URL_RE ]]; then
+  echo "SUPABASE_URL harus berbentuk https://<proyek>.supabase.co (tanpa path, tanpa tanda kutip)." >&2
   exit 1
 fi
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)/frontend/qna"
+if [ ! -d "$SRC" ]; then
+  echo "Folder sumber $SRC tidak ada." >&2
+  exit 1
+fi
+
+# rm -rf hanya untuk folder yang dibuat build ini sebelumnya (ada penanda).
+if [ -e "$OUT" ] && [ ! -d "$OUT" ]; then
+  echo "$OUT bukan folder; pilih folder kosong." >&2
+  exit 1
+fi
+if [ -d "$OUT" ] && [ -n "$(ls -A "$OUT")" ] && [ ! -f "$OUT/$MARKER" ]; then
+  echo "Folder $OUT berisi file lain; pilih folder kosong." >&2
+  exit 1
+fi
+
 rm -rf "$OUT"
 mkdir -p "$OUT/static/qna"
 cp "$SRC"/*.js "$SRC"/*.css "$OUT/static/qna/"
@@ -44,5 +66,8 @@ cat > "$OUT/_headers" <<'EOF'
 /*
   Cache-Control: no-cache, must-revalidate
 EOF
+
+# Penanda hanya ditulis setelah build berhasil; build ulang ke folder ini boleh.
+: > "$OUT/$MARKER"
 
 echo "Siap: $OUT — unggah ke https://app.netlify.com/drop"
