@@ -221,3 +221,9 @@ def test_jemaat_page_404_while_flag_off_and_served_when_on(monkeypatch):
     res = client.get("/tanya")
     assert res.status_code == 200
     assert "Tanya narasumber" in res.text
+
+
+def test_admin_page_needs_login():
+    res = client.get("/tanya/admin", follow_redirects=False)
+    assert res.status_code == 303 and res.headers["location"] == "/login"
+    assert admin_client().get("/tanya/admin").status_code == 200

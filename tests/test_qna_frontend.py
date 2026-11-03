@@ -192,3 +192,49 @@ def test_question_text_is_escaped(page: Page, backend):
     page.click("[data-tab=daftar]")
     expect(page.locator(".qitem")).to_contain_text("<img src=x")
     assert page.evaluate("window.__xss") is None
+
+
+def test_admin_moves_question_through_whole_flow(page: Page, backend):
+    backend.add("Pertanyaan pertama")
+    page.goto(f"{BASE}/tanya/admin")
+    page.click("#col-masuk [data-act=approve]")
+    expect(page.locator("#col-disetujui .qitem")).to_have_count(1)
+    page.click("#col-disetujui [data-act=show]")
+    expect(page.locator("#col-tampil .qitem")).to_contain_text("Pertanyaan pertama")
+    assert backend.settings["show_nonce"] == 1
+    page.click("#col-tampil [data-act=done]")
+    expect(page.locator("#col-selesai .qitem")).to_have_count(1)
+    expect(page.locator("#n-selesai")).to_have_text("1")
+
+
+def test_admin_sorts_approved_by_votes_in_upvote_mode(page: Page, backend):
+    backend.settings["points_mode"] = "upvote"
+    backend.add("Sedikit", "disetujui", votes=1)
+    backend.add("Banyak", "disetujui", votes=9)
+    page.goto(f"{BASE}/tanya/admin")
+    expect(page.locator("#col-disetujui .qitem").first).to_contain_text("Banyak")
+    page.select_option("#sort", "time")
+    expect(page.locator("#col-disetujui .qitem").first).to_contain_text("Sedikit")
+
+
+def test_admin_locks_mode_while_session_open(page: Page, backend):
+    page.goto(f"{BASE}/tanya/admin")
+    expect(page.locator("#mode")).to_be_disabled()
+    expect(page.locator("#session")).to_have_text("Tutup sesi")
+    page.click("#session")
+    expect(page.locator("#session")).to_have_text("Buka sesi")
+    expect(page.locator("#mode")).to_be_enabled()
+    assert backend.settings["session_open"] is False
+
+
+def test_admin_screen_buttons(page: Page, backend):
+    qid = backend.add("Tampil", "disetujui")
+    backend.act(qid, "show")
+    page.goto(f"{BASE}/tanya/admin")
+    expect(page.locator("#conn")).to_have_class(re.compile(r"\bon\b"))
+    with page.expect_response("**/api/qna/admin/screen/hide"):
+        page.click("#hide")
+    assert backend.settings["hidden"] is True
+    with page.expect_response("**/api/qna/admin/screen/replay"):
+        page.click("#replay")
+    assert backend.settings["hidden"] is False

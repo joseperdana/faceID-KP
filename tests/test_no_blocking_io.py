@@ -193,6 +193,7 @@ RECIPES: Dict[tuple, Recipe] = {
     ("GET", "/api/flags/detail"): Recipe(admin=True),
     ("PUT", "/api/flags/{key}"): Recipe(lambda: {"json": {"enabled": True}}, admin=True),
     ("GET", "/tanya"): Recipe(),
+    ("GET", "/tanya/admin"): Recipe(admin=True),
     ("GET", "/api/qna/state"): Recipe(),
     ("POST", "/api/qna/questions"): Recipe(lambda: {"json": {"body": "Pertanyaan uji", "device_id": QNA_DEVICE}}),
     ("GET", "/api/qna/questions/public"): Recipe(lambda: {"params": {"device_id": QNA_DEVICE}}),
