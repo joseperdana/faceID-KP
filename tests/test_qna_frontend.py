@@ -64,7 +64,7 @@ class FakeBackend:
 
     def display(self):
         q = next((q for q in self.questions if q["status"] == "tampil"), None)
-        base = {"nonce": self.settings["show_nonce"], "tts_engine": "browser"}
+        base = {"nonce": self.settings["show_nonce"], "tts_engine": self.settings["tts_engine"]}
         if not q or self.settings["hidden"]:
             return {**base, "question": None}
         return {**base, "question": {"id": q["id"], "body": q["body"], "points_text": "Seseorang memberikan 50 poin!"}}
@@ -278,3 +278,56 @@ def test_display_shows_current_question_silently_on_load(page: Page, backend):
     expect(page.locator("body")).to_have_class(re.compile(r"\bmode-full\b"))
     page.click("#start")
     expect(page.locator("#qbody")).to_have_text("Sudah tampil sebelum laptop dinyalakan", timeout=5000)
+
+
+RECORD_SPEECH = """
+window.__spoken = [];
+window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); };
+window.speechSynthesis.cancel = () => {};
+"""
+
+
+def test_display_never_speaks_a_superseded_question(page: Page, backend):
+    q1 = backend.add("Pertanyaan pertama yang terlambat", "disetujui")
+    q2 = backend.add("Pertanyaan kedua yang menggantikan", "disetujui")
+    backend.settings["tts_engine"] = "cloud"
+    page.add_init_script(RECORD_SPEECH)
+    page.goto(f"{BASE}/tanya/display")
+    page.click("#start")
+    # Suara cloud lambat dan akhirnya gagal: pemanggil jatuh ke suara browser.
+    page.evaluate("QnaApi.tts = () => new Promise((resolve) => setTimeout(() => resolve(null), 1500))")
+    backend.act(q1, "show")
+    expect(page.locator("#qbody")).to_have_text("Pertanyaan pertama yang terlambat", timeout=10000)
+    backend.act(q2, "show")  # selagi suara q1 masih ditunggu
+    page.wait_for_function("window.__spoken.some((t) => t.includes('kedua'))", timeout=15000)
+    spoken = page.evaluate("window.__spoken")
+    assert not any("pertama" in t for t in spoken), spoken
+
+
+def test_display_ignores_out_of_order_responses(page: Page, backend):
+    qid = backend.add("Jangan muncul lagi setelah dikosongkan", "disetujui")
+    page.add_init_script(RECORD_SPEECH)
+    page.goto(f"{BASE}/tanya/display")
+    page.click("#start")
+    backend.act(qid, "show")
+    expect(page.locator("#qbody")).to_have_text("Jangan muncul lagi setelah dikosongkan", timeout=10000)
+    # Jawaban display() berikutnya (yang masih memuat pertanyaan tampil) ditahan
+    # 1,5 detik: meniru respons lama yang datang setelah layar dikosongkan.
+    page.evaluate("""() => {
+      const original = QnaApi.display;
+      window.__delayNext = true;
+      QnaApi.display = async () => {
+        const d = await original();
+        if (window.__delayNext) {
+          window.__delayNext = false;
+          window.__delayedStarted = true;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        return d;
+      };
+    }""")
+    page.wait_for_function("window.__delayedStarted === true", timeout=5000)
+    backend.screen("hide")
+    expect(page.locator("#alert")).to_be_hidden(timeout=10000)
+    page.wait_for_timeout(3000)  # lewati saat jawaban lama tiba
+    expect(page.locator("#alert")).to_be_hidden()

@@ -9,6 +9,9 @@
   let audioCtx = null;
   let lastNonce = null;
   let seq = 0;
+  let syncSeq = 0;
+  let currentAudio = null;
+  const SPEECH_MAX_MS = 60000; // jaring pengaman kalau onend tidak pernah datang
 
   // Daftar suara berbeda di tiap laptop, jadi pilihannya disimpan di laptop ini.
   function fillVoices() {
@@ -33,8 +36,9 @@
       u.lang = "id-ID";
       const voice = speechSynthesis.getVoices().find((v) => v.name === $("voice").value);
       if (voice) u.voice = voice;
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
+      // Sebagian browser tidak pernah memanggil onend; jangan biarkan janji menggantung.
+      const safety = setTimeout(resolve, SPEECH_MAX_MS);
+      u.onend = u.onerror = () => { clearTimeout(safety); resolve(); };
       speechSynthesis.speak(u);
     });
   }
@@ -43,26 +47,50 @@
     return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
   }
 
-  async function speak(text, engine) {
+  // Hentikan suara alert sebelumnya (browser maupun cloud) sebelum alert baru atau layar kosong.
+  function stopSpeech() {
+    speechSynthesis.cancel();
+    if (currentAudio) {
+      currentAudio.pause();
+      URL.revokeObjectURL(currentAudio.src);
+      currentAudio = null;
+    }
+  }
+
+  function playCloud(blob) {
+    const audio = new Audio(URL.createObjectURL(blob));
+    currentAudio = audio;
+    return new Promise((resolve, reject) => {
+      const safety = setTimeout(resolve, SPEECH_MAX_MS);
+      audio.onended = () => { clearTimeout(safety); resolve(); };
+      audio.onerror = () => { clearTimeout(safety); reject(new Error("audio")); };
+      audio.play().catch((err) => { clearTimeout(safety); reject(err); });
+    }).finally(() => {
+      if (currentAudio === audio) {
+        URL.revokeObjectURL(audio.src);
+        currentAudio = null;
+      }
+    });
+  }
+
+  async function speak(text, engine, mine) {
     if (engine === "cloud") {
       try {
         const blob = await withTimeout(QnaApi.tts(text), CLOUD_TIMEOUT_MS);
+        if (mine !== seq) return; // sudah ada alert lain selama menunggu suara cloud
         if (blob) {
-          const audio = new Audio(URL.createObjectURL(blob));
-          await new Promise((resolve, reject) => {
-            audio.onended = resolve;
-            audio.onerror = reject;
-            audio.play().catch(reject);
-          });
+          await playCloud(blob);
           return;
         }
       } catch { /* jatuh ke suara browser */ }
     }
+    if (mine !== seq) return;
     await speakBrowser(text);
   }
 
   // Tiga nada naik ala notifikasi donasi, dibangkitkan langsung tanpa file audio.
   function chime() {
+    if (!audioCtx) return Promise.resolve();
     const now = audioCtx.currentTime;
     [[880, 0], [1318.5, 0.18], [1760, 0.36]].forEach(([freq, at]) => {
       const osc = audioCtx.createOscillator();
@@ -90,20 +118,21 @@
 
   async function present(d, announce) {
     const mine = ++seq;
-    speechSynthesis.cancel();
+    stopSpeech();
     if (!d.question) { $("alert").hidden = true; return; }
     if (announce) {
       $("alert").hidden = true;
-      await chime();
+      try { await chime(); } catch { /* tanpa bunyi pun kartu harus tetap muncul */ }
       if (mine !== seq) return; // admin sudah menekan aksi lain saat bunyi berjalan
     }
     showCard(d.question);
-    if (announce) await speak(`${d.question.points_text} ${d.question.body}`, d.tts_engine);
+    if (announce) await speak(`${d.question.points_text} ${d.question.body}`, d.tts_engine, mine);
   }
 
   function setConn(on) { $("conn").classList.toggle("on", on); }
 
   async function sync() {
+    const mine = ++syncSeq;
     let d;
     try {
       d = await QnaApi.display();
@@ -112,6 +141,9 @@
       setConn(false);
       return;
     }
+    // SSE dan polling bisa memicu beberapa sync bersamaan; jawaban lama yang
+    // datang belakangan tidak boleh memundurkan nonce dan mengulang alert basi.
+    if (mine !== syncSeq) return;
     if (lastNonce === null) {
       // Pertama kali: tampilkan apa adanya tanpa bunyi, supaya laptop yang
       // dimuat ulang di tengah acara tidak mengulang alert.
@@ -128,8 +160,12 @@
 
   // Chrome memblokir audio sampai ada interaksi; tombol ini membukanya sekali.
   $("start").onclick = async () => {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();
+    } catch {
+      audioCtx = null; // tetap jalan tanpa bunyi notifikasi
+    }
     $("setup").hidden = true;
     $("stage").hidden = false;
     QnaApi.subscribe((kind) => { if (kind !== "questions" && kind !== "settings") sync(); }, setConn);
