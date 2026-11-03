@@ -286,6 +286,16 @@ window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); };
 window.speechSynthesis.cancel = () => {};
 """
 
+# Setiap chime membuat 3 oscillator; menghitung oscillator = menghitung bunyi notifikasi.
+COUNT_CHIMES = """
+window.__oscillators = 0;
+const realCreate = AudioContext.prototype.createOscillator;
+AudioContext.prototype.createOscillator = function () {
+  window.__oscillators += 1;
+  return realCreate.call(this);
+};
+"""
+
 
 def test_display_never_speaks_a_superseded_question(page: Page, backend):
     q1 = backend.add("Pertanyaan pertama yang terlambat", "disetujui")
@@ -294,6 +304,8 @@ def test_display_never_speaks_a_superseded_question(page: Page, backend):
     page.add_init_script(RECORD_SPEECH)
     page.goto(f"{BASE}/tanya/display")
     page.click("#start")
+    # Sync awal (senyap) sudah selesai saat #conn menyala; show setelahnya.
+    expect(page.locator("#conn")).to_have_class(re.compile(r"\bon\b"))
     # Suara cloud lambat dan akhirnya gagal: pemanggil jatuh ke suara browser.
     page.evaluate("QnaApi.tts = () => new Promise((resolve) => setTimeout(() => resolve(null), 1500))")
     backend.act(q1, "show")
@@ -307,10 +319,16 @@ def test_display_never_speaks_a_superseded_question(page: Page, backend):
 def test_display_ignores_out_of_order_responses(page: Page, backend):
     qid = backend.add("Jangan muncul lagi setelah dikosongkan", "disetujui")
     page.add_init_script(RECORD_SPEECH)
+    page.add_init_script(COUNT_CHIMES)
     page.goto(f"{BASE}/tanya/display")
     page.click("#start")
+    # Sync awal (senyap) sudah selesai saat #conn menyala; show setelahnya,
+    # supaya show benar-benar lewat jalur pengumuman (bunyi + kartu).
+    expect(page.locator("#conn")).to_have_class(re.compile(r"\bon\b"))
     backend.act(qid, "show")
     expect(page.locator("#qbody")).to_have_text("Jangan muncul lagi setelah dikosongkan", timeout=10000)
+    # Kartu muncul hanya setelah chime selesai, jadi di titik ini tepat satu chime.
+    assert page.evaluate("window.__oscillators") == 3
     # Jawaban display() berikutnya (yang masih memuat pertanyaan tampil) ditahan
     # 1,5 detik: meniru respons lama yang datang setelah layar dikosongkan.
     page.evaluate("""() => {
@@ -329,5 +347,6 @@ def test_display_ignores_out_of_order_responses(page: Page, backend):
     page.wait_for_function("window.__delayedStarted === true", timeout=5000)
     backend.screen("hide")
     expect(page.locator("#alert")).to_be_hidden(timeout=10000)
-    page.wait_for_timeout(3000)  # lewati saat jawaban lama tiba
-    expect(page.locator("#alert")).to_be_hidden()
+    page.wait_for_timeout(4000)  # jendela pengamatan: jawaban lama tiba di sini
+    # Satu chime saja. Respons lama yang mengumumkan ulang menambah 3 oscillator lagi.
+    assert page.evaluate("window.__oscillators") == 3
