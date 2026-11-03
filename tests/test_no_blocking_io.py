@@ -195,6 +195,11 @@ RECIPES: Dict[tuple, Recipe] = {
     ("GET", "/api/qna/questions/public"): Recipe(lambda: {"params": {"device_id": QNA_DEVICE}}),
     ("POST", "/api/qna/questions/{question_id}/vote"): Recipe(lambda: {"json": {"device_id": QNA_DEVICE, "on": True}}),
     ("GET", "/api/qna/display"): Recipe(),
+    ("GET", "/api/qna/admin/questions"): Recipe(admin=True),
+    ("POST", "/api/qna/admin/questions/{question_id}/{action}"): Recipe(admin=True),
+    ("POST", "/api/qna/admin/screen/{screen_action}"): Recipe(admin=True),
+    ("PATCH", "/api/qna/admin/settings"): Recipe(lambda: {"json": {"session_open": True}}, admin=True),
+    ("GET", "/api/qna/admin/stream"): Recipe(lambda: {"params": {"max_seconds": 0}}, admin=True),
 }
 
 PATH_PARAMS = {

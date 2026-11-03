@@ -1,7 +1,9 @@
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
-from core import flags
+from core import flags, qna_bus
 from core.security import COOKIE_NAME, create_access_token
 from main import app
 from routers import qna as qna_router
@@ -101,3 +103,85 @@ def test_unexpected_error_is_500_without_internal_details(qna_on, monkeypatch):
         "message": "Terjadi kesalahan di server.", "retry_after": None,
     }
     assert "rahasia" not in res.text
+
+
+def test_admin_routes_need_login():
+    for method, url in [
+        ("GET", "/api/qna/admin/questions"),
+        ("POST", f"/api/qna/admin/questions/{QID}/approve"),
+        ("POST", "/api/qna/admin/screen/hide"),
+        ("PATCH", "/api/qna/admin/settings"),
+        ("GET", "/api/qna/admin/stream"),
+    ]:
+        assert client.request(method, url, json={}).status_code == 401, url
+
+
+def test_show_announces_questions_and_display(published, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qna_router.qna_service, "admin_act",
+                        lambda qid, action: calls.append((qid, action)) or {"id": qid, "action": action})
+    res = admin_client().post(f"/api/qna/admin/questions/{QID}/show")
+    assert res.status_code == 200
+    assert calls == [(QID, "show")]
+    assert published == ["questions", "display"]
+
+
+def test_approve_does_not_touch_display(published, monkeypatch):
+    monkeypatch.setattr(qna_router.qna_service, "admin_act", lambda qid, action: {"id": qid, "action": action})
+    admin_client().post(f"/api/qna/admin/questions/{QID}/approve")
+    assert published == ["questions"]
+
+
+def test_unknown_action_is_400_and_never_reaches_db(published, monkeypatch):
+    monkeypatch.setattr(qna_router.qna_service, "admin_act",
+                        lambda *_: pytest.fail("aksi tak dikenal tidak boleh sampai ke DB"))
+    res = admin_client().post(f"/api/qna/admin/questions/{QID}/hapus")
+    assert res.status_code == 400
+    assert res.json()["code"] == "invalid_action"
+    assert published == []
+
+
+def test_screen_replay_announces_display(published, monkeypatch):
+    monkeypatch.setattr(qna_router.qna_service, "admin_screen", lambda action: {"show_nonce": 5})
+    assert admin_client().post("/api/qna/admin/screen/replay").status_code == 200
+    assert published == ["display"]
+
+
+def test_settings_patch_sends_only_given_fields(published, monkeypatch):
+    seen = []
+    monkeypatch.setattr(qna_router.qna_service, "admin_settings", lambda **kw: seen.append(kw) or {})
+    res = admin_client().patch("/api/qna/admin/settings", json={"session_open": True})
+    assert res.status_code == 200
+    assert seen == [{"session_open": True, "points_mode": None, "tts_engine": None}]
+    assert published == ["settings", "display"]
+
+
+def test_settings_rejects_unknown_mode():
+    res = admin_client().patch("/api/qna/admin/settings", json={"points_mode": "lelang"})
+    assert res.status_code == 422
+
+
+def test_stream_says_hello_with_sse_headers_and_closes():
+    res = admin_client().get("/api/qna/admin/stream", params={"max_seconds": 0})
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/event-stream")
+    assert res.headers["x-accel-buffering"] == "no"
+    assert "event: hello" in res.text
+
+
+def test_event_stream_forwards_published_kind_and_pings():
+    async def scenario():
+        async def connected():
+            return False
+        gen = qna_router.event_stream(connected, max_seconds=5, ping_seconds=0.2)
+        hello = await gen.__anext__()
+        await asyncio.to_thread(qna_bus.publish, "display")
+        changed = await asyncio.wait_for(gen.__anext__(), timeout=1)
+        ping = await asyncio.wait_for(gen.__anext__(), timeout=1)
+        await gen.aclose()
+        return hello, changed, ping
+
+    hello, changed, ping = asyncio.run(scenario())
+    assert hello.startswith("retry: 2000\nevent: hello")
+    assert changed == 'event: changed\ndata: {"kind": "display"}\n\n'
+    assert ping == ": ping\n\n"

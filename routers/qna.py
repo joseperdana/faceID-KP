@@ -1,13 +1,18 @@
+import asyncio
+import json
+import time
+from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from core import flags, qna_bus
 from core.observability import capture_error
+from core.security import check_admin_auth
 from services import qna_service
 from services.qna_service import QnaError
 
@@ -97,3 +102,76 @@ def vote_question(request: Request, question_id: UUID, payload: VoteDto):
 @router.get("/api/qna/display")
 def display_state():
     return _call("display", qna_service.display)
+
+
+QUESTION_ACTIONS = {"approve", "reject", "show", "done"}
+SCREEN_ACTIONS = {"hide", "replay"}
+
+
+class SettingsDto(BaseModel):
+    session_open: Optional[bool] = None
+    points_mode: Optional[Literal["hiasan", "upvote"]] = None
+    tts_engine: Optional[Literal["browser", "cloud"]] = None
+
+
+@router.get("/api/qna/admin/questions", dependencies=[Depends(check_admin_auth)])
+def admin_questions():
+    return _call("admin_list", qna_service.admin_list)
+
+
+@router.post("/api/qna/admin/questions/{question_id}/{action}", dependencies=[Depends(check_admin_auth)])
+def admin_act(question_id: UUID, action: str):
+    if action not in QUESTION_ACTIONS:
+        return _error(QnaError("invalid_action"))
+    kinds = ("questions", "display") if action in ("show", "done") else ("questions",)
+    return _announce(_call("admin_act", qna_service.admin_act, str(question_id), action), *kinds)
+
+
+@router.post("/api/qna/admin/screen/{screen_action}", dependencies=[Depends(check_admin_auth)])
+def admin_screen(screen_action: str):
+    if screen_action not in SCREEN_ACTIONS:
+        return _error(QnaError("invalid_action"))
+    return _announce(_call("admin_screen", qna_service.admin_screen, screen_action), "display")
+
+
+@router.patch("/api/qna/admin/settings", dependencies=[Depends(check_admin_auth)])
+def admin_settings(payload: SettingsDto):
+    # "display" ikut disiarkan karena tts_engine dibaca videotron.
+    return _announce(
+        _call("admin_settings", qna_service.admin_settings, **payload.model_dump()),
+        "settings", "display",
+    )
+
+
+async def event_stream(is_disconnected, max_seconds: float, ping_seconds: float = 15):
+    """Sinyal perubahan untuk admin & display. Tidak pernah menyentuh DB.
+
+    Ditutup sendiri setelah max_seconds; EventSource menyambung ulang otomatis
+    (retry 2 detik). Ping tiap 15 detik menjaga koneksi di bawah batas baca
+    nginx (60 detik) dan membuat klien yang sudah pergi cepat ketahuan.
+    """
+    q = qna_bus.subscribe()
+    try:
+        yield "retry: 2000\nevent: hello\ndata: {}\n\n"
+        deadline = time.monotonic() + max_seconds
+        while (remaining := deadline - time.monotonic()) > 0:
+            if await is_disconnected():
+                break
+            try:
+                kind = await asyncio.wait_for(q.get(), timeout=min(ping_seconds, remaining))
+            except asyncio.TimeoutError:
+                yield ": ping\n\n"
+                continue
+            yield f"event: changed\ndata: {json.dumps({'kind': kind})}\n\n"
+    finally:
+        qna_bus.unsubscribe(q)
+
+
+@router.get("/api/qna/admin/stream", dependencies=[Depends(check_admin_auth)])
+async def admin_stream(request: Request, max_seconds: int = Query(600, ge=0, le=600)):
+    return StreamingResponse(
+        event_stream(request.is_disconnected, max_seconds),
+        media_type="text/event-stream",
+        # X-Accel-Buffering: tanpa ini nginx menahan event sampai buffer penuh.
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
