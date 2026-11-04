@@ -6,6 +6,14 @@ SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "build_qna_standal
 LEGACY_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.x"
 
 
+def config_value(config: str, key: str) -> str:
+    # Nilai dibandingkan utuh, bukan dicari sebagai potongan teks: "URL ada di
+    # dalam config" juga lolos untuk https://abc.supabase.co.evil.com.
+    match = re.search(rf'{key}: "([^"]*)"', config)
+    assert match, key
+    return match.group(1)
+
+
 def run(*args):
     return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, check=False)  # noqa: S603
 
@@ -19,7 +27,8 @@ def test_build_produces_static_site_pointing_to_supabase(tmp_path):
         assert (out / name).exists(), name
     config = (out / "static/qna/config.js").read_text()
     assert 'backend: "supabase"' in config
-    assert "https://abc.supabase.co" in config and "sb_publishable_xyz" in config
+    assert config_value(config, "supabaseUrl") == "https://abc.supabase.co"
+    assert config_value(config, "supabaseKey") == "sb_publishable_xyz"
     assert '"/admin.html"' in config
 
 
@@ -47,8 +56,7 @@ def test_build_strips_one_trailing_slash_from_url(tmp_path):
     res = run(str(out), "https://abc.supabase.co/", "sb_publishable_xyz")
     assert res.returncode == 0, res.stderr
     config = (out / "static/qna/config.js").read_text()
-    assert 'supabaseUrl: "https://abc.supabase.co",' in config
-    assert "https://abc.supabase.co/" not in config
+    assert config_value(config, "supabaseUrl") == "https://abc.supabase.co"
 
 
 def test_build_refuses_to_wipe_unrelated_folder(tmp_path):
