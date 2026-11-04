@@ -24,9 +24,10 @@ limiter = Limiter(key_func=get_remote_address)
 # termasuk kiosk absen yang hidup di malam yang sama (lihat routers/users.py).
 # Satu-satunya `async def` adalah stream SSE, yang tidak pernah menyentuh DB.
 
-# Satu WiFi gereja = satu IP (NAT, temuan Gibbor H2). Batas per IP hanya
-# penahan skrip; anti-spam sesungguhnya jeda 30 detik per HP di qna_submit.
-SUBMIT_LIMIT = "60/minute"
+# Satu WiFi gereja = satu IP (NAT, temuan Gibbor H2), jadi ratusan HP jemaat
+# tampak sebagai satu klien. Anti-spam sesungguhnya adalah jeda 30 detik per HP
+# di qna_submit; batas per IP ini hanya penahan skrip, maka dibuat longgar.
+SUBMIT_LIMIT = "300/minute"
 VOTE_LIMIT = "300/minute"
 
 

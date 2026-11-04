@@ -167,7 +167,7 @@ Aturan bisnis (validasi, jeda per HP, transisi status, teks poin) ada di **fungs
 **Validasi & anti-spam**
 - Isi pertanyaan di-trim, panjang 3–300 karakter, dan di-escape saat render.
 - **Utamanya jeda 30 detik per `device_id`**, ditegakkan di fungsi `qna_submit`.
-- `slowapi` per IP dibuat longgar (60 kirim/menit, 300 vote/menit) karena satu WiFi gereja = satu IP (NAT). Batas per IP hanya untuk menahan skrip, bukan untuk membatasi orang.
+- `slowapi` per IP dibuat longgar (300 kirim/menit, 300 vote/menit) karena satu WiFi gereja = satu IP (NAT). Batas per IP hanya untuk menahan skrip, bukan untuk membatasi orang.
 - Di sisi klien, tombol Kirim nonaktif selama jeda dengan hitung mundur.
 
 ## 9. Suara AI

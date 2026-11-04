@@ -6,8 +6,8 @@ lalu sesi DIBUKA):
 Urutan penting: mode poin tidak bisa diganti saat sesi terbuka (mode_locked).
 
 Kiriman disebar merata: device ke-i mengirim pada i * spread / devices detik,
-dengan spread minimal 180 detik, sehingga laju kiriman tetap di bawah 50/menit
-(batas per IP 60/menit). Skrip ini berjalan dari satu IP, sama seperti satu
+dengan spread minimal 180 detik, sehingga laju kiriman tetap di bawah 250/menit
+(batas per IP 300/menit). Skrip ini berjalan dari satu IP, sama seperti satu
 WiFi gereja. Setiap device juga mem-polling daftar tiap 5 detik dan status
 tiap 10 detik, meniru jemaat.js.
 
@@ -25,7 +25,7 @@ import uuid
 import httpx
 
 SUBMIT_SPREAD_S = 180
-MAX_SUBMITS_PER_MIN = 50
+MAX_SUBMITS_PER_MIN = 250
 
 
 async def timed_get(client, url, params, kind, latencies, errors):
