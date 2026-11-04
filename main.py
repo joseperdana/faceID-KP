@@ -33,6 +33,9 @@ sentry_sdk.init(
     traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
     profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1")),
     send_default_pii=False,
+    # Sentry merekam variabel lokal setiap frame; frame httpx/postgrest memuat
+    # header berisi kunci Supabase, dan EventScrubber bawaan tidak menyaring header.
+    include_local_variables=False,
 )
 
 from routers import pages, auth, kiosk, users, analytics, attendance, photobooth, observability, flags, qna
