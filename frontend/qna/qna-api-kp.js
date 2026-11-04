@@ -26,13 +26,36 @@
   }
 
   function subscribe(onChange, onStatus) {
-    const es = new EventSource("/api/qna/admin/stream");
-    es.addEventListener("hello", () => { onStatus(true); onChange("all"); });
-    es.addEventListener("changed", (e) => onChange(JSON.parse(e.data).kind));
-    es.onerror = () => onStatus(false); // EventSource menyambung ulang sendiri
+    let es = null;
+    let retryTimer = null;
+    let closed = false;
+
+    function connect() {
+      retryTimer = null;
+      es = new EventSource("/api/qna/admin/stream");
+      es.addEventListener("hello", () => { onStatus(true); onChange("all"); });
+      es.addEventListener("changed", (e) => onChange(JSON.parse(e.data).kind));
+      es.onerror = () => {
+        onStatus(false);
+        // Putus biasa (CONNECTING) disambung ulang browser sendiri. Respons
+        // non-2xx, mis. nginx 502 saat restart, menutup EventSource untuk
+        // selamanya, jadi harus dibuat ulang manual atau stream mati sampai
+        // halaman dimuat ulang.
+        if (!closed && es.readyState === EventSource.CLOSED && !retryTimer) {
+          es.close();
+          retryTimer = setTimeout(connect, 3000);
+        }
+      };
+    }
+    connect();
     // Cadangan kalau SSE tertahan proxy atau sinyal terlewat.
     const poll = setInterval(() => onChange("poll"), 5000);
-    return () => { es.close(); clearInterval(poll); };
+    return () => {
+      closed = true;
+      if (es) es.close();
+      clearTimeout(retryTimer);
+      clearInterval(poll);
+    };
   }
 
   const device = () => window.Qna.deviceId();

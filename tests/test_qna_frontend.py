@@ -207,6 +207,29 @@ def test_admin_moves_question_through_whole_flow(page: Page, backend):
     expect(page.locator("#n-selesai")).to_have_text("1")
 
 
+def test_admin_stream_reconnects_after_error_status(page: Page, backend):
+    """Respons non-2xx (mis. nginx 502 saat restart) membuat EventSource
+    tertutup permanen; tanpa sambung ulang manual, admin hanya mengandalkan
+    poll 5 detik selama sisa acara."""
+    stream_requests = []
+
+    def flaky_stream(route):
+        stream_requests.append(route.request.url)
+        if len(stream_requests) == 1:
+            route.fulfill(status=502, content_type="text/plain", body="Bad Gateway")
+            return
+        route.fallback()  # request berikutnya dilayani stub hello di fixture backend
+
+    page.route(f"{BASE}/api/qna/admin/stream", flaky_stream)
+    page.goto(f"{BASE}/tanya/admin")
+    deadline_ms = 10000
+    elapsed = 0
+    while len(stream_requests) < 2 and elapsed < deadline_ms:
+        page.wait_for_timeout(250)
+        elapsed += 250
+    assert len(stream_requests) >= 2, "EventSource tidak tersambung ulang setelah 502"
+
+
 def test_admin_sorts_approved_by_votes_in_upvote_mode(page: Page, backend):
     backend.settings["points_mode"] = "upvote"
     backend.add("Sedikit", "disetujui", votes=1)
