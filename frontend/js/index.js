@@ -258,6 +258,33 @@ function renderLarkNudge(data) {
     return true;
 }
 
+// Panel hasil untuk semua kegagalan scan. Tombol Cari Nama Manual selalu ada:
+// apa pun penyebabnya, jemaat tidak boleh tertahan di depan kamera.
+function showScanProblem(title, desc, opts = {}) {
+    resultArea.classList.remove('hidden');
+    resultArea.innerHTML = `
+        <div class="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4 mx-auto">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <h3 class="text-xl font-extrabold text-white mb-1.5">${escapeHtml(title)}</h3>
+        <p class="text-slate-400 text-xs mb-5">${escapeHtml(desc)}</p>
+        <div class="flex flex-col gap-2.5 w-full max-w-xs">
+            <button onclick="openManualSearchModal()" class="py-3 px-4 bg-azure-600 hover:bg-azure-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-azure-600/25 transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                Cari Nama Manual
+            </button>
+            ${opts.register ? `
+            <a href="/register" class="py-3 px-4 bg-obsidian-800 hover:bg-obsidian-750 text-slate-200 border border-white/10 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                Daftar Anggota Baru
+            </a>` : ''}
+        </div>
+        <button onclick="resetScan()" class="text-slate-500 text-xs font-mono hover:text-slate-300 underline mt-4">Coba Scan Lagi</button>
+    `;
+}
+
 async function triggerAutoCapture() {
     isProcessing = true;
     loadingOverlay.classList.remove('hidden');
@@ -282,16 +309,30 @@ async function triggerAutoCapture() {
             formData.append('lng', currentUserLng);
         }
 
+        let response;
         try {
-            const response = await fetch('/api/recognize', { method: 'POST', body: formData });
-            const data = await response.json();
+            response = await fetch('/api/recognize', { method: 'POST', body: formData });
+        } catch (err) {
+            // Jaringan putus. Dulu layar langsung reset tanpa pesan, kamera
+            // memindai ulang, gagal lagi, dan begitu terus tanpa penjelasan.
+            // Sekarang kiosk berhenti di pesan ini sampai ada yang mengetuk.
+            window.KPObs && window.KPObs.report('checkin_failed', err && err.message, { stack: err && err.stack });
+            loadingOverlay.classList.add('hidden');
+            showScanProblem('Koneksi Terputus',
+                'Kiosk tidak tersambung ke server. Periksa Wi-Fi, lalu coba lagi atau cari nama secara manual.');
+            return;
+        }
+
+        try {
+            // Respons 502/504 dari proxy berupa HTML, bukan JSON.
+            const data = await response.json().catch(() => ({}));
 
             loadingOverlay.classList.add('hidden');
-            resultArea.classList.remove('hidden');
-            
+
             if (data.status === 'success') {
                 showSuccessModal(data.data, data.message);
             } else if (response.status === 403) {
+                resultArea.classList.remove('hidden');
                 resultArea.innerHTML = `
                     <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4 mx-auto">
                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -303,31 +344,27 @@ async function triggerAutoCapture() {
                     <p class="text-slate-400 text-xs mb-5 font-medium">${escapeHtml(data.message || 'Anda berada di luar area GKI Bromo.')}</p>
                     <button onclick="resetScan()" class="text-slate-400 text-xs font-mono hover:text-white underline">Coba Scan Lagi</button>
                 `;
+            } else if (response.ok && data.status === 'unknown') {
+                // Satu-satunya keadaan yang boleh menyebut "belum terdaftar":
+                // model membaca wajahnya, tetapi tidak ada yang cocok.
+                showScanProblem('Wajah Belum Terdeteksi',
+                    'Wajah belum terdaftar di database atau cahaya silau.', { register: true });
+            } else if (response.status === 400) {
+                showScanProblem('Wajah Kurang Jelas',
+                    'Kamera belum menangkap wajah dengan jelas. Pastikan wajah tidak tertutup dan cahaya tidak silau.');
+            } else if (response.status === 429) {
+                showScanProblem('Kiosk Sedang Sibuk',
+                    'Terlalu banyak pemindaian dalam satu menit. Tunggu sebentar, atau cari nama secara manual.');
             } else {
-                resultArea.innerHTML = `
-                    <div class="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4 mx-auto">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-extrabold text-white mb-1.5">Wajah Belum Terdeteksi</h3>
-                    <p class="text-slate-400 text-xs mb-5">Wajah belum terdaftar di database atau cahaya silau.</p>
-                    <div class="flex flex-col gap-2.5 w-full max-w-xs">
-                        <button onclick="openManualSearchModal()" class="py-3 px-4 bg-azure-600 hover:bg-azure-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-azure-600/25 transition-all flex items-center justify-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            Cari Nama Manual
-                        </button>
-                        <a href="/register" class="py-3 px-4 bg-obsidian-800 hover:bg-obsidian-750 text-slate-200 border border-white/10 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2">
-                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                            Daftar Anggota Baru
-                        </a>
-                    </div>
-                    <button onclick="resetScan()" class="text-slate-500 text-xs font-mono hover:text-slate-300 underline mt-4">Coba Scan Lagi</button>
-                `;
+                // Error server bukan salah wajahnya. Jangan sampai jemaat
+                // mendaftar ulang atau pindah posisi karena pesan yang keliru.
+                window.KPObs && window.KPObs.report('checkin_server_error', 'HTTP ' + response.status, {
+                    context: { status: response.status }
+                });
+                showScanProblem('Sistem Sedang Bermasalah',
+                    'Server tidak bisa memproses wajah saat ini. Silakan absen lewat Cari Nama Manual.');
             }
         } catch (err) {
-            // Sebelumnya benar-benar senyap: layar reset, orangnya disuruh coba
-            // lagi, dan tidak ada jejak apa pun yang sampai ke luar kiosk.
             window.KPObs && window.KPObs.report('checkin_failed', err && err.message, { stack: err && err.stack });
             loadingOverlay.classList.add('hidden');
             resetScan();

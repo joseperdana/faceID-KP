@@ -173,7 +173,7 @@
                     </div>
                     <div>
                         <p class="text-slate-400 text-xs font-mono font-medium uppercase tracking-wider">Total Terdaftar</p>
-                        <h3 class="text-3xl font-extrabold font-mono text-white mt-0.5" id="stat-total-users">-</h3>
+                        <h3 class="text-3xl font-extrabold font-mono text-white mt-0.5" id="stat-total-users" data-tone="text-white">-</h3>
                     </div>
                 </div>
 
@@ -184,7 +184,7 @@
                     </div>
                     <div>
                         <p class="text-slate-400 text-xs font-mono font-medium uppercase tracking-wider">Hadir Hari Ini</p>
-                        <h3 class="text-3xl font-extrabold font-mono text-emerald-400 mt-0.5" id="stat-present-today">-</h3>
+                        <h3 class="text-3xl font-extrabold font-mono text-emerald-400 mt-0.5" id="stat-present-today" data-tone="text-emerald-400">-</h3>
                     </div>
                 </div>
 
@@ -195,7 +195,7 @@
                     </div>
                     <div>
                         <p class="text-slate-400 text-xs font-mono font-medium uppercase tracking-wider">Baru Daftar Hari Ini</p>
-                        <h3 class="text-3xl font-extrabold font-mono text-cyan-400 mt-0.5" id="stat-new-today">-</h3>
+                        <h3 class="text-3xl font-extrabold font-mono text-cyan-400 mt-0.5" id="stat-new-today" data-tone="text-cyan-400">-</h3>
                     </div>
                 </div>
             </div>
@@ -746,6 +746,50 @@
                 .replace(/'/g, '&#039;');
         }
 
+        // --- State gagal muat ---------------------------------------------------
+        // Dulu kegagalan hanya masuk console: kartu tetap "-" dan tabel bertuliskan
+        // "Memuat data..." selamanya, persis seperti koneksi lambat. Pengurus
+        // menunggu tanpa tahu bahwa datanya tidak akan datang.
+        class LoadError extends Error {
+            constructor(status, serverMessage) {
+                super(`HTTP ${status}`);
+                this.status = status;
+                this.serverMessage = serverMessage;
+            }
+        }
+
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new LoadError(res.status);
+            return res.json();
+        }
+
+        // Teks penyebab dalam bahasa pengurus. Pesan bawaan browser seperti
+        // "Failed to fetch" tidak boleh sampai ke layar.
+        function loadErrorText(err) {
+            if (err && err.status === 401) return 'Sesi login sudah habis. Silakan login ulang.';
+            if (err && err.status) return `Server sedang bermasalah (kode ${err.status}).`;
+            return 'Tidak tersambung ke server. Periksa koneksi internet.';
+        }
+
+        function loadErrorHtml(what, err, retryCall) {
+            const relogin = err && err.status === 401;
+            return `
+                <div class="flex flex-col items-center gap-3">
+                    <p class="text-rose-400 font-mono text-xs">${escapeHTML(what)} gagal dimuat. ${escapeHTML(loadErrorText(err))}</p>
+                    <button onclick="${relogin ? "location.href='/login'" : retryCall}" class="px-3 py-1.5 bg-obsidian-800 border border-white/10 rounded-xl hover:bg-obsidian-750 text-xs text-slate-200 transition-all font-mono">
+                        ${relogin ? 'Login Ulang' : 'Muat Ulang'}
+                    </button>
+                </div>`;
+        }
+
+        function setKpi(id, value, failed = false) {
+            const el = document.getElementById(id);
+            el.innerText = value;
+            el.classList.toggle(el.dataset.tone, !failed);
+            el.classList.toggle('text-rose-400', failed);
+        }
+
 
 
         // Sembunyikan pintu masuk fitur yang sedang dimatikan, di dashboard juga —
@@ -852,8 +896,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ enabled: wanted })
                 });
-                const json = await res.json();
-                if (json.status !== 'success') throw new Error(json.message || 'Gagal menyimpan');
+                const json = await res.json().catch(() => ({}));
+                if (json.status !== 'success') throw new LoadError(res.status, json.message);
                 renderFlagBadge(key, wanted);
             } catch (err) {
                 // Kembalikan saklar ke posisi semula supaya layar tidak berbohong
@@ -862,7 +906,11 @@
                 renderFlagBadge(key, !wanted);
                 Swal.fire({
                     title: 'Saklar gagal diubah',
-                    text: 'Nilai dikembalikan ke posisi semula. ' + (err && err.message ? err.message : ''),
+                    // Pesan server hanya dipakai untuk 404 (nama fitur tidak dikenal),
+                    // yang ditulis dalam bahasa Indonesia. Pesan 500 berisi exception
+                    // mentah, dan error jaringan berbunyi "Failed to fetch".
+                    text: 'Nilai dikembalikan ke posisi semula. ' +
+                        (err && err.status === 404 && err.serverMessage ? err.serverMessage : loadErrorText(err)),
                     icon: 'error',
                     background: '#0b0d13',
                     color: '#f8fafc',
@@ -927,13 +975,11 @@
 
         async function loadDashboardData() {
             try {
-                const res = await fetch('/api/dashboard-stats');
-                if (!res.ok) throw new Error("Gagal mengambil data");
-                const data = await res.json();
-                
-                document.getElementById('stat-total-users').innerText = data.total_users ?? 0;
-                document.getElementById('stat-present-today').innerText = data.present_today ?? 0;
-                document.getElementById('stat-new-today').innerText = data.new_users_today ?? 0;
+                const data = await fetchJson('/api/dashboard-stats');
+
+                setKpi('stat-total-users', data.total_users ?? 0);
+                setKpi('stat-present-today', data.present_today ?? 0);
+                setKpi('stat-new-today', data.new_users_today ?? 0);
                 globalNewUsersToday = data.new_users_list || [];
 
                 const tbody = document.getElementById('feed-table');
@@ -968,7 +1014,11 @@
                 const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 document.getElementById('feed-last-updated').innerText = `Diperbarui ${timeStr} WIB`;
             } catch (err) {
-                console.error("Dashboard Stats Error:", err);
+                window.KPObs && window.KPObs.report('load_dashboard_failed', err && err.message);
+                ['stat-total-users', 'stat-present-today', 'stat-new-today'].forEach(id => setKpi(id, 'Gagal', true));
+                document.getElementById('feed-table').innerHTML =
+                    `<tr><td colspan="4" class="p-8 text-center">${loadErrorHtml('Data ringkasan', err, 'loadDashboardData()')}</td></tr>`;
+                document.getElementById('feed-last-updated').innerText = 'Gagal dimuat';
             }
         }
 
@@ -1093,14 +1143,17 @@
         let currentUsersPage = 1;
         let usersLimit = 20;
 
+        let usersLoadError = null;
+
         async function loadDatabase() {
             try {
-                const res = await fetch('/api/users');
-                if (!res.ok) throw new Error("Gagal mengambil database jemaat");
-                allUsers = await res.json();
+                allUsers = await fetchJson('/api/users');
+                usersLoadError = null;
                 applyUserFilters();
             } catch (err) {
-                console.error(err);
+                window.KPObs && window.KPObs.report('load_users_failed', err && err.message);
+                usersLoadError = err;
+                renderUsersTable();
             }
         }
 
@@ -1131,6 +1184,16 @@
         function renderUsersTable() {
             const tbody = document.getElementById('users-table');
             tbody.innerHTML = '';
+
+            // Tanpa ini, mengetik di kolom cari setelah gagal muat menampilkan
+            // "tidak ada yang cocok", seolah datanya memang kosong.
+            if (usersLoadError) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center">${loadErrorHtml('Data jemaat', usersLoadError, 'loadDatabase()')}</td></tr>`;
+                document.getElementById('users-page-info').innerText = 'Data tidak tersedia';
+                document.getElementById('btn-prev-users').disabled = true;
+                document.getElementById('btn-next-users').disabled = true;
+                return;
+            }
 
             const total = filteredUsers.length;
             const totalPages = Math.ceil(total / usersLimit) || 1;
@@ -1468,9 +1531,7 @@
         async function loadAnalytics(filter = '30d') {
             try {
                 const atRiskDays = document.getElementById('at-risk-filter').value;
-                const res = await fetch(`/api/analytics?filter_type=${filter}&at_risk_days=${atRiskDays}`);
-                if (!res.ok) throw new Error("Gagal load analytics");
-                const data = await res.json();
+                const data = await fetchJson(`/api/analytics?filter_type=${filter}&at_risk_days=${atRiskDays}`);
 
                 document.getElementById('stat-avg').innerText = data.avg_attendance || 0;
 
@@ -1608,8 +1669,28 @@
                 renderTopUsersList(data.top_users || []);
 
             } catch (err) {
-                console.error("Analytics Load Error:", err);
+                window.KPObs && window.KPObs.report('load_analytics_failed', err && err.message);
+                renderAnalyticsFailed(err);
             }
+        }
+
+        // Angka bawaan HTML (0, 50% : 50%) tidak boleh tersisa saat data gagal
+        // dimuat, karena terbaca sebagai data sungguhan.
+        function renderAnalyticsFailed(err) {
+            const retry = "loadAnalytics(document.getElementById('time-filter').value)";
+            const failedNote = '<li class="text-rose-400 font-mono text-xs text-center py-4">Gagal dimuat.</li>';
+            document.getElementById('at-risk-list').innerHTML =
+                `<li class="py-4 text-center">${loadErrorHtml('Data analisa', err, retry)}</li>`;
+            const fullList = document.getElementById('full-at-risk-list');
+            if (fullList) fullList.innerHTML = failedNote;
+            document.getElementById('top-users-list').innerHTML = failedNote;
+            const fullTop = document.getElementById('full-top-users-list');
+            if (fullTop) fullTop.innerHTML = failedNote;
+            document.getElementById('global-heatmap').innerHTML =
+                '<p class="text-rose-400 font-mono text-xs py-4">Gagal dimuat.</p>';
+            ['stat-avg', 'stat-pria', 'stat-wanita', 'stat-unknown', 'persen-pria', 'persen-wanita', 'persen-unknown']
+                .forEach(id => { document.getElementById(id).innerText = '–'; });
+            ['bar-pria', 'bar-wanita', 'bar-unknown'].forEach(id => { document.getElementById(id).style.width = '0%'; });
         }
 
         function renderAtRiskList(users) {

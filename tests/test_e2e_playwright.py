@@ -459,3 +459,128 @@ def test_kiosk_still_shows_every_button_when_flags_cannot_be_read(page: Page, co
     page.goto(f"{BASE_URL}/")
     expect(page.locator('a[href="/photobooth"]')).to_be_visible()
     expect(page.locator('a[href="/register"]')).to_be_visible()
+
+
+# --- Pesan error harus menyebut penyebab yang benar (pola P13 audit UI) ------
+# Layar yang menyebut penyebab keliru membuat orang mengambil tindakan keliru:
+# jemaat mendaftar ulang karena server error, pengurus terus mencoba login
+# padahal sedang diblokir.
+
+def _status_route(code, body):
+    import json
+    return lambda route: route.fulfill(status=code, content_type="application/json", body=json.dumps(body))
+
+
+@pytest.mark.parametrize("respond, expected", [
+    (_status_route(401, {"detail": "Password Salah"}), "Password salah."),
+    (_status_route(429, {"error": "Rate limit exceeded: 5 per 1 minute"}), "Tunggu 1 menit"),
+    (_status_route(500, {"detail": "Internal Server Error"}), "Server sedang bermasalah"),
+    (lambda route: route.abort(), "Tidak tersambung ke server"),
+])
+def test_login_error_names_the_real_cause(page: Page, respond, expected):
+    page.route("**/api/login", respond)
+    page.goto(f"{BASE_URL}/login")
+    page.fill('input[type="password"]', "apa-saja")
+    page.keyboard.press("Enter")
+    expect(page.locator("#error")).to_contain_text(expected)
+    if expected != "Password salah.":
+        expect(page.locator("#error")).not_to_contain_text("Password salah")
+
+
+def _kiosk_scan(page: Page):
+    """Buka kiosk sampai kamera tiruan jalan, lalu picu satu pemindaian."""
+    _stub_flags(page.context)
+    page.goto(f"{BASE_URL}/")
+    page.wait_for_function("document.getElementById('video').videoWidth > 0", timeout=20000)
+    page.evaluate("isProcessing = false; triggerAutoCapture()")
+
+
+def test_kiosk_server_error_is_not_reported_as_unknown_face(page: Page):
+    page.route("**/api/recognize", _status_route(500, {"detail": "AI Error: boom"}))
+    _kiosk_scan(page)
+    hasil = page.locator("#result-area")
+    expect(hasil).to_contain_text("Sistem Sedang Bermasalah")
+    expect(hasil).not_to_contain_text("belum terdaftar")
+    # Jalan keluar satu ketukan tetap ada.
+    hasil.get_by_role("button", name="Cari Nama Manual").click()
+    expect(page.locator("#manual-search-modal")).not_to_have_class(re.compile(r"\bhidden\b"))
+
+
+def test_kiosk_unknown_face_still_offers_registration(page: Page):
+    page.route("**/api/recognize", _status_route(200, {"status": "unknown", "message": "Wajah tidak dikenali."}))
+    _kiosk_scan(page)
+    hasil = page.locator("#result-area")
+    expect(hasil).to_contain_text("belum terdaftar")
+    expect(hasil.get_by_role("button", name="Cari Nama Manual")).to_be_visible()
+    expect(hasil.locator('a[href="/register"]')).to_be_visible()
+
+
+def test_kiosk_offline_shows_message_and_does_not_rescan(page: Page):
+    page.route("**/api/recognize", lambda route: route.abort("internetdisconnected"))
+    _kiosk_scan(page)
+    hasil = page.locator("#result-area")
+    expect(hasil).to_contain_text("Koneksi Terputus")
+    expect(hasil.get_by_role("button", name="Cari Nama Manual")).to_be_visible()
+    # Dulu kiosk langsung reset dan memindai ulang. Pesannya harus bertahan dan
+    # kamera tidak boleh memicu pemindaian baru sampai ada yang mengetuk.
+    page.wait_for_timeout(2500)
+    expect(hasil).to_contain_text("Koneksi Terputus")
+    assert page.evaluate("isProcessing") is True
+
+
+def _login_cookie(context: BrowserContext):
+    context.add_cookies([{
+        "name": COOKIE_NAME, "value": create_access_token(data={"sub": "admin"}),
+        "domain": "127.0.0.1", "path": "/",
+    }])
+
+
+def test_dashboard_shows_failure_instead_of_loading_forever(page: Page, context: BrowserContext):
+    _login_cookie(context)
+    for pattern in DASHBOARD_DATA_ROUTES:
+        context.route(pattern, _status_route(500, {"detail": "Internal Server Error"}))
+    page.goto(f"{BASE_URL}/dashboard")
+
+    expect(page.locator("#stat-total-users")).to_have_text("Gagal")
+    expect(page.locator("#feed-table")).to_contain_text("Server sedang bermasalah (kode 500)")
+    expect(page.locator("#feed-last-updated")).to_have_text("Gagal dimuat")
+
+    page.locator("#btn-analytics").click()
+    expect(page.locator("#at-risk-list")).to_contain_text("Data analisa gagal dimuat")
+    expect(page.locator("#at-risk-list")).not_to_contain_text("Semua jemaat aktif hadir")
+
+    page.locator("#btn-database").click()
+    users = page.locator("#users-table")
+    expect(users).to_contain_text("Data jemaat gagal dimuat")
+    expect(users).not_to_contain_text("Memuat data")
+    expect(page.locator("#btn-prev-users")).to_be_disabled()
+    expect(page.locator("#btn-next-users")).to_be_disabled()
+    # Mengetik di kolom cari tidak boleh mengubahnya jadi "tidak ada yang cocok".
+    page.fill("#search-user", "a")
+    expect(users).to_contain_text("Data jemaat gagal dimuat")
+
+    # Tombol Muat Ulang benar-benar memulihkan begitu server sehat lagi.
+    for pattern in DASHBOARD_DATA_ROUTES:
+        context.unroute(pattern)
+    with dashboard_api_from_real_handlers(context):
+        users.get_by_role("button", name="Muat Ulang").click()
+        expect(users).to_contain_text("Contoh Satu")
+        page.locator("#btn-overview").click()
+        expect(page.locator("#stat-total-users")).to_have_text("3")
+        expect(page.locator("#stat-total-users")).not_to_have_class(re.compile(r"text-rose-400"))
+
+
+def test_flag_toggle_failure_speaks_indonesian(page: Page, context: BrowserContext):
+    import json
+    _login_cookie(context)
+    context.route("**/api/flags/detail", lambda route: route.fulfill(
+        status=200, content_type="application/json", body=json.dumps({"status": "success", "data": [
+            {"key": "photobooth", "label": "Photobooth", "description": "Contoh", "enabled": True}]})))
+    context.route("**/api/flags/photobooth", lambda route: route.abort())
+    page.goto(f"{BASE_URL}/dashboard")
+    page.locator("#btn-kontrol").click()
+    page.locator("#flag-card-photobooth label:has(input)").click()
+    dialog = page.locator(".swal2-html-container")
+    expect(dialog).to_contain_text("Tidak tersambung ke server")
+    expect(dialog).not_to_contain_text("Failed to fetch")
+    expect(page.locator("#flag-input-photobooth")).to_be_checked()
