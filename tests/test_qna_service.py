@@ -60,7 +60,7 @@ def test_admin_calls_send_null_pin_so_db_checks_service_role(fake):
     qna_service.admin_settings(session_open=True)
     assert fake.calls == [
         ("qna_admin_list", {"p_pin": None}),
-        ("qna_admin_act", {"p_pin": None, "p_id": "q-1", "p_action": "show"}),
+        ("qna_admin_act", {"p_pin": None, "p_id": "q-1", "p_action": "show", "p_intro": None, "p_sfx": None}),
         ("qna_admin_screen", {"p_pin": None, "p_action": "hide"}),
         ("qna_admin_settings", {"p_pin": None, "p_session_open": True,
                                 "p_points_mode": None, "p_tts_engine": None}),
@@ -78,7 +78,7 @@ def test_cooldown_becomes_429_with_retry_after(fake):
     ("session_closed", 409), ("invalid_body", 400), ("invalid_device", 400),
     ("not_votable", 409), ("not_found", 404), ("invalid_transition", 409),
     ("invalid_action", 400), ("mode_locked", 409), ("nothing_showing", 409),
-    ("forbidden", 403),
+    ("forbidden", 403), ("invalid_intro", 400), ("invalid_sfx", 400),
 ])
 def test_known_db_errors_map_to_http_status(fake, message, status):
     fake.error = _db_error(message)
@@ -109,3 +109,11 @@ def test_qna_flag_exists_and_defaults_off():
     from core import flags
     assert "qna" in flags.FLAGS
     assert flags._defaults()["qna"] is False
+
+
+def test_show_passes_intro_and_sfx(fake):
+    qna_service.admin_act("q-1", "show", intro="Eh, ada pertanyaan nih!", sfx="tada")
+    assert fake.calls == [("qna_admin_act", {
+        "p_pin": None, "p_id": "q-1", "p_action": "show",
+        "p_intro": "Eh, ada pertanyaan nih!", "p_sfx": "tada",
+    })]

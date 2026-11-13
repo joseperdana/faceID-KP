@@ -69,7 +69,10 @@
         }
       },
       list: () => admin("qna_admin_list", {}),
-      act: (id, action) => admin("qna_admin_act", { p_id: id, p_action: action }),
+      act: (id, action, opts) => admin("qna_admin_act", {
+        p_id: id, p_action: action,
+        p_intro: (opts && opts.intro) ?? null, p_sfx: (opts && opts.sfx) ?? null,
+      }),
       screen: (action) => admin("qna_admin_screen", { p_action: action }),
       settings: (patch) => admin("qna_admin_settings", {
         p_session_open: patch.session_open ?? null,

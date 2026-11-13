@@ -31,6 +31,8 @@
     mode_locked: "Tutup sesi dulu sebelum mengganti mode poin.",
     nothing_showing: "Tidak ada pertanyaan yang sedang tampil.",
     forbidden: "Akses admin ditolak. Masuk lagi.",
+    invalid_intro: "Pesan pembuka maksimal 120 karakter.",
+    invalid_sfx: "Efek suara tidak dikenal.",
     tts_unavailable: "Suara cloud tidak tersedia.",
     network: "Gagal terhubung. Coba lagi.",
   };
@@ -69,5 +71,27 @@
     finally { clearTimeout(timer); }
   }
 
-  window.Qna = { deviceId, MESSAGES, QnaError, parseServerMessage, escapeHtml, fetchWithTimeout };
+  // Pesan pembuka yang dibacakan sebelum isi pertanyaan. Admin bisa memilih
+  // salah satu, mengacaknya, atau menulis sendiri.
+  const INTROS = [
+    "Wow, pertanyaan bagus dari seseorang!",
+    "Seorang anak Tuhan bertanya",
+    "Eh, ada pertanyaan nih!",
+    "Seseorang memberikan pesan menarik",
+    "Ada yang penasaran nih!",
+    "Ding! Ada pertanyaan baru",
+    "Ini dia pertanyaan dari teman kita",
+    "Seseorang lagi kepo, nih!",
+    "Hmm, pertanyaan yang dalam nih",
+    "Satu pertanyaan spesial buat narasumber",
+    "Pertanyaan masuk, siap-siap ya!",
+    "Seseorang mau tahu, nih",
+  ];
+  const SFX = ["ding", "tada", "confetti"];
+  const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
+
+  window.Qna = {
+    deviceId, MESSAGES, QnaError, parseServerMessage, escapeHtml, fetchWithTimeout,
+    INTROS, SFX, pickRandom,
+  };
 })();

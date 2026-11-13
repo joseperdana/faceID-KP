@@ -74,7 +74,7 @@
       hasPin: () => true,
       login: async () => {},
       list: () => request("GET", "/api/qna/admin/questions"),
-      act: (id, action) => request("POST", `/api/qna/admin/questions/${enc(id)}/${enc(action)}`),
+      act: (id, action, opts) => request("POST", `/api/qna/admin/questions/${enc(id)}/${enc(action)}`, opts),
       screen: (action) => request("POST", `/api/qna/admin/screen/${enc(action)}`),
       settings: (patch) => request("PATCH", "/api/qna/admin/settings", patch),
     },

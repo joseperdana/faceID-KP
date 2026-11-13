@@ -86,12 +86,33 @@
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
     btn.disabled = true;
-    run(QnaApi.admin.act(btn.dataset.id, btn.dataset.act));
+    const opts = btn.dataset.act === "show" ? showOptions() : undefined;
+    run(QnaApi.admin.act(btn.dataset.id, btn.dataset.act, opts));
   });
   $("session").onclick = () => run(QnaApi.admin.settings({ session_open: !data.settings.session_open }));
   $("mode").onchange = () => run(QnaApi.admin.settings({ points_mode: $("mode").value }));
   $("tts").onchange = () => run(QnaApi.admin.settings({ tts_engine: $("tts").value }));
   $("sort").onchange = render;
+
+  // Pilihan di toolbar berlaku untuk setiap klik "Tampilkan": admin bisa
+  // menggantinya sebelum menampilkan pertanyaan berikutnya.
+  $("intro").insertAdjacentHTML("beforeend",
+    Qna.INTROS.map((t) => `<option value="${Qna.escapeHtml(t)}">${Qna.escapeHtml(t)}</option>`).join("")
+    + '<option value="__custom">Tulis sendiri…</option>');
+  $("intro").onchange = () => {
+    $("introCustom").hidden = $("intro").value !== "__custom";
+    if (!$("introCustom").hidden) $("introCustom").focus();
+  };
+
+  function showOptions() {
+    const choice = $("intro").value;
+    const custom = $("introCustom").value.trim();
+    let intro = choice;
+    if (choice === "__random" || (choice === "__custom" && !custom)) intro = Qna.pickRandom(Qna.INTROS);
+    else if (choice === "__custom") intro = custom;
+    const sfx = $("sfx").value === "__random" ? Qna.pickRandom(Qna.SFX) : $("sfx").value;
+    return { intro, sfx };
+  }
   $("hide").onclick = () => run(QnaApi.admin.screen("hide"));
   $("replay").onclick = () => run(QnaApi.admin.screen("replay"));
   $("linkOverlay").href = `${pages.display}?mode=overlay`;

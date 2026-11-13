@@ -25,6 +25,18 @@
       <label>Suara
         <select id="tts"><option value="browser">Browser</option><option value="cloud">Cloud</option></select>
       </label>
+      <label>Pesan pembuka
+        <select id="intro"><option value="__random">Acak</option></select>
+      </label>
+      <input id="introCustom" type="text" maxlength="120" placeholder="Tulis pesan pembuka…" hidden>
+      <label>Efek
+        <select id="sfx">
+          <option value="__random">Acak</option>
+          <option value="ding">Ding</option>
+          <option value="tada">Tada</option>
+          <option value="confetti">Confetti</option>
+        </select>
+      </label>
       <button id="hide" type="button">Kosongkan layar</button>
       <button id="replay" type="button">Putar ulang</button>
       <a id="linkOverlay" target="_blank" rel="noopener">Display overlay</a>

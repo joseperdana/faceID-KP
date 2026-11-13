@@ -111,6 +111,18 @@ begin
   perform qna_admin_act(pin, q1, 'show');
   perform pg_temp.check(qna_display() -> 'question' ->> 'points_text' ~ '^Seseorang memberikan (10|20|50|100) poin!$', 'teks hiasan');
   perform pg_temp.check(jsonb_array_length(qna_public_list(dev1)) = 0, 'daftar publik kosong di mode hiasan');
+  perform pg_temp.check(qna_display() -> 'question' -> 'votes' = 'null'::jsonb, 'votes null di mode hiasan');
+  perform pg_temp.check(qna_display() -> 'question' ->> 'sfx' = 'ding', 'efek bawaan ding');
+
+  -- Pesan pembuka & efek pilihan admin (revisi 13 Nov)
+  perform qna_admin_act(pin, q2, 'show', '  Eh, ada pertanyaan nih!  ', 'tada');
+  r := qna_display();
+  perform pg_temp.check(r -> 'question' ->> 'points_text' = 'Eh, ada pertanyaan nih!', 'pesan pembuka di-trim');
+  perform pg_temp.check(r -> 'question' ->> 'sfx' = 'tada', 'efek tada');
+  perform pg_temp.expect_error(format('select qna_admin_act(%L, %L, %L, %L, %L)', pin, q1, 'show', 'Halo', 'gong'), 'invalid_sfx');
+  perform pg_temp.expect_error(format('select qna_admin_act(%L, %L, %L, %L, %L)', pin, q1, 'show', repeat('x', 121), null), 'invalid_intro');
+  perform qna_admin_act(pin, q1, 'show', '   ', null);
+  perform pg_temp.check(qna_display() -> 'question' ->> 'points_text' ~ '^Seseorang memberikan', 'pesan kosong pakai teks bawaan');
 
   -- Jalur backend: service_role tanpa PIN
   perform pg_temp.expect_error('select qna_admin_list(null)', 'forbidden');
@@ -128,7 +140,7 @@ begin
     fns constant text[] := array[
       'qna_state()', 'qna_submit(text, uuid)', 'qna_public_list(uuid)',
       'qna_vote(uuid, uuid, boolean)', 'qna_display()', 'qna_admin_list(text)',
-      'qna_admin_act(text, uuid, text)', 'qna_admin_screen(text, text)',
+      'qna_admin_act(text, uuid, text, text, text)', 'qna_admin_screen(text, text)',
       'qna_admin_settings(text, boolean, text, text)'];
     f text;
   begin
@@ -141,7 +153,7 @@ begin
     grant execute on function
       qna_state(), qna_submit(text, uuid), qna_public_list(uuid),
       qna_vote(uuid, uuid, boolean), qna_display(), qna_admin_list(text),
-      qna_admin_act(text, uuid, text), qna_admin_screen(text, text),
+      qna_admin_act(text, uuid, text, text, text), qna_admin_screen(text, text),
       qna_admin_settings(text, boolean, text, text)
       to anon;
 
@@ -154,7 +166,7 @@ begin
     revoke execute on function
       qna_state(), qna_submit(text, uuid), qna_public_list(uuid),
       qna_vote(uuid, uuid, boolean), qna_display(), qna_admin_list(text),
-      qna_admin_act(text, uuid, text), qna_admin_screen(text, text),
+      qna_admin_act(text, uuid, text, text, text), qna_admin_screen(text, text),
       qna_admin_settings(text, boolean, text, text)
       from anon;
 

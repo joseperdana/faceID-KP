@@ -225,3 +225,12 @@ Aturan bisnis (validasi, jeda per HP, transisi status, teks poin) ada di **fungs
 - Situs cadangan sudah di-deploy dan dites saat gladi bersih.
 - **Dua QR dicetak/disiapkan** (utama `/tanya` dan cadangan URL Netlify).
 - PIN disimpan oleh 2 orang panitia.
+
+## 14. Revisi 13 Nov 2026
+
+- Pesan sukses di halaman jemaat cukup "Terkirim!".
+- **Pesan pembuka** menggantikan "Seseorang memberikan N poin!". Admin memilih di toolbar: **Acak** (bawaan), salah satu dari 12 pesan (`Qna.INTROS`), atau **Tulis sendiri** (maks. 120 karakter). Pilihan berlaku untuk setiap klik **Tampilkan**; disimpan di `qna_questions.intro`. Kalau kosong, teks lama dipakai sebagai cadangan.
+- **Efek suara** sintetis (Web Audio, tanpa file): `ding`, `tada`, `confetti`, atau Acak; disimpan di `qna_questions.sfx`.
+- Display membacakan pesan pembuka dan isi pertanyaan **terpisah dengan jeda 0,7 detik**.
+- Mode upvote: jumlah dukungan tampil sebagai lencana "▲ N teman ikut penasaran" di kartu (tidak dibacakan).
+- Migrasi: `scripts/2026-11-13_qna_intro.sql` (kolom baru, `qna_admin_act` jadi 5 parameter, `qna_display` mengembalikan `votes` & `sfx`). Skrip `qna_fallback_on/off.sql` dan `qna_selftest.sql` ikut diperbarui.

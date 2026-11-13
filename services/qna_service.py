@@ -26,6 +26,8 @@ ERRORS = {
     "mode_locked": (409, "Tutup sesi dulu sebelum mengganti mode poin."),
     "nothing_showing": (409, "Tidak ada pertanyaan yang sedang tampil."),
     "forbidden": (403, "Akses admin ditolak."),
+    "invalid_intro": (400, "Pesan pembuka maksimal 120 karakter."),
+    "invalid_sfx": (400, "Efek suara tidak dikenal."),
 }
 
 DEFAULT_STATE = {"session_open": False, "points_mode": "hiasan"}
@@ -99,8 +101,12 @@ def admin_list() -> dict:
     return _obj(_rpc("qna_admin_list", {"p_pin": None}), DEFAULT_ADMIN_LIST)
 
 
-def admin_act(question_id: str, action: str) -> dict:
-    return _obj(_rpc("qna_admin_act", {"p_pin": None, "p_id": question_id, "p_action": action}), {})
+def admin_act(question_id: str, action: str, intro: Optional[str] = None,
+              sfx: Optional[str] = None) -> dict:
+    return _obj(_rpc("qna_admin_act", {
+        "p_pin": None, "p_id": question_id, "p_action": action,
+        "p_intro": intro, "p_sfx": sfx,
+    }), {})
 
 
 def admin_screen(action: str) -> dict:

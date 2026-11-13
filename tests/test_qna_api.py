@@ -233,3 +233,27 @@ def test_display_page_needs_login():
     res = client.get("/tanya/display", follow_redirects=False)
     assert res.status_code == 303 and res.headers["location"] == "/login"
     assert admin_client().get("/tanya/display").status_code == 200
+
+
+def test_show_forwards_intro_and_sfx(published, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qna_router.qna_service, "admin_act",
+                        lambda qid, action, **kw: calls.append((qid, action, kw)) or {"id": qid})
+    res = admin_client().post(f"/api/qna/admin/questions/{QID}/show",
+                              json={"intro": "Seorang anak Tuhan bertanya", "sfx": "confetti"})
+    assert res.status_code == 200
+    assert calls == [(QID, "show", {"intro": "Seorang anak Tuhan bertanya", "sfx": "confetti"})]
+
+
+def test_show_rejects_unknown_sfx_and_long_intro():
+    c = admin_client()
+    assert c.post(f"/api/qna/admin/questions/{QID}/show", json={"sfx": "gong"}).status_code == 422
+    assert c.post(f"/api/qna/admin/questions/{QID}/show", json={"intro": "x" * 121}).status_code == 422
+
+
+def test_intro_is_ignored_for_non_show_actions(published, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qna_router.qna_service, "admin_act",
+                        lambda qid, action, **kw: calls.append((qid, action, kw)) or {"id": qid})
+    admin_client().post(f"/api/qna/admin/questions/{QID}/approve", json={"intro": "abaikan"})
+    assert calls == [(QID, "approve", {})]

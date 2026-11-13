@@ -88,28 +88,75 @@
     await speakBrowser(text);
   }
 
-  // Tiga nada naik ala notifikasi donasi, dibangkitkan langsung tanpa file audio.
-  function chime() {
-    if (!audioCtx) return Promise.resolve();
+  const INTRO_PAUSE_MS = 700; // jeda antara pesan pembuka dan isi pertanyaan
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function tone(freq, at, dur, { type = "triangle", peak = 0.4 } = {}) {
     const now = audioCtx.currentTime;
-    [[880, 0], [1318.5, 0.18], [1760, 0.36]].forEach(([freq, at]) => {
-      const osc = audioCtx.createOscillator();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now + at);
+    gain.gain.exponentialRampToValueAtTime(peak, now + at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + at + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now + at);
+    osc.stop(now + at + dur + 0.05);
+  }
+
+  // Semua efek dibangkitkan langsung dengan Web Audio, tanpa file audio.
+  // Masing-masing mengembalikan lamanya (ms) supaya kartu muncul setelah bunyi.
+  // Tiga nada naik ala notifikasi donasi.
+  function sfxDing() {
+    [[880, 0], [1318.5, 0.18], [1760, 0.36]].forEach(([freq, at]) => tone(freq, at, 0.8));
+    return 1200;
+  }
+
+  // Fanfare singkat: satu ketukan pendek, lalu akor mayor yang ditahan.
+  function sfxTada() {
+    tone(392, 0, 0.14, { type: "sawtooth", peak: 0.18 });
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq) => tone(freq, 0.16, 1.1, { type: "sawtooth", peak: 0.12 }));
+    return 1400;
+  }
+
+  // Letupan confetti (desis pendek) disusul kilau nada-nada tinggi.
+  function sfxConfetti() {
+    const now = audioCtx.currentTime;
+    const length = Math.floor(audioCtx.sampleRate * 0.25);
+    const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+    [0, 0.08].forEach((at) => {
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = 1500;
       const gain = audioCtx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now + at);
-      gain.gain.exponentialRampToValueAtTime(0.4, now + at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.8);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(now + at);
-      osc.stop(now + at + 0.85);
+      gain.gain.value = 0.5;
+      source.connect(filter).connect(gain).connect(audioCtx.destination);
+      source.start(now + at);
     });
-    return new Promise((resolve) => setTimeout(resolve, 1200));
+    for (let i = 0; i < 8; i++) {
+      tone(2000 + Math.random() * 2500, 0.15 + i * 0.09, 0.3, { type: "sine", peak: 0.15 });
+    }
+    return 1300;
+  }
+
+  const SOUNDS = { ding: sfxDing, tada: sfxTada, confetti: sfxConfetti };
+
+  function playSfx(name) {
+    if (!audioCtx) return Promise.resolve();
+    return sleep((SOUNDS[name] || sfxDing)());
   }
 
   function showCard(q) {
     $("points").textContent = q.points_text;
     $("qbody").textContent = q.body;
+    const votes = q.votes || 0;
+    $("votes").textContent = votes > 0 ? `▲ ${votes} teman ikut penasaran` : "";
+    $("votes").hidden = votes <= 0;
     const card = $("alert");
     card.hidden = true;
     void card.offsetWidth; // ulang animasi masuk
@@ -122,11 +169,17 @@
     if (!d.question) { $("alert").hidden = true; return; }
     if (announce) {
       $("alert").hidden = true;
-      try { await chime(); } catch { /* tanpa bunyi pun kartu harus tetap muncul */ }
+      try { await playSfx(d.question.sfx); } catch { /* tanpa bunyi pun kartu harus tetap muncul */ }
       if (mine !== seq) return; // admin sudah menekan aksi lain saat bunyi berjalan
     }
     showCard(d.question);
-    if (announce) await speak(`${d.question.points_text} ${d.question.body}`, d.tts_engine, mine);
+    if (!announce) return;
+    // Dibacakan terpisah dengan jeda supaya pesan pembuka tidak menyambung ke isi.
+    await speak(d.question.points_text, d.tts_engine, mine);
+    if (mine !== seq) return;
+    await sleep(INTRO_PAUSE_MS);
+    if (mine !== seq) return;
+    await speak(d.question.body, d.tts_engine, mine);
   }
 
   function setConn(on) { $("conn").classList.toggle("on", on); }
@@ -156,7 +209,7 @@
     present(d, true);
   }
 
-  $("test").onclick = () => speakBrowser("Seseorang memberikan 10 poin! Ini contoh suara untuk uji coba.");
+  $("test").onclick = () => speakBrowser("Eh, ada pertanyaan nih! Ini contoh suara untuk uji coba.");
 
   // Chrome memblokir audio sampai ada interaksi; tombol ini membukanya sekali.
   $("start").onclick = async () => {

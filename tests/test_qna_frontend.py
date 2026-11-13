@@ -43,7 +43,7 @@ class FakeBackend:
     def _q(self, qid):
         return next(q for q in self.questions if q["id"] == qid)
 
-    def act(self, qid, action):
+    def act(self, qid, action, intro=None, sfx=None):
         q = self._q(qid)
         if action == "approve":
             q["status"] = "disetujui"
@@ -54,6 +54,7 @@ class FakeBackend:
                 if other["status"] == "tampil":
                     other["status"] = "selesai"
             q["status"], q["shown_at"] = "tampil", "2026-11-14T11:00:00+00:00"
+            q["intro"], q["sfx"] = intro, sfx
             self.settings.update(hidden=False, show_nonce=self.settings["show_nonce"] + 1)
         elif action == "done":
             q["status"] = "selesai"
@@ -67,7 +68,12 @@ class FakeBackend:
         base = {"nonce": self.settings["show_nonce"], "tts_engine": self.settings["tts_engine"]}
         if not q or self.settings["hidden"]:
             return {**base, "question": None}
-        return {**base, "question": {"id": q["id"], "body": q["body"], "points_text": "Seseorang memberikan 50 poin!"}}
+        votes = q["votes"] if self.settings["points_mode"] == "upvote" else None
+        return {**base, "question": {
+            "id": q["id"], "body": q["body"],
+            "points_text": q.get("intro") or "Seseorang memberikan 50 poin!",
+            "votes": votes, "sfx": q.get("sfx") or "ding",
+        }}
 
     def public(self, device):
         items = [q for q in self.questions if q["status"] in ("disetujui", "tampil")]
@@ -95,10 +101,11 @@ class FakeBackend:
             return ok(self.display())
         if path == "/api/qna/admin/questions":
             return ok({"settings": dict(self.settings),
-                       "questions": [{k: v for k, v in q.items() if k != "voters"} for q in self.questions]})
+                       "questions": [{k: v for k, v in q.items() if k not in ("voters", "intro", "sfx")}
+                                     for q in self.questions]})
         m = re.fullmatch(r"/api/qna/admin/questions/([^/]+)/(\w+)", path)
         if m:
-            self.act(m.group(1), m.group(2))
+            self.act(m.group(1), m.group(2), **(body or {}))
             return ok({"id": m.group(1), "action": m.group(2)})
         m = re.fullmatch(r"/api/qna/admin/screen/(\w+)", path)
         if m:
@@ -305,7 +312,7 @@ def test_display_shows_current_question_silently_on_load(page: Page, backend):
 
 RECORD_SPEECH = """
 window.__spoken = [];
-window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); };
+window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 50); };
 window.speechSynthesis.cancel = () => {};
 """
 
@@ -448,3 +455,69 @@ def test_fallback_admin_requires_pin(page: Page, fallback):
     page.click("#login button")
     expect(page.locator("#app")).to_be_visible()
     expect(page.locator("#linkOverlay")).to_have_attribute("href", "/display.html?mode=overlay")
+
+
+def test_jemaat_success_message_is_short(page: Page, backend):
+    page.goto(f"{BASE}/tanya")
+    page.fill("#body", "Pertanyaan singkat saja")
+    page.click("#send")
+    expect(page.locator("#msg")).to_have_text("Terkirim!")
+
+
+def test_admin_show_sends_chosen_intro_and_sfx(page: Page, backend):
+    qid = backend.add("Pilih pesan pembuka", "disetujui")
+    page.goto(f"{BASE}/tanya/admin")
+    page.select_option("#intro", "Seorang anak Tuhan bertanya")
+    page.select_option("#sfx", "tada")
+    with page.expect_response("**/api/qna/admin/questions/*/show"):
+        page.click("#col-disetujui [data-act=show]")
+    q = backend._q(qid)
+    assert (q["intro"], q["sfx"]) == ("Seorang anak Tuhan bertanya", "tada")
+
+
+def test_admin_show_with_custom_intro(page: Page, backend):
+    qid = backend.add("Pesan buatan admin", "disetujui")
+    page.goto(f"{BASE}/tanya/admin")
+    expect(page.locator("#introCustom")).to_be_hidden()
+    page.select_option("#intro", "__custom")
+    page.fill("#introCustom", "Pertanyaan dari barisan belakang!")
+    with page.expect_response("**/api/qna/admin/questions/*/show"):
+        page.click("#col-disetujui [data-act=show]")
+    assert backend._q(qid)["intro"] == "Pertanyaan dari barisan belakang!"
+
+
+def test_admin_random_defaults_pick_from_the_lists(page: Page, backend):
+    qid = backend.add("Biarkan acak", "disetujui")
+    page.goto(f"{BASE}/tanya/admin")
+    intros = page.evaluate("Qna.INTROS")
+    assert len(intros) >= 10
+    with page.expect_response("**/api/qna/admin/questions/*/show"):
+        page.click("#col-disetujui [data-act=show]")
+    q = backend._q(qid)
+    assert q["intro"] in intros
+    assert q["sfx"] in ("ding", "tada", "confetti")
+
+
+def test_display_reads_intro_then_body_and_shows_votes_badge(page: Page, backend):
+    backend.settings["points_mode"] = "upvote"
+    qid = backend.add("Apa itu panggilan?", "disetujui", votes=3)
+    page.add_init_script(RECORD_SPEECH)
+    page.goto(f"{BASE}/tanya/display")
+    page.click("#start")
+    expect(page.locator("#conn")).to_have_class(re.compile(r"\bon\b"))
+    backend.act(qid, "show", intro="Eh, ada pertanyaan nih!", sfx="confetti")
+    expect(page.locator("#points")).to_have_text("Eh, ada pertanyaan nih!", timeout=10000)
+    expect(page.locator("#votes")).to_have_text("▲ 3 teman ikut penasaran")
+    page.wait_for_function("window.__spoken.length >= 2", timeout=10000)
+    # Dibacakan terpisah supaya ada jeda: pesan pembuka dulu, baru isi pertanyaan.
+    assert page.evaluate("window.__spoken.slice(0, 2)") == ["Eh, ada pertanyaan nih!", "Apa itu panggilan?"]
+
+
+def test_display_hides_votes_badge_in_hiasan_mode(page: Page, backend):
+    qid = backend.add("Tanpa lencana", "disetujui")
+    page.goto(f"{BASE}/tanya/display")
+    page.click("#start")
+    expect(page.locator("#conn")).to_have_class(re.compile(r"\bon\b"))
+    backend.act(qid, "show", sfx="tada")
+    expect(page.locator("#qbody")).to_have_text("Tanpa lencana", timeout=10000)
+    expect(page.locator("#votes")).to_be_hidden()

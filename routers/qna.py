@@ -130,17 +130,25 @@ class SettingsDto(BaseModel):
     tts_engine: Optional[Literal["browser", "cloud"]] = None
 
 
+class ShowDto(BaseModel):
+    # Pesan pembuka & efek dipilih admin per pertanyaan; keduanya opsional
+    # (kosong = teks bawaan dan bunyi "ding").
+    intro: Optional[str] = Field(default=None, max_length=120)
+    sfx: Optional[Literal["ding", "tada", "confetti"]] = None
+
+
 @router.get("/api/qna/admin/questions", dependencies=[Depends(check_admin_auth)])
 def admin_questions():
     return _call("admin_list", qna_service.admin_list)
 
 
 @router.post("/api/qna/admin/questions/{question_id}/{action}", dependencies=[Depends(check_admin_auth)])
-def admin_act(question_id: UUID, action: str):
+def admin_act(question_id: UUID, action: str, payload: Optional[ShowDto] = None):
     if action not in QUESTION_ACTIONS:
         return _error(QnaError("invalid_action"))
     kinds = ("questions", "display") if action in ("show", "done") else ("questions",)
-    return _announce(_call("admin_act", qna_service.admin_act, str(question_id), action), *kinds)
+    extra = payload.model_dump() if action == "show" and payload else {}
+    return _announce(_call("admin_act", qna_service.admin_act, str(question_id), action, **extra), *kinds)
 
 
 @router.post("/api/qna/admin/screen/{screen_action}", dependencies=[Depends(check_admin_auth)])

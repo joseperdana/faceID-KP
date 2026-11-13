@@ -71,7 +71,7 @@
       await QnaApi.submit(body);
       $("body").value = "";
       updateCount();
-      say("Terkirim! Pertanyaanmu menunggu dipilih panitia.", "ok");
+      say("Terkirim!", "ok");
       startCooldown(30);
     } catch (err) {
       say(err.message, "err");
