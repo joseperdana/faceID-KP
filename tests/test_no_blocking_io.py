@@ -69,6 +69,9 @@ class FakeSupabase:
         query = str(request.url.query)
         if "/rpc/" in path:
             body = self.match_result
+        elif request.method == "GET" and path.endswith("/feature_flags"):
+            # agar rute qna yang dikunci flag benar-benar memanggil qna_service di tes ini
+            body = [{"key": "qna", "enabled": True}]
         elif request.method == "POST":
             body = [{"id": 1, "user_id": 1}]
         elif request.method == "GET" and path.endswith("/users") and (
@@ -111,6 +114,8 @@ def fake_db(monkeypatch, tmp_path):
     # Upload photobooth jangan sampai menulis ke frontend/uploads sungguhan.
     monkeypatch.setattr("routers.photobooth.UPLOAD_DIR", tmp_path)
     monkeypatch.setattr("face_service.face_service.get_embedding", lambda _content: [0.1] * 512)
+    # /api/qna/admin/tts tidak boleh menembak Google sungguhan dari tes.
+    monkeypatch.delenv("GOOGLE_TTS_API_KEY", raising=False)
 
     yield fake
 
@@ -139,6 +144,7 @@ class Recipe:
 
 
 KNOWN_FACE = [{"id": 1, "full_name": "Anggota Uji", "similarity": 0.9}]
+QNA_DEVICE = "11111111-1111-4111-8111-111111111111"
 
 # (METHOD, template path) -> cara memanggilnya dengan input minimal yang sah.
 RECIPES: Dict[tuple, Recipe] = {
@@ -186,11 +192,26 @@ RECIPES: Dict[tuple, Recipe] = {
     ("GET", "/api/flags"): Recipe(),
     ("GET", "/api/flags/detail"): Recipe(admin=True),
     ("PUT", "/api/flags/{key}"): Recipe(lambda: {"json": {"enabled": True}}, admin=True),
+    ("GET", "/tanya"): Recipe(),
+    ("GET", "/tanya/admin"): Recipe(admin=True),
+    ("GET", "/tanya/display"): Recipe(admin=True),
+    ("GET", "/api/qna/state"): Recipe(),
+    ("POST", "/api/qna/questions"): Recipe(lambda: {"json": {"body": "Pertanyaan uji", "device_id": QNA_DEVICE}}),
+    ("GET", "/api/qna/questions/public"): Recipe(lambda: {"params": {"device_id": QNA_DEVICE}}),
+    ("POST", "/api/qna/questions/{question_id}/vote"): Recipe(lambda: {"json": {"device_id": QNA_DEVICE, "on": True}}),
+    ("GET", "/api/qna/display"): Recipe(),
+    ("GET", "/api/qna/admin/questions"): Recipe(admin=True),
+    ("POST", "/api/qna/admin/questions/{question_id}/{action}"): Recipe(admin=True),
+    ("POST", "/api/qna/admin/screen/{screen_action}"): Recipe(admin=True),
+    ("PATCH", "/api/qna/admin/settings"): Recipe(lambda: {"json": {"session_open": True}}, admin=True),
+    ("GET", "/api/qna/admin/stream"): Recipe(lambda: {"params": {"max_seconds": 0}}, admin=True),
+    ("POST", "/api/qna/admin/tts"): Recipe(lambda: {"json": {"text": "uji"}}, admin=True),
 }
 
 PATH_PARAMS = {
     "user_id": "1", "target_date": "2026-09-19", "log_id": "1",
     "photo_id": "tidakada", "key": "photobooth",
+    "question_id": "22222222-2222-4222-8222-222222222222", "action": "approve", "screen_action": "hide",
 }
 
 

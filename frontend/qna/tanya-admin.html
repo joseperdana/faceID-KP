@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Tanya Jawab · KP GKI Bromo</title>
+  <link rel="stylesheet" href="/static/qna/qna.css">
+</head>
+<body class="admin">
+  <form id="login" class="card setup" hidden>
+    <h1>Masuk admin</h1>
+    <label for="pin">PIN panitia</label>
+    <input id="pin" type="password" autocomplete="current-password" required>
+    <button class="primary">Masuk</button>
+    <p id="loginMsg" class="muted" role="status"></p>
+  </form>
+
+  <main id="app" hidden>
+    <div class="toolbar">
+      <span id="conn" class="conn" title="Status koneksi"></span>
+      <button id="session" type="button" class="primary">Buka sesi</button>
+      <label>Mode poin
+        <select id="mode"><option value="hiasan">Hiasan</option><option value="upvote">Upvote</option></select>
+      </label>
+      <label>Suara
+        <select id="tts"><option value="browser">Browser</option><option value="cloud">Cloud</option></select>
+      </label>
+      <label>Pesan pembuka
+        <select id="intro"><option value="__random">Acak</option></select>
+      </label>
+      <input id="introCustom" type="text" maxlength="120" placeholder="Tulis pesan pembuka…" hidden>
+      <label>Efek
+        <select id="sfx">
+          <option value="__random">Acak</option>
+          <option value="ding">Ding</option>
+          <option value="tada">Tada</option>
+          <option value="confetti">Confetti</option>
+        </select>
+      </label>
+      <button id="hide" type="button">Kosongkan layar</button>
+      <button id="replay" type="button">Putar ulang</button>
+      <a id="linkOverlay" target="_blank" rel="noopener">Display overlay</a>
+      <a id="linkFull" target="_blank" rel="noopener">Display penuh</a>
+    </div>
+
+    <div class="board">
+      <section class="col">
+        <h2>Masuk (<span id="n-masuk">0</span>)</h2>
+        <ul id="col-masuk" class="qlist"></ul>
+      </section>
+      <section class="col">
+        <h2>Disetujui (<span id="n-disetujui">0</span>)
+          <select id="sort" aria-label="Urutkan"><option value="votes">Dukungan</option><option value="time">Waktu</option></select>
+        </h2>
+        <ul id="col-disetujui" class="qlist"></ul>
+      </section>
+      <section class="col">
+        <h2>Tampil</h2>
+        <ul id="col-tampil" class="qlist"></ul>
+        <h2>Selesai (<span id="n-selesai">0</span>)</h2>
+        <ul id="col-selesai" class="qlist"></ul>
+        <h2>Ditolak (<span id="n-ditolak">0</span>)</h2>
+        <ul id="col-ditolak" class="qlist"></ul>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="alert" hidden></div>
+
+  <script src="/static/qna/config.js"></script>
+  <script src="/static/qna/qna-common.js"></script>
+  <script src="/static/qna/qna-api-kp.js"></script>
+  <script src="/static/qna/qna-api-supabase.js"></script>
+  <script src="/static/qna/admin.js"></script>
+</body>
+</html>

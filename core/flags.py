@@ -70,6 +70,11 @@ FLAGS = {
         lambda: True,
         "Izinkan pendaftaran anggota baru. Matikan untuk menutup pendaftaran tanpa mematikan absensi.",
     ),
+    "qna": (
+        "Tanya Jawab Podcast",
+        lambda: False,
+        "Buka halaman /tanya untuk jemaat mengirim pertanyaan. Nyalakan hanya di acara podcast.",
+    ),
 }
 
 _cache: Dict[str, bool] = {}

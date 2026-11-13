@@ -26,6 +26,16 @@ def pin_feature_flags(monkeypatch):
     flags._cache = {}
     flags._cached_at = 0.0
 
+@pytest.fixture(autouse=True)
+def no_real_tts_key(monkeypatch):
+    """Tes tidak boleh pernah memanggil Google sungguhan, walau .env developer berisi kunci.
+
+    load_dotenv() di atas memuat .env ke lingkungan proses, jadi kunci TTS asli
+    bisa ikut terbaca. Tes yang memang butuh kunci memasangnya sendiri lewat setenv.
+    """
+    monkeypatch.delenv("GOOGLE_TTS_API_KEY", raising=False)
+
+
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
     return {
